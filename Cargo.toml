@@ -14,3 +14,10 @@ categories = ["command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+wharf = "0.1.7"
+log = "0.4.8"
+failure = "0.1.6"
+tokio = {version="0.2.4", features=["macros"]}
+pretty_env_logger = "0.3.1"
+toml = "0.5"
+serde = { version = "1.0", features = ["derive"] }
