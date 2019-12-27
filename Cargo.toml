@@ -1,8 +1,15 @@
 [package]
 name = "pkger"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["wojciech.kepka <wojtek.kepka@protonmail.com>"]
 edition = "2018"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/wojciechkepka/pkger"
+repository = "https://github.com/wojciechkepka/pkger"
+keywords = ["package", "unix", "linux", "deb", "rpm", "build", "pkg"]
+description = "Building tool inspired by fpm-builder"
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
