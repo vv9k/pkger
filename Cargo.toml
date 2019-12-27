@@ -7,7 +7,7 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/wojciechkepka/pkger"
 repository = "https://github.com/wojciechkepka/pkger"
-keywords = ["package", "unix", "linux", "deb", "rpm", "build", "pkg"]
+keywords = ["unix", "linux", "deb", "rpm", "build"]
 description = "Building tool inspired by fpm-builder"
 categories = ["command-line-utilities"]
 
