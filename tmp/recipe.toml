@@ -1,0 +1,20 @@
+[info]
+name = "sfx_curl"
+description = "sfx_curl"
+vendor = "Softax"
+version = "7.39.0"
+source = "curl-7.39.0.tar.gz"
+depends_on = ["gcc", "make", "patch"]
+images = ["ubuntu18"]
+exclude = ["usr/share/info/dir"]
+
+[build]
+steps = [
+	"./configure --prefix = \"/opt/curl/7.39.0\"",
+	"make"
+]
+
+[install]
+steps = [
+	"make install"
+]
