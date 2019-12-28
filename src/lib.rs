@@ -32,6 +32,14 @@ struct Recipe {
     build: Build,
     install: Install,
 }
+impl Recipe {
+    fn new(entry: fs::DirEntry) -> Result<Recipe, Error> {
+        let mut path = entry.path();
+        path.push("recipe.toml");
+        Ok(toml::from_str::<Recipe>(&fs::read_to_string(&path)?)?)
+    }
+}
+type Recipes = Vec<Recipe>;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -68,20 +76,24 @@ pub struct Pkger {
     docker: Docker,
     pub config: Config,
     images: Images,
+    recipes: Recipes,
 }
 impl Pkger {
     pub fn new(docker_addr: &str, conf_file: &str) -> Result<Self, Error> {
         let config = toml::from_str::<Config>(&fs::read_to_string(conf_file)?)?;
         trace!("{:?}", config);
         let images = Pkger::parse_images_dir(&config.images_dir)?;
+        let recipes = Pkger::parse_recipes_dir(&config.packages_dir)?;
         Ok(Pkger {
             docker: Docker::new(docker_addr)?,
             config,
             images,
+            recipes,
         })
     }
 
     fn parse_images_dir(p: &str) -> Result<Images, Error> {
+        trace!("parsing images dir - {}", p);
         let mut images = Vec::new();
         for _entry in fs::read_dir(p)? {
             if let Ok(entry) = _entry {
@@ -102,5 +114,30 @@ impl Pkger {
             }
         }
         Ok(images)
+    }
+
+    fn parse_recipes_dir(p: &str) -> Result<Recipes, Error> {
+        trace!("parsing recipes dir - {}", p);
+        let mut recipes = Vec::new();
+        for _entry in fs::read_dir(p)? {
+            if let Ok(entry) = _entry {
+                if let Ok(ftype) = entry.file_type() {
+                    if ftype.is_dir() {
+                        let path = entry.path();
+                        match Recipe::new(entry) {
+                            Ok(recipe) => {
+                                trace!("{:?}", recipe);
+                                recipes.push(recipe);
+                            }
+                            Err(e) => eprintln!(
+                                "directory {} doesn't have a recipe.toml",
+                                path.as_path().display()
+                            ),
+                        }
+                    }
+                }
+            }
+        }
+        Ok(recipes)
     }
 }
