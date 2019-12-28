@@ -1,6 +1,7 @@
 use failure::Error;
 use log::*;
 use serde::Deserialize;
+use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
 use wharf::Docker;
@@ -44,6 +45,21 @@ pub struct Config {
 struct Image {
     name: String,
     path: PathBuf,
+    has_dockerfile: bool,
+}
+impl Image {
+    fn new(name: OsString, path: PathBuf) -> Image {
+        let has_dockerfile = Image::has_dockerfile(path.clone());
+        Image {
+            name: name.into_string().unwrap_or_default(),
+            path,
+            has_dockerfile,
+        }
+    }
+    fn has_dockerfile(mut p: PathBuf) -> bool {
+        p.push("Dockerfile");
+        p.as_path().exists()
+    }
 }
 type Images = Vec<Image>;
 
@@ -71,15 +87,16 @@ impl Pkger {
             if let Ok(entry) = _entry {
                 if let Ok(ftype) = entry.file_type() {
                     if ftype.is_dir() {
-                        let image = Image {
-                            name: entry
-                                .file_name()
-                                .into_string()
-                                .unwrap_or("default_image_name".into()),
-                            path: entry.path(),
-                        };
+                        let image = Image::new(entry.file_name(), entry.path());
                         trace!("{:?}", image);
-                        images.push(image);
+                        if image.has_dockerfile {
+                            images.push(image);
+                        } else {
+                            error!(
+                                "image {} doesn't have Dockerfile in it's root directory",
+                                image.name
+                            );
+                        }
                     }
                 }
             }
