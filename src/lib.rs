@@ -1,7 +1,6 @@
 use failure::Error;
 use log::*;
 use serde::Deserialize;
-use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
 use wharf::Docker;
@@ -48,10 +47,11 @@ struct Image {
     has_dockerfile: bool,
 }
 impl Image {
-    fn new(name: OsString, path: PathBuf) -> Image {
+    fn new(entry: fs::DirEntry) -> Image {
+        let path = entry.path();
         let has_dockerfile = Image::has_dockerfile(path.clone());
         Image {
-            name: name.into_string().unwrap_or_default(),
+            name: entry.file_name().into_string().unwrap_or_default(),
             path,
             has_dockerfile,
         }
@@ -87,7 +87,7 @@ impl Pkger {
             if let Ok(entry) = _entry {
                 if let Ok(ftype) = entry.file_type() {
                     if ftype.is_dir() {
-                        let image = Image::new(entry.file_name(), entry.path());
+                        let image = Image::new(entry);
                         trace!("{:?}", image);
                         if image.has_dockerfile {
                             images.push(image);
