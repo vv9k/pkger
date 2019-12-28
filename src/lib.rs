@@ -1,8 +1,12 @@
+#[macro_use]
+extern crate failure;
+use chrono::prelude::Local;
 use failure::Error;
 use log::*;
 use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
+use wharf::opts::ContainerBuilderOpts;
 use wharf::Docker;
 
 #[derive(Deserialize, Debug)]
@@ -15,17 +19,14 @@ struct Info {
     depends: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
 }
-
 #[derive(Deserialize, Debug)]
 struct Build {
     steps: Vec<String>,
 }
-
 #[derive(Deserialize, Debug)]
 struct Install {
     steps: Vec<String>,
 }
-
 #[derive(Deserialize, Debug)]
 struct Recipe {
     info: Info,
@@ -139,5 +140,22 @@ impl Pkger {
             }
         }
         Ok(recipes)
+    }
+
+    pub async fn create_container(&self, image: &str) -> Result<String, Error> {
+        let mut opts = ContainerBuilderOpts::new();
+        opts.image(image)
+            .shell(&["/bin/bash".into()])
+            .cmd(&["/bin/bash"]);
+        let name = format!("pkger-{}", Local::now().timestamp());
+        match self.docker.containers().create(&name, &opts).await {
+            Ok(_) => Ok(name),
+            Err(e) => Err(format_err!(
+                "failed to create container {} with image {} - {}",
+                name,
+                image,
+                e
+            )),
+        }
     }
 }
