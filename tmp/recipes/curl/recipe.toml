@@ -5,7 +5,7 @@ vendor = ""
 version = "7.39.0"
 source = "curl-7.39.0.tar.gz"
 depends_on = ["gcc", "make", "patch"]
-images = ["ubuntu18"]
+images = ["ubuntu"]
 exclude = ["usr/share/info/dir"]
 
 [build]
