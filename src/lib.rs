@@ -4,11 +4,12 @@ use chrono::prelude::Local;
 use failure::Error;
 use log::*;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::collections::HashMap;
 use wharf::opts::{ContainerBuilderOpts, ExecOpts, UploadArchiveOpts};
 use wharf::Docker;
+use wharf::result::CmdOut;
 
 #[derive(Deserialize, Debug)]
 struct Info {
@@ -167,11 +168,19 @@ impl Pkger {
             )),
         }
     }
-    pub async fn exec_step(&self, cmd: &[String], container: &str, build_dir: &str) -> Result<String, Error> {
+    pub async fn exec_step(
+        &self,
+        cmd: &[String],
+        container: &str,
+        build_dir: &str,
+    ) -> Result<CmdOut, Error> {
         trace!("executing {:?} in {}", cmd, container);
         let mut opts = ExecOpts::new();
-        opts.cmd(&cmd).working_dir(&build_dir).attach_stderr(true).attach_stdout(true);
-        
+        opts.cmd(&cmd)
+            .working_dir(&build_dir)
+            .attach_stderr(true)
+            .attach_stdout(true);
+
         let c = self.docker.container(container);
         c.exec(&opts).await
     }
@@ -182,27 +191,43 @@ impl Pkger {
                 for image in r.info.images.iter() {
                     match self.create_container(&image).await {
                         Ok(container) => {
-                            let build_dir = self.extract_src_in_container(&container, &r.info).await?;
-                            self.execute_build_steps(&container, &r.build, &build_dir).await?;
+                            let build_dir =
+                                self.extract_src_in_container(&container, &r.info).await?;
+                            self.execute_build_steps(&container, &r.build, &build_dir)
+                                .await?;
                         }
-                        Err(e) => return Err(format_err!("failed creating container for image {} - {}", image, e)),
+                        Err(e) => {
+                            return Err(format_err!(
+                                "failed creating container for image {} - {}",
+                                image,
+                                e
+                            ))
+                        }
                     }
                 }
             }
-            None => error!("no recipe named {} found in recipes directory {}", recipe.as_ref(), self.config.recipes_dir),
+            None => error!(
+                "no recipe named {} found in recipes directory {}",
+                recipe.as_ref(),
+                self.config.recipes_dir
+            ),
         }
 
         Ok(())
     }
 
     // Returns a path to build directory
-    async fn extract_src_in_container(&self, container: &str, info: &Info) -> Result<String, Error>  {
+    async fn extract_src_in_container(
+        &self,
+        container: &str,
+        info: &Info,
+    ) -> Result<String, Error> {
         let container = self.docker.container(&container);
         container.start().await?;
         let mut create_dir = ExecOpts::new();
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
-        create_dir.cmd(&["mkdir".into(), build_dir.clone()]);
-        println!("{}", container.exec(&create_dir).await?);
+        create_dir.cmd(&["mkdir".into(), build_dir.clone()]).tty(true).attach_stdout(true).attach_stderr(true);
+        println!("{:?}", container.exec(&create_dir).await?);
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
@@ -211,15 +236,54 @@ impl Pkger {
                 container.upload_archive(&archive, &opts).await?;
                 Ok(build_dir)
             }
-            Err(e) => Err(format_err!("no archive in {}/{}/{} - {}", &self.config.recipes_dir, &info.name, &info.source, e))
+            Err(e) => Err(format_err!(
+                "no archive in {}/{}/{} - {}",
+                &self.config.recipes_dir,
+                &info.name,
+                &info.source,
+                e
+            )),
         }
     }
 
-    async fn execute_build_steps(&self, container: &str, build: &Build, build_dir: &str) -> Result<(), Error> {
+    async fn execute_build_steps(
+        &self,
+        container: &str,
+        build: &Build,
+        build_dir: &str,
+    ) -> Result<(), Error> {
         for step in build.steps.iter() {
-            match self.exec_step(&step.split_ascii_whitespace().map(|s| s.to_string()).collect::<Vec<String>>(), container, &build_dir).await {
-                Ok(out) => println!("OUT -> {}", out),
-                Err(e) => return Err(format_err!("failed while executing step {:?} in container {} - {}", step, container, e)),
+            match self
+                .exec_step(
+                    &step
+                        .split_ascii_whitespace()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>(),
+                    container,
+                    &build_dir,
+                )
+                .await
+            {
+                Ok(out) => {
+                    if out.info.exit_code != 0 {
+                        return Err(format_err!(
+                            "failed while executing step {:?} in container {} - {}",
+                            step,
+                            container,
+                            out.out
+                        ))
+                    } else {
+                        println!("{:?}", out);
+                    }
+                }
+                Err(e) => {
+                    return Err(format_err!(
+                        "failed while executing step {:?} in container {} - {}",
+                        step,
+                        container,
+                        e
+                    ))
+                }
             }
         }
 
