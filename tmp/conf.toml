@@ -1,4 +1,4 @@
 images_dir = "/home/wojtek/dev/rust/pkger/tmp/images"
-packages_dir = "/home/wojtek/dev/rust/pkger/tmp/packages"
+recipes_dir = "/home/wojtek/dev/rust/pkger/tmp/recipes"
 output_dir = "/home/wojtek/dev/rust/pkger/tmp/output"
 
