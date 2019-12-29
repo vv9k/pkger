@@ -2,15 +2,15 @@
 name = "curl"
 description = "curl"
 vendor = ""
-version = "7.39.0"
-source = "curl-7.39.0.tar.gz"
+version = "7.67.0"
+source = "curl-7.67.0.tar.gz"
 depends_on = ["gcc", "make", "patch"]
 images = ["ubuntu"]
 exclude = ["usr/share/info/dir"]
 
 [build]
 steps = [
-	"./configure --prefix = \"/opt/curl/7.39.0\"",
+	"./curl-7.67.0/configure --prefix=/opt/curl/7.67.0",
 	"make"
 ]
 

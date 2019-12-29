@@ -149,8 +149,13 @@ impl Pkger {
     async fn create_container(&self, image: &str) -> Result<String, Error> {
         let mut opts = ContainerBuilderOpts::new();
         opts.image(image)
-            .shell(&["/bin/bash".into()])
-            .cmd(&["/bin/bash"]);
+            .shell(&["/bin/bash"])
+            .cmd(&["/bin/bash"])
+            .tty(true)
+            .attach_stdout(true)
+            .open_stdin(true)
+            .attach_stderr(true)
+            .attach_stdin(true);
         let name = format!("pkger-{}", Local::now().timestamp());
         match self.docker.containers().create(&name, &opts).await {
             Ok(_) => Ok(name),
@@ -162,10 +167,10 @@ impl Pkger {
             )),
         }
     }
-    pub async fn exec_step(&self, cmd: &[String], container: &str) -> Result<String, Error> {
+    pub async fn exec_step(&self, cmd: &[String], container: &str, build_dir: &str) -> Result<String, Error> {
         trace!("executing {:?} in {}", cmd, container);
         let mut opts = ExecOpts::new();
-        opts.cmd(&cmd).attach_stderr(true).attach_stdout(true).tty(true);
+        opts.cmd(&cmd).working_dir(&build_dir).attach_stderr(true).attach_stdout(true);
         
         let c = self.docker.container(container);
         c.exec(&opts).await
@@ -177,8 +182,8 @@ impl Pkger {
                 for image in r.info.images.iter() {
                     match self.create_container(&image).await {
                         Ok(container) => {
-                            self.extract_src_in_container(&container, &r.info).await?;
-                            self.execute_build_steps(&container, &r.build).await?;
+                            let build_dir = self.extract_src_in_container(&container, &r.info).await?;
+                            self.execute_build_steps(&container, &r.build, &build_dir).await?;
                         }
                         Err(e) => return Err(format_err!("failed creating container for image {} - {}", image, e)),
                     }
@@ -195,22 +200,27 @@ impl Pkger {
         let container = self.docker.container(&container);
         container.start().await?;
         let mut create_dir = ExecOpts::new();
-        let build_dir = format!("/tmp/{}-{}", info.name, Local::now().timestamp());
-        create_dir.cmd(&["mkdir".into(), build_dir.clone()]).attach_stdout(true).attach_stderr(true);
-        container.exec(&create_dir).await?;
+        let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
+        create_dir.cmd(&["mkdir".into(), build_dir.clone()]);
+        println!("{}", container.exec(&create_dir).await?);
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
-        let archive = fs::read(&info.source)?;
-        container.upload_archive(&archive, &opts).await?;
-
-        Ok(build_dir)
+        match fs::read(&info.source) {
+            Ok(archive) => {
+                container.upload_archive(&archive, &opts).await?;
+                Ok(build_dir)
+            }
+            Err(e) => Err(format_err!("no archive in {}/{}/{} - {}", &self.config.recipes_dir, &info.name, &info.source, e))
+        }
     }
 
-    async fn execute_build_steps(&self, container: &str, build: &Build) -> Result<(), Error> {
+    async fn execute_build_steps(&self, container: &str, build: &Build, build_dir: &str) -> Result<(), Error> {
         for step in build.steps.iter() {
-            let out = self.exec_step(&step.split_ascii_whitespace().map(|s| s.to_string()).collect::<Vec<String>>(), container).await?;
-            println!("{}", out);
+            match self.exec_step(&step.split_ascii_whitespace().map(|s| s.to_string()).collect::<Vec<String>>(), container, &build_dir).await {
+                Ok(out) => println!("OUT -> {}", out),
+                Err(e) => return Err(format_err!("failed while executing step {:?} in container {} - {}", step, container, e)),
+            }
         }
 
         Ok(())
