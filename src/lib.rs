@@ -153,7 +153,7 @@ impl Pkger {
         Ok(recipes)
     }
 
-    async fn create_container(&self, image: &str) -> Result<String, Error> {
+    async fn create_container(&self, image: &str) -> Result<Container<'_>, Error> {
         let mut opts = ContainerBuilderOpts::new();
         opts.image(image)
             .shell(&["/bin/bash"])
@@ -165,7 +165,7 @@ impl Pkger {
             .attach_stdin(true);
         let name = format!("pkger-{}", Local::now().timestamp());
         match self.docker.containers().create(&name, &opts).await {
-            Ok(_) => Ok(name),
+            Ok(_) => Ok(self.docker.container(&name)),
             Err(e) => Err(format_err!(
                 "failed to create container {} with image {} - {}",
                 name,
@@ -177,29 +177,28 @@ impl Pkger {
     pub async fn exec_step(
         &self,
         cmd: &[&str],
-        container: &str,
+        container: &'_ Container<'_>,
         build_dir: &str,
     ) -> Result<CmdOut, Error> {
-        println!("executing {:?} in {}", cmd, container);
+        println!("executing {:?} in {}", cmd, &container.id);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
             .working_dir(&build_dir)
             .attach_stderr(true)
             .attach_stdout(true);
 
-        let c = self.docker.container(container);
-        match c.exec(&opts).await {
+        match container.exec(&opts).await {
             Ok(out) if out.info.exit_code != 0 => Err(format_err!(
                 "failed to exec step {:?} in container {} - {:?}",
                 cmd,
-                &c.id,
+                &container.id,
                 out
             )),
             Ok(out) => Ok(out),
             Err(e) => Err(format_err!(
                 "failed to exec step {:?} in container {} - {:?}",
                 cmd,
-                &c.id,
+                &container.id,
                 e
             )),
         }
@@ -246,7 +245,7 @@ impl Pkger {
             match container_os {
                 Os::Ubuntu => {
                     match self
-                        .exec_step(&["apt", "-y", "update"], &container.id, "/".into())
+                        .exec_step(&["apt", "-y", "update"], &container, "/".into())
                         .await
                     {
                         Ok(out) => println!("{:?}", out),
@@ -267,10 +266,7 @@ impl Pkger {
                             .collect::<Vec<&str>>()[..],
                     ]
                     .concat();
-                    match self
-                        .exec_step(&install_cmd, &container.id, "/".into())
-                        .await
-                    {
+                    match self.exec_step(&install_cmd, &container, "/".into()).await {
                         Ok(out) => println!("{:?}", out),
                         Err(e) => {
                             return Err(format_err!(
@@ -290,16 +286,15 @@ impl Pkger {
     // Returns a path to build directory
     async fn extract_src_in_container(
         &self,
-        container_id: &str,
+        container: &'_ Container<'_>,
         info: &Info,
     ) -> Result<String, Error> {
-        let container = self.docker.container(&container_id);
         container.start().await?;
 
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
         println!(
             "{:?}",
-            self.exec_step(&["mkdir", &build_dir], &container_id, "/".into())
+            self.exec_step(&["mkdir", &build_dir], &container, "/".into())
                 .await?
         );
 
@@ -323,20 +318,21 @@ impl Pkger {
 
     async fn execute_build_steps(
         &self,
-        container: &str,
+        container: &'_ Container<'_>,
         build: &Build,
         build_dir: &str,
     ) -> Result<(), Error> {
         for step in build.steps.iter() {
-            println!("{:?}", self
-                .exec_step(
+            println!(
+                "{:?}",
+                self.exec_step(
                     &step.split_ascii_whitespace().collect::<Vec<&str>>(),
                     container,
                     &build_dir,
                 )
-                .await?);
+                .await?
+            );
         }
-
         Ok(())
     }
 }
