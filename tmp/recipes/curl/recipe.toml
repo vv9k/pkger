@@ -6,6 +6,7 @@ version = "7.67.0"
 source = "curl-7.67.0.tar.gz"
 depends = ["gcc", "make", "patch", "binutils"]
 images = ["ubuntu:latest"]
+os = "ubuntu"
 exclude = ["usr/share/info/dir"]
 
 [build]
