@@ -7,9 +7,15 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use wharf::api::Container;
 use wharf::opts::{ContainerBuilderOpts, ExecOpts, UploadArchiveOpts};
-use wharf::Docker;
 use wharf::result::CmdOut;
+use wharf::Docker;
+
+enum Os {
+    Ubuntu,
+    Redhat,
+}
 
 #[derive(Deserialize, Debug)]
 struct Info {
@@ -170,11 +176,10 @@ impl Pkger {
     }
     pub async fn exec_step(
         &self,
-        cmd: &[String],
+        cmd: &[&str],
         container: &str,
         build_dir: &str,
     ) -> Result<CmdOut, Error> {
-        trace!("executing {:?} in {}", cmd, container);
         println!("executing {:?} in {}", cmd, container);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
@@ -183,7 +188,21 @@ impl Pkger {
             .attach_stdout(true);
 
         let c = self.docker.container(container);
-        c.exec(&opts).await
+        match c.exec(&opts).await {
+            Ok(out) if out.info.exit_code != 0 => Err(format_err!(
+                "failed to exec step {:?} in container {} - {:?}",
+                cmd,
+                &c.id,
+                out
+            )),
+            Ok(out) => Ok(out),
+            Err(e) => Err(format_err!(
+                "failed to exec step {:?} in container {} - {:?}",
+                cmd,
+                &c.id,
+                e
+            )),
+        }
     }
 
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
@@ -217,22 +236,82 @@ impl Pkger {
         Ok(())
     }
 
+    async fn install_deps(
+        &self,
+        container: &'_ Container<'_>,
+        info: &Info,
+        container_os: Os,
+    ) -> Result<(), Error> {
+        if let Some(dependencies) = &info.depends {
+            match container_os {
+                Os::Ubuntu => {
+                    match self
+                        .exec_step(&["apt", "-y", "update"], &container.id, "/".into())
+                        .await
+                    {
+                        Ok(out) => println!("{:?}", out),
+                        Err(e) => {
+                            return Err(format_err!(
+                                "failed to update container {} - {}",
+                                &container.id,
+                                e
+                            ))
+                        }
+                    }
+
+                    let install_cmd = [
+                        &vec!["apt", "-y", "install"][..],
+                        &dependencies
+                            .iter()
+                            .map(|s| s.as_ref())
+                            .collect::<Vec<&str>>()[..],
+                    ]
+                    .concat();
+                    match self
+                        .exec_step(&install_cmd, &container.id, "/".into())
+                        .await
+                    {
+                        Ok(out) => println!("{:?}", out),
+                        Err(e) => {
+                            return Err(format_err!(
+                                "failed to install dependencies in container {} - {}",
+                                &container.id,
+                                e
+                            ))
+                        }
+                    }
+                }
+                _ => unimplemented!(),
+            }
+        }
+        Ok(())
+    }
+
     // Returns a path to build directory
     async fn extract_src_in_container(
         &self,
-        container: &str,
+        container_id: &str,
         info: &Info,
     ) -> Result<String, Error> {
-        let container = self.docker.container(&container);
+        let container = self.docker.container(&container_id);
         container.start().await?;
-        let mut create_dir = ExecOpts::new();
+
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
-        create_dir.cmd(&["mkdir".into(), build_dir.clone()]).tty(true).attach_stdout(true).attach_stderr(true);
-        println!("{:?}", container.exec(&create_dir).await?);
+        println!(
+            "{:?}",
+            self.exec_step(&["mkdir", &build_dir], &container_id, "/".into())
+                .await?
+        );
+
+        self.install_deps(&container, &info, Os::Ubuntu).await?;
+
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
-        let src_path = format!("{}/{}/{}", &self.config.recipes_dir, &info.name, &info.source);
+        let src_path = format!(
+            "{}/{}/{}",
+            &self.config.recipes_dir, &info.name, &info.source
+        );
         match fs::read(&src_path) {
             Ok(archive) => {
                 container.upload_archive(&archive, &opts).await?;
@@ -251,23 +330,21 @@ impl Pkger {
         for step in build.steps.iter() {
             match self
                 .exec_step(
-                    &step
-                        .split_ascii_whitespace()
-                        .map(|s| s.to_string())
-                        .collect::<Vec<String>>(),
+                    &step.split_ascii_whitespace().collect::<Vec<&str>>(),
                     container,
                     &build_dir,
                 )
                 .await
             {
                 Ok(out) => {
+                    println!("EXIT_CODE!!!: {}", out.info.exit_code);
                     if out.info.exit_code != 0 {
                         return Err(format_err!(
                             "failed while executing step {:?} in container {} - {}",
                             step,
                             container,
                             out.out
-                        ))
+                        ));
                     } else {
                         println!("{:?}", out);
                     }
