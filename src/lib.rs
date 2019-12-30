@@ -134,7 +134,7 @@ impl Pkger {
                                 trace!("{:?}", recipe);
                                 recipes.insert(recipe.info.name.clone(), recipe);
                             }
-                            Err(e) => eprintln!(
+                            Err(_e) => eprintln!(
                                 "directory {} doesn't have a recipe.toml",
                                 path.as_path().display()
                             ),
@@ -175,6 +175,7 @@ impl Pkger {
         build_dir: &str,
     ) -> Result<CmdOut, Error> {
         trace!("executing {:?} in {}", cmd, container);
+        println!("executing {:?} in {}", cmd, container);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
             .working_dir(&build_dir)
@@ -231,18 +232,13 @@ impl Pkger {
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
-        match fs::read(&info.source) {
+        let src_path = format!("{}/{}/{}", &self.config.recipes_dir, &info.name, &info.source);
+        match fs::read(&src_path) {
             Ok(archive) => {
                 container.upload_archive(&archive, &opts).await?;
                 Ok(build_dir)
             }
-            Err(e) => Err(format_err!(
-                "no archive in {}/{}/{} - {}",
-                &self.config.recipes_dir,
-                &info.name,
-                &info.source,
-                e
-            )),
+            Err(e) => Err(format_err!("no archive in {} - {}", src_path, e)),
         }
     }
 
