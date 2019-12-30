@@ -4,8 +4,8 @@ description = "curl"
 vendor = ""
 version = "7.67.0"
 source = "curl-7.67.0.tar.gz"
-depends_on = ["gcc", "make", "patch"]
-images = ["ubuntu"]
+depends = ["gcc", "make", "patch", "binutils"]
+images = ["ubuntu:latest"]
 exclude = ["usr/share/info/dir"]
 
 [build]

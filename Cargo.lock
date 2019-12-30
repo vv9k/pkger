@@ -600,7 +600,7 @@ dependencies = [
 [[package]]
 name = "wharf"
 version = "0.1.8"
-source = "git+https://github.com/wojciechkepka/wharf#aae5b5fa571790161dd5474cb639dd6b8988e25c"
+source = "git+https://github.com/wojciechkepka/wharf#627d40214ef0629a92bcf0c2d3e94a69e49bc5df"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
