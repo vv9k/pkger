@@ -226,13 +226,7 @@ impl Pkger {
                             self.execute_build_steps(&container, &r.build, &build_dir)
                                 .await?;
                         }
-                        Err(e) => {
-                            return Err(format_err!(
-                                "failed creating container for image {} - {}",
-                                image,
-                                e
-                            ))
-                        }
+                        Err(e) => return Err(e),
                     }
                 }
             }
