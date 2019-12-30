@@ -1,6 +1,5 @@
 use failure::Error;
 use pkger::Pkger;
-use wharf::{opts::*, Docker};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
