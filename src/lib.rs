@@ -328,36 +328,13 @@ impl Pkger {
         build_dir: &str,
     ) -> Result<(), Error> {
         for step in build.steps.iter() {
-            match self
+            println!("{:?}", self
                 .exec_step(
                     &step.split_ascii_whitespace().collect::<Vec<&str>>(),
                     container,
                     &build_dir,
                 )
-                .await
-            {
-                Ok(out) => {
-                    println!("EXIT_CODE!!!: {}", out.info.exit_code);
-                    if out.info.exit_code != 0 {
-                        return Err(format_err!(
-                            "failed while executing step {:?} in container {} - {}",
-                            step,
-                            container,
-                            out.out
-                        ));
-                    } else {
-                        println!("{:?}", out);
-                    }
-                }
-                Err(e) => {
-                    return Err(format_err!(
-                        "failed while executing step {:?} in container {} - {}",
-                        step,
-                        container,
-                        e
-                    ))
-                }
-            }
+                .await?);
         }
 
         Ok(())
