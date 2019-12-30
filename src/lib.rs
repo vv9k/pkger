@@ -16,6 +16,15 @@ enum Os {
     Ubuntu,
     Redhat,
 }
+impl Os {
+    fn from(s: &str) -> Result<Os, Error> {
+        match s {
+            "ubuntu" => Ok(Os::Ubuntu),
+            "centos" | "redhat" => Ok(Os::Redhat),
+            os => Err(format_err!("unknown os {}", os)),
+        }
+    }
+}
 
 #[derive(Deserialize, Debug)]
 struct Info {
@@ -23,6 +32,8 @@ struct Info {
     version: String,
     source: String,
     images: Vec<String>,
+    // Consider checking lsb_release in container instead
+    os: String,
     vendor: Option<String>,
     description: Option<String>,
     depends: Option<Vec<String>>,
@@ -235,14 +246,9 @@ impl Pkger {
         Ok(())
     }
 
-    async fn install_deps(
-        &self,
-        container: &'_ Container<'_>,
-        info: &Info,
-        container_os: Os,
-    ) -> Result<(), Error> {
+    async fn install_deps(&self, container: &'_ Container<'_>, info: &Info) -> Result<(), Error> {
         if let Some(dependencies) = &info.depends {
-            match container_os {
+            match Os::from(&info.os)? {
                 Os::Ubuntu => {
                     match self
                         .exec_step(&["apt", "-y", "update"], &container, "/".into())
@@ -298,7 +304,7 @@ impl Pkger {
                 .await?
         );
 
-        self.install_deps(&container, &info, Os::Ubuntu).await?;
+        self.install_deps(&container, &info).await?;
 
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
