@@ -13,13 +13,13 @@ use wharf::result::CmdOut;
 use wharf::Docker;
 
 enum Os {
-    Ubuntu,
+    Debian,
     Redhat,
 }
 impl Os {
     fn from(s: &str) -> Result<Os, Error> {
         match s {
-            "ubuntu" => Ok(Os::Ubuntu),
+            "ubuntu" | "debian" => Ok(Os::Debian),
             "centos" | "redhat" => Ok(Os::Redhat),
             os => Err(format_err!("unknown os {}", os)),
         }
@@ -244,7 +244,7 @@ impl Pkger {
     async fn install_deps(&self, container: &'_ Container<'_>, info: &Info) -> Result<(), Error> {
         if let Some(dependencies) = &info.depends {
             match Os::from(&info.os)? {
-                Os::Ubuntu => {
+                Os::Debian => {
                     match self
                         .exec_step(&["apt", "-y", "update"], &container, "/".into())
                         .await
