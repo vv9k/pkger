@@ -194,6 +194,7 @@ impl Pkger {
         println!("executing {:?} in {}", cmd, &container.id);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
+            .tty(true)
             .working_dir(&build_dir)
             .attach_stderr(true)
             .attach_stdout(true);
@@ -248,7 +249,7 @@ impl Pkger {
                         .exec_step(&["apt", "-y", "update"], &container, "/".into())
                         .await
                     {
-                        Ok(out) => println!("{:?}", out),
+                        Ok(out) => println!("{}", out.out),
                         Err(e) => {
                             return Err(format_err!(
                                 "failed to update container {} - {}",
@@ -267,7 +268,7 @@ impl Pkger {
                     ]
                     .concat();
                     match self.exec_step(&install_cmd, &container, "/".into()).await {
-                        Ok(out) => println!("{:?}", out),
+                        Ok(out) => println!("{}", out.out),
                         Err(e) => {
                             return Err(format_err!(
                                 "failed to install dependencies in container {} - {}",
@@ -324,13 +325,13 @@ impl Pkger {
     ) -> Result<(), Error> {
         for step in build.steps.iter() {
             println!(
-                "{:?}",
+                "{}",
                 self.exec_step(
                     &step.split_ascii_whitespace().collect::<Vec<&str>>(),
                     container,
                     &build_dir,
                 )
-                .await?
+                .await?.out
             );
         }
         Ok(())
