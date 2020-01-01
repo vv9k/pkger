@@ -51,6 +51,7 @@ struct Build {
 #[derive(Deserialize, Debug)]
 struct Install {
     steps: Vec<String>,
+    destdir: String,
 }
 #[derive(Deserialize, Debug)]
 struct Recipe {
