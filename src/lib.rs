@@ -164,9 +164,63 @@ impl Pkger {
         Ok(recipes)
     }
 
-    async fn create_container(&self, image: &str) -> Result<Container<'_>, Error> {
+    async fn build_image(&self, image: &Image) -> Result<(), Error> {
+        trace!("building image {:#?}", image);
+        let mut opts = ImageBuilderOpts::new();
+        opts.name(&image.name);
+
+        let mut archive_path = PathBuf::from(&self.config.images_dir);
+        archive_path.push(format!("{}.tar", &image.name));
+        trace!("creating archive in {}", archive_path.as_path().display());
+        let file = fs::File::create(archive_path.as_path())
+            .map_err(|e| {
+                Err::<fs::File, Error>(format_err!(
+                    "failed to create temporary archive for image {} in {} - {}",
+                    &image.name,
+                    archive_path.as_path().display(),
+                    e
+                ))
+            })
+            .unwrap();
+        let mut archive = tar::Builder::new(file);
+        archive.append_dir_all(".", image.path.as_path()).unwrap();
+        archive.finish().unwrap();
+
+        let archive_content = fs::read(archive_path.as_path())
+            .map_err(|e| {
+                Err::<Vec<u8>, Error>(format_err!(
+                    "failed to read archived image {} from {} - {}",
+                    &image.name,
+                    archive_path.as_path().display(),
+                    e
+                ))
+            })
+            .unwrap();
+        let images = self.docker.images();
+        Ok(images
+            .build(&archive_content, &opts)
+            .await
+            .map_err(|e| {
+                Err::<(), Error>(format_err!("failed to build image {} - {}", &image.name, e))
+            })
+            .unwrap())
+    }
+
+    async fn image_exists(&self, image: &str) -> bool {
+        trace!("checking if image {} exists", image);
+        let images = self.docker.images();
+        match images.inspect(image).await {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+    async fn create_container(&self, image: &Image) -> Result<Container<'_>, Error> {
+        trace!("creating container from image {}", &image.name);
         let mut opts = ContainerBuilderOpts::new();
-        opts.image(image)
+        if !self.image_exists(&image.name).await {
+            self.build_image(&image).await?;
+        }
+        opts.image(&image.name)
             .shell(&["/bin/bash"])
             .cmd(&["/bin/bash"])
             .tty(true)
@@ -174,13 +228,13 @@ impl Pkger {
             .open_stdin(true)
             .attach_stderr(true)
             .attach_stdin(true);
-        let name = format!("pkger-{}", Local::now().timestamp());
+        let name = format!("pkger-{}-{}", &image.name, Local::now().timestamp());
         match self.docker.containers().create(&name, &opts).await {
             Ok(_) => Ok(self.docker.container(&name)),
             Err(e) => Err(format_err!(
                 "failed to create container {} with image {} - {}",
                 name,
-                image,
+                &image.name,
                 e
             )),
         }
