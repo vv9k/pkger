@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate failure;
+extern crate tar;
 use chrono::prelude::Local;
 use failure::Error;
 use log::*;
@@ -8,7 +9,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use wharf::api::Container;
-use wharf::opts::{ContainerBuilderOpts, ExecOpts, UploadArchiveOpts};
+use wharf::opts::{ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, UploadArchiveOpts};
 use wharf::result::CmdOut;
 use wharf::Docker;
 
@@ -157,9 +158,10 @@ impl Pkger {
                                 trace!("{:?}", recipe);
                                 recipes.insert(recipe.info.name.clone(), recipe);
                             }
-                            Err(_e) => eprintln!(
-                                "directory {} doesn't have a recipe.toml",
-                                path.as_path().display()
+                            Err(e) => eprintln!(
+                                "directory {} doesn't have a recipe.toml or the recipe is wrong - {}",
+                                path.as_path().display(),
+                                e
                             ),
                         }
                     }
@@ -277,14 +279,32 @@ impl Pkger {
     }
 
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
+        trace!("building recipe {}", recipe.as_ref());
         match self.recipes.get(recipe.as_ref()) {
             Some(r) => {
-                for image in r.info.images.iter() {
+                for _image in r.info.images.iter() {
+                    let image_name = &_image[0];
+                    let image_os = &_image[1];
+                    let image = match self.images.get(image_name) {
+                        Some(i) => i,
+                        None => {
+                            error!(
+                                "image {} not found in {}",
+                                image_name, &self.config.images_dir
+                            );
+                            continue;
+                        }
+                    };
+                    trace!("using image - {}, os - {}", image_name, image_os);
                     match self.create_container(&image).await {
                         Ok(container) => {
+                            container.start().await?;
                             let build_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
-                            self.execute_build_steps(&container, &r.build, &build_dir)
+                            self.install_deps(&container, &r.info, image_os).await?;
+                            self.execute_build_steps(&container, &r.build, &r.install, &build_dir)
+                                .await?;
+                            self.download_archive(&container, &r.info, &r.install, image_os)
                                 .await?;
                         }
                         Err(e) => return Err(e),
@@ -353,16 +373,9 @@ impl Pkger {
         container: &'_ Container<'_>,
         info: &Info,
     ) -> Result<String, Error> {
-        container.start().await?;
-
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
-        println!(
-            "{:?}",
-            self.exec_step(&["mkdir", &build_dir], &container, "/".into())
-                .await?
-        );
-
-        self.install_deps(&container, &info).await?;
+        self.exec_step(&["mkdir", &build_dir], &container, "/".into())
+            .await?;
 
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
@@ -384,9 +397,10 @@ impl Pkger {
         &self,
         container: &'_ Container<'_>,
         build: &Build,
+        install: &Install,
         build_dir: &str,
     ) -> Result<(), Error> {
-        for step in build.steps.iter() {
+        for step in build.steps.iter().chain(install.steps.iter()) {
             println!(
                 "{}",
                 self.exec_step(
@@ -394,7 +408,8 @@ impl Pkger {
                     container,
                     &build_dir,
                 )
-                .await?.out
+                .await?
+                .out
             );
         }
         Ok(())
