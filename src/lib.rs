@@ -24,16 +24,21 @@ impl Os {
             os => Err(format_err!("unknown os {}", os)),
         }
     }
+    fn package_manager(self) -> String {
+        match self {
+            Os::Debian => "apt".to_string(),
+            Os::Redhat => "yum".to_string(),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
 struct Info {
     name: String,
     version: String,
+    revision: String,
     source: String,
-    images: Vec<String>,
-    // Consider checking lsb_release in container instead
-    os: String,
+    images: Vec<Vec<String>>,
     vendor: Option<String>,
     description: Option<String>,
     depends: Option<Vec<String>>,
@@ -295,44 +300,47 @@ impl Pkger {
         Ok(())
     }
 
-    async fn install_deps(&self, container: &'_ Container<'_>, info: &Info) -> Result<(), Error> {
+    async fn install_deps(
+        &self,
+        container: &'_ Container<'_>,
+        info: &Info,
+        os: &str,
+    ) -> Result<(), Error> {
         if let Some(dependencies) = &info.depends {
-            match Os::from(&info.os)? {
-                Os::Debian => {
-                    match self
-                        .exec_step(&["apt", "-y", "update"], &container, "/".into())
-                        .await
-                    {
-                        Ok(out) => println!("{}", out.out),
-                        Err(e) => {
-                            return Err(format_err!(
-                                "failed to update container {} - {}",
-                                &container.id,
-                                e
-                            ))
-                        }
-                    }
-
-                    let install_cmd = [
-                        &vec!["apt", "-y", "install"][..],
-                        &dependencies
-                            .iter()
-                            .map(|s| s.as_ref())
-                            .collect::<Vec<&str>>()[..],
-                    ]
-                    .concat();
-                    match self.exec_step(&install_cmd, &container, "/".into()).await {
-                        Ok(out) => println!("{}", out.out),
-                        Err(e) => {
-                            return Err(format_err!(
-                                "failed to install dependencies in container {} - {}",
-                                &container.id,
-                                e
-                            ))
-                        }
-                    }
+            trace!("installing dependencies - {:?}", dependencies);
+            let package_manager = Os::from(os)?.package_manager();
+            trace!("using {} as package manager", package_manager);
+            match self
+                .exec_step(&[&package_manager, "-y", "update"], &container, "/".into())
+                .await
+            {
+                Ok(out) => println!("{}", out.out),
+                Err(e) => {
+                    return Err(format_err!(
+                        "failed to update container {} - {}",
+                        &container.id,
+                        e
+                    ))
                 }
-                _ => unimplemented!(),
+            }
+
+            let install_cmd = [
+                &vec![package_manager.as_ref(), "-y", "install"][..],
+                &dependencies
+                    .iter()
+                    .map(|s| s.as_ref())
+                    .collect::<Vec<&str>>()[..],
+            ]
+            .concat();
+            match self.exec_step(&install_cmd, &container, "/".into()).await {
+                Ok(out) => println!("{}", out.out),
+                Err(e) => {
+                    return Err(format_err!(
+                        "failed to install dependencies in container {} - {}",
+                        &container.id,
+                        e
+                    ))
+                }
             }
         }
         Ok(())
