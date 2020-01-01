@@ -6,7 +6,7 @@ use failure::Error;
 use log::*;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, DirBuilder, DirEntry, File};
 use std::path::PathBuf;
 use wharf::api::Container;
 use wharf::opts::{ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, UploadArchiveOpts};
@@ -61,7 +61,7 @@ struct Recipe {
     install: Install,
 }
 impl Recipe {
-    fn new(entry: fs::DirEntry) -> Result<Recipe, Error> {
+    fn new(entry: DirEntry) -> Result<Recipe, Error> {
         let mut path = entry.path();
         path.push("recipe.toml");
         Ok(toml::from_str::<Recipe>(&fs::read_to_string(&path)?)?)
@@ -83,7 +83,7 @@ struct Image {
     has_dockerfile: bool,
 }
 impl Image {
-    fn new(entry: fs::DirEntry) -> Image {
+    fn new(entry: DirEntry) -> Image {
         let path = entry.path();
         let has_dockerfile = Image::has_dockerfile(path.clone());
         Image {
@@ -180,9 +180,9 @@ impl Pkger {
         let mut archive_path = PathBuf::from(&self.config.images_dir);
         archive_path.push(format!("{}.tar", &image.name));
         trace!("creating archive in {}", archive_path.as_path().display());
-        let file = fs::File::create(archive_path.as_path())
+        let file = File::create(archive_path.as_path())
             .map_err(|e| {
-                Err::<fs::File, Error>(format_err!(
+                Err::<File, Error>(format_err!(
                     "failed to create temporary archive for image {} in {} - {}",
                     &image.name,
                     archive_path.as_path().display(),
@@ -247,7 +247,7 @@ impl Pkger {
             )),
         }
     }
-    pub async fn exec_step(
+    async fn exec_step(
         &self,
         cmd: &[&str],
         container: &'_ Container<'_>,
@@ -432,7 +432,7 @@ impl Pkger {
         out_path.push(os);
         if !out_path.as_path().exists() {
             trace!("creating directory {}", out_path.as_path().display());
-            let builder = fs::DirBuilder::new();
+            let builder = DirBuilder::new();
             builder.create(out_path.as_path())?;
         }
         out_path.push(format!(
@@ -441,13 +441,14 @@ impl Pkger {
         ));
 
         trace!("saving archive to {}", out_path.as_path().display());
-        match fs::write(out_path.as_path(), archive) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format_err!(
-                "failed saving archive in {} - {}",
-                out_path.as_path().display(),
-                e
-            )),
-        }
+        Ok(fs::write(out_path.as_path(), archive)
+            .map_err(|e| {
+                Err::<(), Error>(format_err!(
+                    "failed saving archive in {} - {}",
+                    out_path.as_path().display(),
+                    e
+                ))
+            })
+            .unwrap())
     }
 }
