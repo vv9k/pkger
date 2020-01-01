@@ -398,4 +398,40 @@ impl Pkger {
         }
         Ok(())
     }
+
+    async fn download_archive(
+        &self,
+        container: &'_ Container<'_>,
+        info: &Info,
+        install: &Install,
+        os: &str,
+    ) -> Result<(), Error> {
+        trace!(
+            "downloading archive from {} {}",
+            &container.id,
+            &install.destdir
+        );
+        let archive = container.archive_path(&install.destdir).await?;
+        let mut out_path = PathBuf::from(&self.config.output_dir);
+        out_path.push(os);
+        if !out_path.as_path().exists() {
+            trace!("creating directory {}", out_path.as_path().display());
+            let builder = fs::DirBuilder::new();
+            builder.create(out_path.as_path())?;
+        }
+        out_path.push(format!(
+            "{}-{}-{}.tar",
+            &info.name, &info.version, &info.revision
+        ));
+
+        trace!("saving archive to {}", out_path.as_path().display());
+        match fs::write(out_path.as_path(), archive) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format_err!(
+                "failed saving archive in {} - {}",
+                out_path.as_path().display(),
+                e
+            )),
+        }
+    }
 }
