@@ -13,6 +13,15 @@ use wharf::opts::{ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, UploadArchiv
 use wharf::result::CmdOut;
 use wharf::Docker;
 
+macro_rules! map_return {
+    ($f:expr, $e:expr) => {
+        match $f {
+            Ok(d) => d,
+            Err(e) => return Err(format_err!("{} - {}", $e, e)),
+        }
+    };
+}
+
 enum Os {
     Debian,
     Redhat,
@@ -108,7 +117,11 @@ pub struct Pkger {
 }
 impl Pkger {
     pub fn new(docker_addr: &str, conf_file: &str) -> Result<Self, Error> {
-        let config = toml::from_str::<Config>(&fs::read_to_string(conf_file)?)?;
+        let content = map_return!(
+            fs::read(&conf_file),
+            format!("failed to read config file from {}", conf_file)
+        );
+        let config: Config = map_return!(toml::from_slice(&content), "failed to parse config file");
         trace!("{:?}", config);
         let images = Pkger::parse_images_dir(&config.images_dir)?;
         let recipes = Pkger::parse_recipes_dir(&config.recipes_dir)?;
@@ -123,7 +136,7 @@ impl Pkger {
     fn parse_images_dir(p: &str) -> Result<Images, Error> {
         trace!("parsing images dir - {}", p);
         let mut images = HashMap::new();
-        for _entry in fs::read_dir(p)? {
+        for _entry in map_return!(fs::read_dir(p), format!("failed to read images_dir {}", p)) {
             if let Ok(entry) = _entry {
                 if let Ok(ftype) = entry.file_type() {
                     if ftype.is_dir() {
@@ -148,7 +161,7 @@ impl Pkger {
     fn parse_recipes_dir(p: &str) -> Result<Recipes, Error> {
         trace!("parsing recipes dir - {}", p);
         let mut recipes = HashMap::new();
-        for _entry in fs::read_dir(p)? {
+        for _entry in map_return!(fs::read_dir(p), "failed to read recipes_dir") {
             if let Ok(entry) = _entry {
                 if let Ok(ftype) = entry.file_type() {
                     if ftype.is_dir() {
@@ -180,38 +193,31 @@ impl Pkger {
         let mut archive_path = PathBuf::from(&self.config.images_dir);
         archive_path.push(format!("{}.tar", &image.name));
         trace!("creating archive in {}", archive_path.as_path().display());
-        let file = File::create(archive_path.as_path())
-            .map_err(|e| {
-                Err::<File, Error>(format_err!(
-                    "failed to create temporary archive for image {} in {} - {}",
-                    &image.name,
-                    archive_path.as_path().display(),
-                    e
-                ))
-            })
-            .unwrap();
+        let file = map_return!(
+            File::create(archive_path.as_path()),
+            format!(
+                "failed to create temporary archive for image {} in {}",
+                &image.name,
+                archive_path.as_path().display()
+            )
+        );
         let mut archive = tar::Builder::new(file);
         archive.append_dir_all(".", image.path.as_path()).unwrap();
         archive.finish().unwrap();
 
-        let archive_content = fs::read(archive_path.as_path())
-            .map_err(|e| {
-                Err::<Vec<u8>, Error>(format_err!(
-                    "failed to read archived image {} from {} - {}",
-                    &image.name,
-                    archive_path.as_path().display(),
-                    e
-                ))
-            })
-            .unwrap();
+        let archive_content = map_return!(
+            fs::read(archive_path.as_path()),
+            format!(
+                "failed to read archived image {} from {}",
+                &image.name,
+                archive_path.as_path().display()
+            )
+        );
         let images = self.docker.images();
-        Ok(images
-            .build(&archive_content, &opts)
-            .await
-            .map_err(|e| {
-                Err::<(), Error>(format_err!("failed to build image {} - {}", &image.name, e))
-            })
-            .unwrap())
+        Ok(map_return!(
+            images.build(&archive_content, &opts).await,
+            format!("failed to build image {}", &image.name)
+        ))
     }
 
     async fn image_exists(&self, image: &str) -> bool {
@@ -329,7 +335,10 @@ impl Pkger {
     ) -> Result<(), Error> {
         if let Some(dependencies) = &info.depends {
             trace!("installing dependencies - {:?}", dependencies);
-            let package_manager = Os::from(os)?.package_manager();
+            let package_manager = match Os::from(os) {
+                Ok(os) => os.package_manager(),
+                Err(e) => return Err(format_err!("unknown os {} - {}", os, e)),
+            };
             trace!("using {} as package manager", package_manager);
             match self
                 .exec_step(&[&package_manager, "-y", "update"], &container, "/".into())
@@ -374,8 +383,17 @@ impl Pkger {
         info: &Info,
     ) -> Result<String, Error> {
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
-        self.exec_step(&["mkdir", &build_dir], &container, "/".into())
-            .await?;
+        if let Err(e) = self
+            .exec_step(&["mkdir", &build_dir], &container, "/".into())
+            .await
+        {
+            return Err(format_err!(
+                "failed while creating directory in {}:{}- {}",
+                &container.id,
+                &build_dir,
+                e
+            ));
+        }
 
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
@@ -441,14 +459,6 @@ impl Pkger {
         ));
 
         trace!("saving archive to {}", out_path.as_path().display());
-        Ok(fs::write(out_path.as_path(), archive)
-            .map_err(|e| {
-                Err::<(), Error>(format_err!(
-                    "failed saving archive in {} - {}",
-                    out_path.as_path().display(),
-                    e
-                ))
-            })
-            .unwrap())
+        Ok(fs::write(out_path.as_path(), archive)?)
     }
 }

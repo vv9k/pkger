@@ -3,7 +3,7 @@ use log::*;
 use pkger::Pkger;
 use structopt::StructOpt;
 
-const DEFAULT_CONF_FILE: &'static str = "conf.toml";
+const DEFAULT_CONF_FILE: &str = "conf.toml";
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "pkger", about = "Creates RPM and DEB packages using docker")]
