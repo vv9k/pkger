@@ -1,15 +1,25 @@
 use failure::Error;
 use pkger::Pkger;
+use structopt::StructOpt;
+
+const DEFAULT_CONF_FILE: &'static str = "conf.toml";
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "pkger", about = "Creates RPM and DEB packages using docker")]
+struct Opt {
+    #[structopt(short, long)]
+    docker: String,
+    #[structopt(short, long)]
+    config: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     pretty_env_logger::init();
-    //let toml = toml::from_str::<Recipe>(&fs::read_to_string("/home/wojtek/dev/rust/pkger/tmp/recipe.toml")?)?;
+    let opts = Opt::from_args();
+    let cfg = opts.config.unwrap_or(DEFAULT_CONF_FILE.to_string());
 
-    let pkgr = Pkger::new(
-        "http://0.0.0.0:2376",
-        "/home/wojtek/dev/rust/pkger/tmp/conf.toml",
-    )?;
+    let pkgr = Pkger::new(&opts.docker, &cfg)?;
 
     pkgr.build_recipe("curl").await?;
 
