@@ -158,7 +158,7 @@ impl Pkger {
                                 trace!("{:?}", recipe);
                                 recipes.insert(recipe.info.name.clone(), recipe);
                             }
-                            Err(e) => eprintln!(
+                            Err(e) => error!(
                                 "directory {} doesn't have a recipe.toml or the recipe is wrong - {}",
                                 path.as_path().display(),
                                 e
@@ -253,7 +253,7 @@ impl Pkger {
         container: &'_ Container<'_>,
         build_dir: &str,
     ) -> Result<CmdOut, Error> {
-        println!("executing {:?} in {}", cmd, &container.id);
+        info!("executing {:?} in {}", cmd, &container.id);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
             .tty(true)
@@ -335,7 +335,7 @@ impl Pkger {
                 .exec_step(&[&package_manager, "-y", "update"], &container, "/".into())
                 .await
             {
-                Ok(out) => println!("{}", out.out),
+                Ok(out) => info!("{}", out.out),
                 Err(e) => {
                     return Err(format_err!(
                         "failed to update container {} - {}",
@@ -354,7 +354,7 @@ impl Pkger {
             ]
             .concat();
             match self.exec_step(&install_cmd, &container, "/".into()).await {
-                Ok(out) => println!("{}", out.out),
+                Ok(out) => info!("{}", out.out),
                 Err(e) => {
                     return Err(format_err!(
                         "failed to install dependencies in container {} - {}",
@@ -401,7 +401,7 @@ impl Pkger {
         build_dir: &str,
     ) -> Result<(), Error> {
         for step in build.steps.iter().chain(install.steps.iter()) {
-            println!(
+            info!(
                 "{}",
                 self.exec_step(
                     &step.split_ascii_whitespace().collect::<Vec<&str>>(),
