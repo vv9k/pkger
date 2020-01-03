@@ -129,6 +129,7 @@ impl Image {
                 Ok(metadata) => match metadata.modified() {
                     Ok(mod_time) => {
                         if mod_time > *prvs_bld_time {
+                            trace!("image directory was modified since last build so marking for rebuild");
                             return Ok(true);
                         } else {
                             return Ok(false);
