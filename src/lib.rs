@@ -22,22 +22,26 @@ macro_rules! map_return {
     };
 }
 
+// enum holding version of os
 enum Os {
-    Debian,
-    Redhat,
+    Debian(String),
+    Redhat(String),
 }
 impl Os {
-    fn from(s: &str) -> Result<Os, Error> {
+    fn from(s: &str, version: Option<String>) -> Result<Os, Error> {
+        trace!("os: {}, version {:?}", s, version);
+        let version = version.unwrap_or_default();
         match s {
-            "ubuntu" | "debian" => Ok(Os::Debian),
-            "centos" | "redhat" => Ok(Os::Redhat),
+            "ubuntu" | "debian" => Ok(Os::Debian(version)),
+            "centos" | "redhat" => Ok(Os::Redhat(version)),
             os => Err(format_err!("unknown os {}", os)),
         }
     }
     fn package_manager(self) -> String {
         match self {
-            Os::Debian => "apt".to_string(),
-            Os::Redhat => "yum".to_string(),
+            Os::Debian(_) => "apt".to_string(),
+            Os::Redhat(v) if v == "8".to_string() => "dnf".to_string(),
+            Os::Redhat(_) => "yum".to_string(),
         }
     }
 }
@@ -48,7 +52,7 @@ struct Info {
     version: String,
     revision: String,
     source: String,
-    images: Vec<Vec<String>>,
+    images: Vec<String>,
     vendor: Option<String>,
     description: Option<String>,
     depends: Option<Vec<String>>,
@@ -284,13 +288,49 @@ impl Pkger {
         }
     }
 
+    async fn determine_os(&self, container: &'_ Container<'_>) -> Result<Os, Error> {
+        trace!("determining container {} os", &container.id);
+        let mut os_release = ExecOpts::new();
+        os_release
+            .cmd(&["cat", "/etc/os-release"])
+            .tty(true)
+            .attach_stdout(true)
+            .attach_stderr(true);
+        let out = container.exec(&os_release).await?;
+        trace!("{}", &out.out);
+        let mut id = None;
+        let mut version = None;
+        for line in out.out.split("\n").into_iter() {
+            if line.starts_with("ID=") {
+                id = Some(
+                    line[3..]
+                        .trim_end_matches('\r')
+                        .trim_matches('"')
+                        .to_string(),
+                );
+            } else if line.starts_with("VERSION_ID=") {
+                version = Some(
+                    line[11..]
+                        .trim_end_matches('\r')
+                        .trim_matches('"')
+                        .to_string(),
+                );
+            }
+        }
+        if let Some(os_name) = id {
+            return Ok(Os::from(&os_name, version)?);
+        }
+        Err(format_err!(
+            "failed to determin containers {} os",
+            &container.id
+        ))
+    }
+
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
         trace!("building recipe {}", recipe.as_ref());
         match self.recipes.get(recipe.as_ref()) {
             Some(r) => {
-                for _image in r.info.images.iter() {
-                    let image_name = &_image[0];
-                    let image_os = &_image[1];
+                for image_name in r.info.images.iter() {
                     let image = match self.images.get(image_name) {
                         Some(i) => i,
                         None => {
@@ -301,17 +341,25 @@ impl Pkger {
                             continue;
                         }
                     };
-                    trace!("using image - {}, os - {}", image_name, image_os);
+                    trace!("using image - {}", image_name);
                     match self.create_container(&image).await {
                         Ok(container) => {
                             container.start().await?;
+                            let os = self.determine_os(&container).await?;
+                            let package_manager = os.package_manager();
                             let build_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
-                            self.install_deps(&container, &r.info, image_os).await?;
+                            self.install_deps(&container, &r.info, &package_manager)
+                                .await?;
                             self.execute_build_steps(&container, &r.build, &r.install, &build_dir)
                                 .await?;
-                            self.download_archive(&container, &r.info, &r.install, image_os)
-                                .await?;
+                            self.download_archive(
+                                &container,
+                                &r.info,
+                                &r.install,
+                                &package_manager,
+                            )
+                            .await?;
                         }
                         Err(e) => return Err(e),
                     }
@@ -331,14 +379,10 @@ impl Pkger {
         &self,
         container: &'_ Container<'_>,
         info: &Info,
-        os: &str,
+        package_manager: &str,
     ) -> Result<(), Error> {
         if let Some(dependencies) = &info.depends {
             trace!("installing dependencies - {:?}", dependencies);
-            let package_manager = match Os::from(os) {
-                Ok(os) => os.package_manager(),
-                Err(e) => return Err(format_err!("unknown os {} - {}", os, e)),
-            };
             trace!("using {} as package manager", package_manager);
             match self
                 .exec_step(&[&package_manager, "-y", "update"], &container, "/".into())
