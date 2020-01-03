@@ -225,9 +225,16 @@ impl Pkger {
             )
         );
         let images = self.docker.images();
-        Ok(map_return!(
+        map_return!(
             images.build(&archive_content, &opts).await,
             format!("failed to build image {}", &image.name)
+        );
+        Ok(map_return!(
+            fs::remove_file(archive_path.as_path()),
+            format!(
+                "failed to delete temporary archive from {}",
+                archive_path.as_path().display()
+            )
         ))
     }
 
@@ -486,6 +493,7 @@ impl Pkger {
         info: &Info,
         install: &Install,
         os: &str,
+        ver: &str,
     ) -> Result<(), Error> {
         trace!(
             "downloading archive from {} {}",
@@ -495,9 +503,11 @@ impl Pkger {
         let archive = container.archive_path(&install.destdir).await?;
         let mut out_path = PathBuf::from(&self.config.output_dir);
         out_path.push(os);
+        out_path.push(ver);
         if !out_path.as_path().exists() {
             trace!("creating directory {}", out_path.as_path().display());
-            let builder = DirBuilder::new();
+            let mut builder = DirBuilder::new();
+            builder.recursive(true);
             builder.create(out_path.as_path())?;
         }
         out_path.push(format!(
