@@ -23,25 +23,32 @@ macro_rules! map_return {
 }
 
 // enum holding version of os
+#[derive(Clone)]
 enum Os {
-    Debian(String),
-    Redhat(String),
+    Debian(String, String),
+    Redhat(String, String),
 }
 impl Os {
     fn from(s: &str, version: Option<String>) -> Result<Os, Error> {
         trace!("os: {}, version {:?}", s, version);
         let version = version.unwrap_or_default();
         match s {
-            "ubuntu" | "debian" => Ok(Os::Debian(version)),
-            "centos" | "redhat" => Ok(Os::Redhat(version)),
+            "ubuntu" | "debian" => Ok(Os::Debian(s.to_string(), version)),
+            "centos" | "redhat" => Ok(Os::Redhat(s.to_string(), version)),
             os => Err(format_err!("unknown os {}", os)),
+        }
+    }
+    fn os_ver(self) -> (String, String) {
+        match self {
+            Os::Debian(os, v) => (os, v),
+            Os::Redhat(os, v) => (os, v),
         }
     }
     fn package_manager(self) -> String {
         match self {
-            Os::Debian(_) => "apt".to_string(),
-            Os::Redhat(v) if v == "8".to_string() => "dnf".to_string(),
-            Os::Redhat(_) => "yum".to_string(),
+            Os::Debian(_, _) => "apt".to_string(),
+            Os::Redhat(_, v) if v == "8".to_string() => "dnf".to_string(),
+            Os::Redhat(_, _) => "yum".to_string(),
         }
     }
 }
@@ -321,7 +328,7 @@ impl Pkger {
             return Ok(Os::from(&os_name, version)?);
         }
         Err(format_err!(
-            "failed to determin containers {} os",
+            "failed to determine containers {} os",
             &container.id
         ))
     }
@@ -346,20 +353,16 @@ impl Pkger {
                         Ok(container) => {
                             container.start().await?;
                             let os = self.determine_os(&container).await?;
-                            let package_manager = os.package_manager();
+                            let package_manager = os.clone().package_manager();
+                            let (os, ver) = os.os_ver();
                             let build_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
                             self.install_deps(&container, &r.info, &package_manager)
                                 .await?;
                             self.execute_build_steps(&container, &r.build, &r.install, &build_dir)
                                 .await?;
-                            self.download_archive(
-                                &container,
-                                &r.info,
-                                &r.install,
-                                &package_manager,
-                            )
-                            .await?;
+                            self.download_archive(&container, &r.info, &r.install, &os, &ver)
+                                .await?;
                         }
                         Err(e) => return Err(e),
                     }
