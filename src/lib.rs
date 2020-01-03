@@ -10,7 +10,9 @@ use std::fs::{self, DirBuilder, DirEntry, File};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use wharf::api::Container;
-use wharf::opts::{ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, UploadArchiveOpts, RmContainerOpts};
+use wharf::opts::{
+    ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, RmContainerOpts, UploadArchiveOpts,
+};
 use wharf::result::CmdOut;
 use wharf::Docker;
 
@@ -120,22 +122,29 @@ impl Image {
         p.as_path().exists()
     }
     fn should_be_rebuilt(&self) -> Result<bool, Error> {
+        trace!("checking if image {} should be rebuilt", &self.name);
         let state = ImageState::load(DEFAULT_STATE_FILE)?;
         if let Some(prvs_bld_time) = state.images.get(&self.name) {
             match fs::metadata(self.path.as_path()) {
-                Ok(metadata) => {
-                    match metadata.modified() {
-                        Ok(mod_time) => {
-                            if mod_time > *prvs_bld_time {
-                                return Ok(true)
-                            } else {
-                                return Ok(false)
-                            }
+                Ok(metadata) => match metadata.modified() {
+                    Ok(mod_time) => {
+                        if mod_time > *prvs_bld_time {
+                            return Ok(true);
+                        } else {
+                            return Ok(false);
                         }
-                        Err(e) => error!("failed to retrive modification date of {} - {}", self.path.as_path().display(), e)
                     }
-                }
-                Err(e) => error!("failed to read metadata of {} - {}", self.path.as_path().display(), e)
+                    Err(e) => error!(
+                        "failed to retrive modification date of {} - {}",
+                        self.path.as_path().display(),
+                        e
+                    ),
+                },
+                Err(e) => error!(
+                    "failed to read metadata of {} - {}",
+                    self.path.as_path().display(),
+                    e
+                ),
             }
         }
         Ok(true)
@@ -146,23 +155,38 @@ type Images = HashMap<String, Image>;
 #[derive(Deserialize, Debug, Default, Serialize)]
 struct ImageState {
     images: HashMap<String, SystemTime>,
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     statef: String,
 }
 impl ImageState {
-    fn load<P: AsRef<str>>(statef: P) -> Result<Self, Error> {
-        trace!("loading image state file from {}", statef.as_ref());
+    fn load<P: AsRef<Path>>(statef: P) -> Result<Self, Error> {
+        let path = format!("{}", statef.as_ref().display());
+        if !statef.as_ref().exists() {
+            trace!("no previous state file, creating new in {}", &path);
+            if let Err(e) = File::create(statef.as_ref()) {
+                return Err(format_err!(
+                    "failed to create state file in {} - {}",
+                    &path,
+                    e
+                ));
+            }
+            return Ok(ImageState {
+                images: HashMap::new(),
+                statef: path,
+            });
+        }
+        trace!("loading image state file from {}", &path);
         let contents = fs::read(statef.as_ref())?;
         let mut s: ImageState = toml::from_slice(&contents)?;
         trace!("{:?}", s);
-        s.statef = statef.as_ref().to_string();
+        s.statef = path;
         Ok(s)
     }
     fn update(&mut self, image: &str) {
         trace!("updating build time of {}", image);
-        self.images.insert(image.to_string(), SystemTime::now()).unwrap();
+        self.images.insert(image.to_string(), SystemTime::now());
     }
-    fn save(&self) -> Result<(), Error>{
+    fn save(&self) -> Result<(), Error> {
         trace!("saving images state to {}", &self.statef);
         Ok(fs::write(&self.statef, toml::to_vec(&self)?).unwrap())
     }
@@ -298,13 +322,15 @@ impl Pkger {
             Err(_) => false,
         }
     }
-    async fn create_container(&self, image: &Image, mut state: &mut ImageState) -> Result<Container<'_>, Error> {
+    async fn create_container(
+        &self,
+        image: &Image,
+        mut state: &mut ImageState,
+    ) -> Result<Container<'_>, Error> {
         trace!("creating container from image {}", &image.name);
         let mut opts = ContainerBuilderOpts::new();
-        if !self.image_exists(&image.name).await {
-            if image.should_be_rebuilt().unwrap_or(true) {
-                self.build_image(&image, &mut state).await?;
-            }
+        if !self.image_exists(&image.name).await || image.should_be_rebuilt().unwrap_or(true) {
+            self.build_image(&image, &mut state).await?;
         }
         opts.image(&image.name)
             .shell(&["/bin/bash"])
@@ -419,8 +445,8 @@ impl Pkger {
                             let (os, ver) = os.os_ver();
                             let build_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
-                            //self.install_deps(&container, &r.info, &package_manager)
-                            //    .await?;
+                            self.install_deps(&container, &r.info, &package_manager)
+                                .await?;
                             self.execute_build_steps(&container, &r.build, &r.install, &build_dir)
                                 .await?;
                             self.download_archive(&container, &r.info, &r.install, &os, &ver)
