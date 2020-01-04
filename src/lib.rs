@@ -584,10 +584,10 @@ impl Pkger {
         let mut out_path = PathBuf::from(&self.config.output_dir);
         out_path.push(&os);
         out_path.push(&ver);
-        out_path.push(&file_name);
         if !out_path.exists() {
             fs::create_dir_all(&out_path)?;
         }
+        out_path.push(&file_name);
         trace!("downloading .deb file to {}", out_path.as_path().display());
         fs::write(out_path, deb).unwrap();
 
