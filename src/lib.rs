@@ -462,7 +462,7 @@ impl Pkger {
                                 .download_archive(&container, &r.info, &r.install, &os, &ver)
                                 .await?;
                             let build_dir = self.prepare_build_dir(&r.info)?;
-                            let files = self.unpack_archive(archive, build_dir.clone())?;
+                            let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
                             self.build_rpm(
                                 &files,
                                 &r.info,
@@ -473,6 +473,11 @@ impl Pkger {
                             )?;
                             trace!("cleaning up build dir {}", build_dir.as_path().display());
                             fs::remove_dir_all(build_dir).unwrap();
+                            trace!(
+                                "cleaning up temporary archive {}",
+                                archive.as_path().display()
+                            );
+                            fs::remove_file(archive).unwrap();
                             Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
