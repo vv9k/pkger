@@ -12,7 +12,8 @@ description = "Building tool inspired by fpm-builder"
 categories = ["command-line-utilities"]
 
 [dependencies]
-wharf = { git = "https://github.com/wojciechkepka/wharf", branch = "master" }
+#wharf = { git = "https://github.com/wojciechkepka/wharf", branch = "master" }
+wharf = "0.1.9"
 log = "0.4.8"
 failure = "0.1.6"
 tokio = {version="0.2.4", features=["macros"]}
