@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::fs::{self, DirBuilder, DirEntry, File};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use tar::Archive;
 use wharf::api::Container;
 use wharf::opts::{
     ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, RmContainerOpts, UploadArchiveOpts,
@@ -17,6 +18,7 @@ use wharf::result::CmdOut;
 use wharf::Docker;
 
 const DEFAULT_STATE_FILE: &str = ".pkger.state";
+const TEMPORARY_BUILD_DIR: &str = "/tmp";
 
 macro_rules! map_return {
     ($f:expr, $e:expr) => {
@@ -450,8 +452,11 @@ impl Pkger {
                                 .await?;
                             self.execute_build_steps(&container, &r.build, &r.install, &build_dir)
                                 .await?;
-                            self.download_archive(&container, &r.info, &r.install, &os, &ver)
+                            let archive = self
+                                .download_archive(&container, &r.info, &r.install, &os, &ver)
                                 .await?;
+                            let build_dir = self.prepare_build_dir(&r.info)?;
+                            self.unpack_archive(archive, build_dir.as_path())?;
                             Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
@@ -586,7 +591,7 @@ impl Pkger {
         install: &Install,
         os: &str,
         ver: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<PathBuf, Error> {
         trace!(
             "downloading archive from {} {}",
             &container.id,
@@ -608,6 +613,74 @@ impl Pkger {
         ));
 
         trace!("saving archive to {}", out_path.as_path().display());
-        Ok(fs::write(out_path.as_path(), archive)?)
+        fs::write(out_path.as_path(), archive)?;
+        Ok(out_path)
+    }
+
+    // returns a path to created directory
+    fn prepare_build_dir(&self, info: &Info) -> Result<PathBuf, Error> {
+        let mut build_dir = PathBuf::from(TEMPORARY_BUILD_DIR);
+        build_dir.push(format!("{}-{}", &info.name, Local::now().timestamp()));
+        trace!(
+            "creating temporary build dir in {}",
+            build_dir.as_path().display()
+        );
+        let mut builder = DirBuilder::new();
+        map_return!(
+            builder.recursive(true).create(build_dir.as_path()),
+            format!(
+                "failed to create a build directory in {}",
+                build_dir.as_path().display()
+            )
+        );
+
+        Ok(build_dir)
+    }
+
+    fn unpack_archive<P: AsRef<Path>>(&self, archive: PathBuf, build_dir: P) -> Result<(), Error> {
+        trace!("unpacking archive {}", archive.as_path().display());
+        match File::open(archive.as_path()) {
+            Ok(f) => {
+                let mut ar = Archive::new(f);
+                match ar.entries() {
+                    Ok(entries) => {
+                        for file in entries {
+                            match file {
+                                Ok(mut file) => {
+                                    file.unpack_in(build_dir.as_ref()).unwrap();
+                                }
+                                Err(e) => {
+                                    return Err(format_err!(
+                                        "failed to unpack file from {} - {}",
+                                        archive.as_path().display(),
+                                        e
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        return Err(format_err!(
+                            "failed to read entries of {} - {}",
+                            archive.as_path().display(),
+                            e
+                        ))
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(format_err!(
+                    "failed to open archive {} - {}",
+                    archive.as_path().display(),
+                    e
+                ))
+            }
+        }
+        trace!("finished unpacking");
+        Ok(())
+    }
+
+    fn build_rpm(&self, archive: PathBuf, recipe: &Recipe) -> Result<(), Error> {
+        Ok(())
     }
 }
