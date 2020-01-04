@@ -547,7 +547,7 @@ impl Pkger {
             &r.install.destdir, &bld_dir
         );
         let move_files_script = format!(
-            "{}/move_files{}.sh",
+            "{}/move_files{}.tar",
             TEMPORARY_BUILD_DIR,
             Local::now().timestamp()
         );
@@ -567,6 +567,8 @@ impl Pkger {
             .await?;
         self.exec_step(&["bash", "/tmp/move_files.sh"], &container, "/")
             .await?;
+        trace!("cleaning up {}", &move_files_script);
+        fs::remove_file(move_files_script).unwrap();
 
         // Build the .deb file
         trace!("building .deb with dpkg-deb");
@@ -584,8 +586,10 @@ impl Pkger {
         out_path.push(&ver);
         out_path.push(&file_name);
         trace!("downloading .deb file to {}", out_path.as_path().display());
-
         fs::write(out_path, deb).unwrap();
+
+        trace!("cleaning up {}", tmp_file.as_path().display());
+        fs::remove_file(tmp_file).unwrap();
         Ok(())
     }
 
