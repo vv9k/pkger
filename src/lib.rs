@@ -447,12 +447,17 @@ impl Pkger {
                             let os = self.determine_os(&container).await?;
                             let package_manager = os.clone().package_manager();
                             let (os, ver) = os.os_ver();
-                            let build_dir =
+                            let container_bld_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
                             self.install_deps(&container, &r.info, &package_manager)
                                 .await?;
-                            self.execute_build_steps(&container, &r.build, &r.install, &build_dir)
-                                .await?;
+                            self.execute_build_steps(
+                                &container,
+                                &r.build,
+                                &r.install,
+                                &container_bld_dir,
+                            )
+                            .await?;
                             let archive = self
                                 .download_archive(&container, &r.info, &r.install, &os, &ver)
                                 .await?;
@@ -466,6 +471,8 @@ impl Pkger {
                                 &os,
                                 &ver,
                             )?;
+                            trace!("cleaning up build dir {}", build_dir.as_path().display());
+                            fs::remove_dir_all(build_dir).unwrap();
                             Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
