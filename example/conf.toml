@@ -1,4 +1,4 @@
-images_dir = "/home/wojtek/dev/rust/pkger/exampl/images"
+images_dir = "/home/wojtek/dev/rust/pkger/example/images"
 recipes_dir = "/home/wojtek/dev/rust/pkger/example/recipes"
 output_dir = "/home/wojtek/dev/rust/pkger/example/output"
 
