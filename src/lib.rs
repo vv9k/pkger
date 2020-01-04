@@ -55,7 +55,7 @@ impl Os {
     fn package_manager(self) -> String {
         match self {
             Os::Debian(_, _) => "apt".to_string(),
-            Os::Redhat(_, v) if v == "8".to_string() => "dnf".to_string(),
+            Os::Redhat(_, v) if v == "8" => "dnf".to_string(),
             Os::Redhat(_, _) => "yum".to_string(),
         }
     }
@@ -194,7 +194,8 @@ impl ImageState {
     }
     fn save(&self) -> Result<(), Error> {
         trace!("saving images state to {}", &self.statef);
-        Ok(fs::write(&self.statef, toml::to_vec(&self)?).unwrap())
+        fs::write(&self.statef, toml::to_vec(&self)?).unwrap();
+        Ok(())
     }
 }
 
@@ -323,10 +324,7 @@ impl Pkger {
     async fn image_exists(&self, image: &str) -> bool {
         trace!("checking if image {} exists", image);
         let images = self.docker.images();
-        match images.inspect(image).await {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        images.inspect(image).await.is_ok()
     }
     async fn create_container(
         &self,
@@ -400,7 +398,7 @@ impl Pkger {
         trace!("{}", &out.out);
         let mut id = None;
         let mut version = None;
-        for line in out.out.split("\n").into_iter() {
+        for line in out.out.split('\n').into_iter() {
             if line.starts_with("ID=") {
                 id = Some(
                     line[3..]
@@ -503,7 +501,7 @@ impl Pkger {
             trace!("installing dependencies - {:?}", dependencies);
             trace!("using {} as package manager", package_manager);
             match self
-                .exec_step(&[&package_manager, "-y", "update"], &container, "/".into())
+                .exec_step(&[&package_manager, "-y", "update"], &container, "/")
                 .await
             {
                 Ok(out) => info!("{}", out.out),
@@ -517,14 +515,14 @@ impl Pkger {
             }
 
             let install_cmd = [
-                &vec![package_manager.as_ref(), "-y", "install"][..],
+                &vec![package_manager, "-y", "install"][..],
                 &dependencies
                     .iter()
                     .map(|s| s.as_ref())
                     .collect::<Vec<&str>>()[..],
             ]
             .concat();
-            match self.exec_step(&install_cmd, &container, "/".into()).await {
+            match self.exec_step(&install_cmd, &container, "/").await {
                 Ok(out) => info!("{}", out.out),
                 Err(e) => {
                     return Err(format_err!(
@@ -546,7 +544,7 @@ impl Pkger {
     ) -> Result<String, Error> {
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
         if let Err(e) = self
-            .exec_step(&["mkdir", &build_dir], &container, "/".into())
+            .exec_step(&["mkdir", &build_dir], &container, "/")
             .await
         {
             return Err(format_err!(

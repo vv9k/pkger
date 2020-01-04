@@ -23,7 +23,7 @@ async fn main() -> Result<(), Error> {
     pretty_env_logger::init();
     let opts = Opt::from_args();
     trace!("{:?}", opts);
-    let cfg = opts.config.unwrap_or(DEFAULT_CONF_FILE.to_string());
+    let cfg = opts.config.unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
     let pkger = Pkger::new(&opts.docker, &cfg)?;
     trace!("{:?}", pkger);
 
