@@ -462,39 +462,13 @@ impl Pkger {
                             .await?;
                             match os {
                                 Os::Debian(_, _) => {
-                                    info!("{}", generate_deb_control(&r.info));
-                                    unimplemented!()
+                                    self.handle_deb_build(&container, r, &os_name, &ver).await?;
                                 }
                                 Os::Redhat(_, _) => {
-                                    let archive = self
-                                        .download_archive(
-                                            &container, &r.info, &r.install, &os_name, &ver,
-                                        )
-                                        .await?;
-                                    let build_dir = self.prepare_build_dir(&r.info)?;
-                                    let files =
-                                        self.unpack_archive(archive.clone(), build_dir.clone())?;
-                                    self.build_rpm(
-                                        &files,
-                                        &r.info,
-                                        &r.install.destdir,
-                                        build_dir.as_path(),
-                                        &os_name,
-                                        &ver,
-                                    )?;
-                                    trace!(
-                                        "cleaning up build dir {}",
-                                        build_dir.as_path().display()
-                                    );
-                                    fs::remove_dir_all(build_dir).unwrap();
-                                    trace!(
-                                        "cleaning up temporary archive {}",
-                                        archive.as_path().display()
-                                    );
-                                    fs::remove_file(archive).unwrap();
+                                    self.handle_rpm_build(&container, r, &os_name, &ver).await?;
                                 }
                             }
-                            Pkger::remove_container(container).await;
+                            //Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
                     }
@@ -507,6 +481,141 @@ impl Pkger {
             ),
         }
 
+        Ok(())
+    }
+
+    async fn handle_deb_build(
+        &self,
+        container: &'_ Container<'_>,
+        r: &Recipe,
+        os: &str,
+        ver: &str,
+    ) -> Result<(), Error> {
+        trace!(
+            "creating deb package for:\nPackage: {}\nOs: {}\nVer: {}",
+            &r.info.name,
+            &os,
+            &ver
+        );
+
+        // generate and upload control file
+        let control_file = generate_deb_control(&r.info);
+        let mut tmp_file = PathBuf::from(TEMPORARY_BUILD_DIR);
+        if !Path::new(TEMPORARY_BUILD_DIR).exists() {
+            fs::create_dir_all(TEMPORARY_BUILD_DIR).unwrap();
+        }
+        let fname = format!("{}-{}-deb-{}", &r.info.name, &os, Local::now().timestamp());
+        tmp_file.push(fname);
+        trace!(
+            "saving control file to {} temporarily",
+            tmp_file.as_path().display()
+        );
+        let f = File::create(tmp_file.as_path())?;
+        trace!("creating archive with control file");
+        let mut ar = tar::Builder::new(f);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(control_file.as_bytes().iter().count() as u64);
+        header.set_cksum();
+        ar.append_data(&mut header, "./control", control_file.as_bytes())
+            .unwrap();
+        ar.finish().unwrap();
+        let bld_dir = format!(
+            "/tmp/pkger/{}_{}-{}",
+            &r.info.name, &r.info.version, &r.info.revision
+        );
+        self.exec_step(
+            &["mkdir", "-p", &format!("{}/DEBIAN", &bld_dir)],
+            &container,
+            "/",
+        )
+        .await?;
+        let mut upload = UploadArchiveOpts::new();
+        upload.path(&format!("{}/DEBIAN", &bld_dir));
+        let archive = fs::read(tmp_file.as_path())?;
+        trace!("uploading control file to container:{}/DEBIAN", &bld_dir);
+        container.upload_archive(&archive, &upload).await?;
+
+        // create all necessary directories to move files to
+        let final_destination = format!("{}{}", &bld_dir, &r.install.destdir);
+        self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
+            .await?;
+
+        // move files to build dir
+        trace!("uploading helper script");
+        let script = format!(
+            "#!/bin/bash\n\nfor file in {}/*; do mv $file {}$file; done\n",
+            &r.install.destdir, &bld_dir
+        );
+        let move_files_script = format!(
+            "{}/move_files{}.sh",
+            TEMPORARY_BUILD_DIR,
+            Local::now().timestamp()
+        );
+        let f = File::create(&move_files_script)?;
+        let mut ar = tar::Builder::new(f);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(control_file.as_bytes().iter().count() as u64);
+        header.set_cksum();
+        ar.append_data(&mut header, "./move_files.sh", script.as_bytes())
+            .unwrap();
+        ar.finish().unwrap();
+        let mut upload_script = UploadArchiveOpts::new();
+        upload_script.path("/tmp");
+        let script_archive = fs::read(&move_files_script)?;
+        container
+            .upload_archive(&script_archive, &upload_script)
+            .await?;
+        self.exec_step(&["bash", "/tmp/move_files.sh"], &container, "/")
+            .await?;
+
+        // Build the .deb file
+        trace!("building .deb with dpkg-deb");
+        self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/")
+            .await?;
+        let file_name = format!(
+            "{}_{}-{}.deb",
+            &r.info.name, &r.info.version, &r.info.revision
+        );
+        let deb = container
+            .archive_path(format!("/tmp/pkger/{}", &file_name))
+            .await?;
+        let mut out_path = PathBuf::from(&self.config.output_dir);
+        out_path.push(&os);
+        out_path.push(&ver);
+        out_path.push(&file_name);
+        trace!("downloading .deb file to {}", out_path.as_path().display());
+
+        fs::write(out_path, deb).unwrap();
+        Ok(())
+    }
+
+    async fn handle_rpm_build(
+        &self,
+        container: &'_ Container<'_>,
+        r: &Recipe,
+        os: &str,
+        ver: &str,
+    ) -> Result<(), Error> {
+        let archive = self
+            .download_archive(&container, &r.info, &r.install, &os, &ver)
+            .await?;
+        let build_dir = self.prepare_build_dir(&r.info)?;
+        let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
+        self.build_rpm(
+            &files,
+            &r.info,
+            &r.install.destdir,
+            build_dir.as_path(),
+            &os,
+            &ver,
+        )?;
+        trace!("cleaning up build dir {}", build_dir.as_path().display());
+        fs::remove_dir_all(build_dir).unwrap();
+        trace!(
+            "cleaning up temporary archive {}",
+            archive.as_path().display()
+        );
+        fs::remove_file(archive).unwrap();
         Ok(())
     }
 
@@ -859,6 +968,12 @@ fn should_include<P: AsRef<Path>>(path: P, excludes: &[String]) -> bool {
 // # TODO
 // Find a nicer way to generate this
 fn generate_deb_control(info: &Info) -> String {
+    let arch = match &info.arch[..] {
+        "x86_64" => "amd64",
+        // #TODO
+        _ => "unimplemented",
+    };
+    trace!("generating control file");
     let mut control = format!(
         "Package: {}
 Version: {}{}
@@ -866,46 +981,55 @@ Section: base
 Priority: optional
 Architecture: {}
 ",
-        &info.name, &info.version, &info.revision, &info.arch
+        &info.name, &info.version, &info.revision, &arch
     );
 
     if let Some(dependencies) = &info.depends {
         control.push_str("Depends: ");
+        let mut deps = String::new();
         for d in dependencies {
             trace!("adding dependency {}", d);
-            control.push_str(&format!("{}, ", d));
+            deps.push_str(&format!("{}, ", d));
         }
+        control.push_str(deps.trim_end_matches(", "));
         control.push('\n');
     }
     if let Some(conflicts) = &info.conflicts {
         control.push_str("Conflicts: ");
+        let mut confs = String::new();
         for c in conflicts {
             trace!("adding conflict {}", c);
-            control.push_str(&format!("{}, ", c));
+            confs.push_str(&format!("{}, ", c));
         }
+        control.push_str(confs.trim_end_matches(", "));
         control.push('\n');
     }
     if let Some(obsoletes) = &info.obsoletes {
         control.push_str("Breaks: ");
+        let mut obs = String::new();
         for o in obsoletes {
             trace!("adding obsolete {}", o);
-            control.push_str(&format!("{}, ", o));
+            obs.push_str(&format!("{}, ", o));
         }
+        control.push_str(obs.trim_end_matches(", "));
         control.push('\n');
     }
     if let Some(provides) = &info.provides {
         control.push_str("Provides: ");
+        let mut prvds = String::new();
         for p in provides {
             trace!("adding provide {}", p);
-            control.push_str(&format!("{}, ", p));
+            prvds.push_str(&format!("{}, ", p));
         }
+        control.push_str(prvds.trim_end_matches(", "));
         control.push('\n');
     }
 
     // TODO
     control.push_str("Maintainer: null <null@email.com>\n");
 
-    control.push_str(&format!("Description: {}", &info.description));
+    control.push_str(&format!("Description: {}\n", &info.description));
 
+    trace!("{}", &control);
     control
 }
