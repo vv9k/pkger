@@ -468,7 +468,7 @@ impl Pkger {
                                     self.handle_rpm_build(&container, r, &os_name, &ver).await?;
                                 }
                             }
-                            //Pkger::remove_container(container).await;
+                            Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
                     }
