@@ -2,23 +2,25 @@
 name = "curl"
 description = "curl"
 vendor = ""
+arch = "x86_64"
+license = "null"
 version = "7.67.0"
 revision = "0"
 source = "curl-7.67.0.tar.gz"
 depends = ["gcc", "make", "patch", "binutils", "strace"]
-# For now either redhat, centos, ubuntu or debian
 exclude = ["usr/share/info/dir"]
 images = [
-	"ubuntu_latest",
 	"centos",
+	"fedora",
+	"ubuntu_latest",
 ]
 
 [build]
 steps = [
-	#"./curl-7.67.0/configure --prefix=/opt/curl/7.67.0",
-	#"make"
+	"./curl-7.67.0/configure --prefix=/opt/curl/7.67.0",
+	"make"
 ]
 
 [install]
-steps = []#"strace make install"]
-destdir = "/tmp"
+steps = ["make install"]
+destdir = "/opt/curl/7.67.0"
