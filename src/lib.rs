@@ -448,7 +448,7 @@ impl Pkger {
                             container.start().await?;
                             let os = self.determine_os(&container).await?;
                             let package_manager = os.clone().package_manager();
-                            let (os, ver) = os.os_ver();
+                            let (os_name, ver) = os.clone().os_ver();
                             let container_bld_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
                             self.install_deps(&container, &r.info, &package_manager)
@@ -460,26 +460,40 @@ impl Pkger {
                                 &container_bld_dir,
                             )
                             .await?;
-                            let archive = self
-                                .download_archive(&container, &r.info, &r.install, &os, &ver)
-                                .await?;
-                            let build_dir = self.prepare_build_dir(&r.info)?;
-                            let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
-                            self.build_rpm(
-                                &files,
-                                &r.info,
-                                &r.install.destdir,
-                                build_dir.as_path(),
-                                &os,
-                                &ver,
-                            )?;
-                            trace!("cleaning up build dir {}", build_dir.as_path().display());
-                            fs::remove_dir_all(build_dir).unwrap();
-                            trace!(
-                                "cleaning up temporary archive {}",
-                                archive.as_path().display()
-                            );
-                            fs::remove_file(archive).unwrap();
+                            match os {
+                                Os::Debian(_, _) => {
+                                    info!("{}", generate_deb_control(&r.info));
+                                    unimplemented!()
+                                }
+                                Os::Redhat(_, _) => {
+                                    let archive = self
+                                        .download_archive(
+                                            &container, &r.info, &r.install, &os_name, &ver,
+                                        )
+                                        .await?;
+                                    let build_dir = self.prepare_build_dir(&r.info)?;
+                                    let files =
+                                        self.unpack_archive(archive.clone(), build_dir.clone())?;
+                                    self.build_rpm(
+                                        &files,
+                                        &r.info,
+                                        &r.install.destdir,
+                                        build_dir.as_path(),
+                                        &os_name,
+                                        &ver,
+                                    )?;
+                                    trace!(
+                                        "cleaning up build dir {}",
+                                        build_dir.as_path().display()
+                                    );
+                                    fs::remove_dir_all(build_dir).unwrap();
+                                    trace!(
+                                        "cleaning up temporary archive {}",
+                                        archive.as_path().display()
+                                    );
+                                    fs::remove_file(archive).unwrap();
+                                }
+                            }
                             Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
@@ -840,4 +854,58 @@ fn should_include<P: AsRef<Path>>(path: P, excludes: &[String]) -> bool {
         }
     }
     true
+}
+
+// # TODO
+// Find a nicer way to generate this
+fn generate_deb_control(info: &Info) -> String {
+    let mut control = format!(
+        "Package: {}
+Version: {}{}
+Section: base
+Priority: optional
+Architecture: {}
+",
+        &info.name, &info.version, &info.revision, &info.arch
+    );
+
+    if let Some(dependencies) = &info.depends {
+        control.push_str("Depends: ");
+        for d in dependencies {
+            trace!("adding dependency {}", d);
+            control.push_str(&format!("{}, ", d));
+        }
+        control.push('\n');
+    }
+    if let Some(conflicts) = &info.conflicts {
+        control.push_str("Conflicts: ");
+        for c in conflicts {
+            trace!("adding conflict {}", c);
+            control.push_str(&format!("{}, ", c));
+        }
+        control.push('\n');
+    }
+    if let Some(obsoletes) = &info.obsoletes {
+        control.push_str("Breaks: ");
+        for o in obsoletes {
+            trace!("adding obsolete {}", o);
+            control.push_str(&format!("{}, ", o));
+        }
+        control.push('\n');
+    }
+    if let Some(provides) = &info.provides {
+        control.push_str("Provides: ");
+        for p in provides {
+            trace!("adding provide {}", p);
+            control.push_str(&format!("{}, ", p));
+        }
+        control.push('\n');
+    }
+
+    // TODO
+    control.push_str("Maintainer: null <null@email.com>\n");
+
+    control.push_str(&format!("Description: {}", &info.description));
+
+    control
 }
