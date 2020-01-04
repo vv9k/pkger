@@ -71,8 +71,10 @@ struct Info {
     license: String,
     source: String,
     images: Vec<String>,
-    vendor: Option<String>,
     depends: Option<Vec<String>>,
+    obsoletes: Option<Vec<String>>,
+    conflicts: Option<Vec<String>>,
+    provides: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
 }
 #[derive(Deserialize, Debug)]
@@ -729,6 +731,30 @@ impl Pkger {
             &info.description,
         )
         .compression(rpm::Compressor::from_str("gzip")?);
+        if let Some(dependencies) = &info.depends {
+            for d in dependencies {
+                trace!("adding dependency {}", d);
+                builder = builder.requires(rpm::Dependency::any(d));
+            }
+        }
+        if let Some(conflicts) = &info.conflicts {
+            for c in conflicts {
+                trace!("adding conflict {}", c);
+                builder = builder.conflicts(rpm::Dependency::any(c));
+            }
+        }
+        if let Some(obsoletes) = &info.obsoletes {
+            for o in obsoletes {
+                trace!("adding obsolete {}", o);
+                builder = builder.obsoletes(rpm::Dependency::any(o));
+            }
+        }
+        if let Some(provides) = &info.provides {
+            for p in provides {
+                trace!("adding provide {}", p);
+                builder = builder.provides(rpm::Dependency::any(p));
+            }
+        }
         let dest_dir = PathBuf::from(dest);
         let _path = files[0].clone();
         let path = _path.strip_prefix(build_dir.as_ref()).unwrap();
