@@ -759,7 +759,7 @@ impl Pkger {
             &info.name, &info.version, &info.revision, &info.arch
         ));
         trace!("saving to {}", out_path.as_path().display());
-        let f = File::create(out_path.as_path())?;
+        let mut f = File::create(out_path.as_path())?;
         match pkg.write(&mut f) {
             Ok(_) => Ok(()),
             Err(e) => Err(format_err!(
