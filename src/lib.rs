@@ -4,6 +4,7 @@ extern crate tar;
 use chrono::prelude::Local;
 use failure::Error;
 use log::*;
+use rpm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, DirBuilder, DirEntry, File};
@@ -41,7 +42,7 @@ impl Os {
         let version = version.unwrap_or_default();
         match s {
             "ubuntu" | "debian" => Ok(Os::Debian(s.to_string(), version)),
-            "centos" | "redhat" => Ok(Os::Redhat(s.to_string(), version)),
+            "centos" | "redhat" | "fedora" => Ok(Os::Redhat(s.to_string(), version)),
             os => Err(format_err!("unknown os {}", os)),
         }
     }
@@ -64,11 +65,13 @@ impl Os {
 struct Info {
     name: String,
     version: String,
+    arch: String,
     revision: String,
+    description: String,
+    license: String,
     source: String,
     images: Vec<String>,
     vendor: Option<String>,
-    description: Option<String>,
     depends: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
 }
@@ -456,7 +459,15 @@ impl Pkger {
                                 .download_archive(&container, &r.info, &r.install, &os, &ver)
                                 .await?;
                             let build_dir = self.prepare_build_dir(&r.info)?;
-                            self.unpack_archive(archive, build_dir.as_path())?;
+                            let files = self.unpack_archive(archive, build_dir.clone())?;
+                            self.build_rpm(
+                                &files,
+                                &r.info,
+                                &r.install.destdir,
+                                build_dir.as_path(),
+                                &os,
+                                &ver,
+                            )?;
                             Pkger::remove_container(container).await;
                         }
                         Err(e) => return Err(e),
@@ -637,8 +648,9 @@ impl Pkger {
         Ok(build_dir)
     }
 
-    fn unpack_archive<P: AsRef<Path>>(&self, archive: PathBuf, build_dir: P) -> Result<(), Error> {
+    fn unpack_archive(&self, archive: PathBuf, build_dir: PathBuf) -> Result<Vec<PathBuf>, Error> {
         trace!("unpacking archive {}", archive.as_path().display());
+        let mut paths = Vec::new();
         match File::open(archive.as_path()) {
             Ok(f) => {
                 let mut ar = Archive::new(f);
@@ -647,7 +659,8 @@ impl Pkger {
                         for file in entries {
                             match file {
                                 Ok(mut file) => {
-                                    file.unpack_in(build_dir.as_ref()).unwrap();
+                                    paths.push(build_dir.join(file.path().unwrap()));
+                                    file.unpack_in(build_dir.as_path()).unwrap();
                                 }
                                 Err(e) => {
                                     return Err(format_err!(
@@ -677,10 +690,99 @@ impl Pkger {
             }
         }
         trace!("finished unpacking");
-        Ok(())
+        Ok(paths)
     }
 
-    fn build_rpm(&self, archive: PathBuf, recipe: &Recipe) -> Result<(), Error> {
-        Ok(())
+    fn build_rpm<P: AsRef<Path>>(
+        &self,
+        files: &[PathBuf],
+        info: &Info,
+        dest: &str,
+        build_dir: P,
+        os: &str,
+        ver: &str,
+    ) -> Result<(), Error> {
+        trace!(
+            "building rpm for:\npackage: {}\nos: {} {}\nver: {}-{}\narch: {}",
+            &info.name,
+            os,
+            ver,
+            &info.version,
+            &info.revision,
+            &info.arch,
+        );
+        let mut builder = rpm::RPMBuilder::new(
+            &info.name,
+            &info.version,
+            &info.license,
+            &info.arch,
+            &info.description,
+        )
+        .compression(rpm::Compressor::from_str("gzip")?);
+        let dest_dir = PathBuf::from(dest);
+        let _path = files[0].clone();
+        let path = _path.strip_prefix(build_dir.as_ref()).unwrap();
+        let parent = find_penultimate_ancestor(path);
+        trace!("adding files to builder");
+        for file in files {
+            if let Ok(metadata) = fs::metadata(file.as_path()) {
+                if !metadata.file_type().is_dir() {
+                    let fpath = {
+                        let f = file
+                            .strip_prefix(build_dir.as_ref().to_str().unwrap())
+                            .unwrap();
+                        match f.strip_prefix(parent.as_path()) {
+                            Ok(_f) => _f,
+                            Err(_e) => f,
+                        }
+                    };
+                    trace!("adding {}", fpath.display());
+
+                    builder = builder
+                        .with_file(
+                            file.as_path().to_str().unwrap(),
+                            rpm::RPMFileOptions::new(format!(
+                                "{}",
+                                dest_dir.join(fpath).as_path().display()
+                            )),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+        let pkg = builder.build()?;
+        let mut out_path = PathBuf::from(&self.config.output_dir);
+        out_path.push(os);
+        out_path.push(ver);
+        out_path.push(format!(
+            "{}-{}-{}.{}.rpm",
+            &info.name, &info.version, &info.revision, &info.arch
+        ));
+        trace!("saving to {}", out_path.as_path().display());
+        let f = File::create(out_path.as_path())?;
+        match pkg.write(&mut f) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format_err!(
+                "failed to create rpm for {} - {}",
+                &info.name,
+                e
+            )),
+        }
+    }
+}
+
+fn find_penultimate_ancestor<P: AsRef<Path>>(path: P) -> PathBuf {
+    trace!("finding parent of {}", path.as_ref().display());
+    let mut ancestors = path.as_ref().ancestors();
+    loop {
+        match ancestors.next() {
+            Some(ancestor) => {
+                if ancestors.next() == Some(Path::new("")) {
+                    trace!("found {}", ancestor.display());
+                    return ancestor.to_path_buf();
+                }
+            }
+            None => return PathBuf::from(""),
+        }
     }
 }
