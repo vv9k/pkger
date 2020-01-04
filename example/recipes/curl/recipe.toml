@@ -8,7 +8,7 @@ version = "7.67.0"
 revision = "0"
 source = "curl-7.67.0.tar.gz"
 depends = ["gcc", "make", "patch", "binutils", "strace"]
-exclude = ["usr/share/info/dir"]
+exclude = ["share", "info"]
 images = [
 	"centos",
 	"fedora",

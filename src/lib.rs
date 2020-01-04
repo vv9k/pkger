@@ -741,17 +741,26 @@ impl Pkger {
                             Err(_e) => f,
                         }
                     };
-                    trace!("adding {}", fpath.display());
-
-                    builder = builder
-                        .with_file(
-                            file.as_path().to_str().unwrap(),
-                            rpm::RPMFileOptions::new(format!(
-                                "{}",
-                                dest_dir.join(fpath).as_path().display()
-                            )),
-                        )
-                        .unwrap();
+                    let should_include = {
+                        match &info.exclude {
+                            Some(excl) => should_include(fpath, &excl),
+                            None => true,
+                        }
+                    };
+                    if should_include {
+                        trace!("adding {}", fpath.display());
+                        builder = builder
+                            .with_file(
+                                file.as_path().to_str().unwrap(),
+                                rpm::RPMFileOptions::new(format!(
+                                    "{}",
+                                    dest_dir.join(fpath).as_path().display()
+                                )),
+                            )
+                            .unwrap();
+                    } else {
+                        trace!("skipping {}", fpath.display());
+                    }
                 }
             }
         }
@@ -790,4 +799,14 @@ fn find_penultimate_ancestor<P: AsRef<Path>>(path: P) -> PathBuf {
             None => return PathBuf::from(""),
         }
     }
+}
+
+fn should_include<P: AsRef<Path>>(path: P, excludes: &[String]) -> bool {
+    trace!("checking if {} should be included", path.as_ref().display());
+    for e in excludes {
+        if path.as_ref().starts_with(e) {
+            return false;
+        }
+    }
+    true
 }
