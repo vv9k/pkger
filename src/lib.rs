@@ -71,6 +71,7 @@ struct Info {
     license: String,
     source: String,
     images: Vec<String>,
+    maintainer: Option<String>,
     depends: Option<Vec<String>>,
     obsoletes: Option<Vec<String>>,
     conflicts: Option<Vec<String>>,
@@ -1032,10 +1033,12 @@ Architecture: {}
         control.push('\n');
     }
 
-    // TODO
-    control.push_str("Maintainer: null <null@email.com>\n");
+    control.push_str("Maintainer: ");
+    if let Some(maintainer) = &info.maintainer {
+        control.push_str(maintainer);
+    }
 
-    control.push_str(&format!("Description: {}\n", &info.description));
+    control.push_str(&format!("\nDescription: {}\n", &info.description));
 
     trace!("{}", &control);
     control
