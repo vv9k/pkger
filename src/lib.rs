@@ -75,6 +75,9 @@ struct Info {
     source: String,
     images: Vec<String>,
 
+    // Git repository as source
+    git: Option<String>,
+
     // Packages
     depends: Option<Vec<String>>,
     obsoletes: Option<Vec<String>>,
@@ -715,51 +718,62 @@ impl Pkger {
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
-        if info.source.starts_with("http://") || info.source.starts_with("https://") {
-            trace!("treating source as URL");
-            let url: Uri = info.source.parse()?;
-            let scheme = url.scheme_str().unwrap_or("");
-            let builder = hyper::client::Client::builder();
-            let mut archive = bytes::Bytes::new();
-            trace!("downloading {}", &info.source);
-            match scheme {
-                "http" => {
-                    let client = builder.build::<_, Body>(hyper::client::HttpConnector::new());
-                    let res = client.get(info.source.parse()?).await?;
-                    archive = hyper::body::to_bytes(res).await?;
-                }
-                "https" => {
-                    let client = builder.build::<_, Body>(hyper_tls::HttpsConnector::new());
-                    let mut res = client.get(info.source.parse()?).await?;
-                    if res.status().is_redirection() {
-                        if let Some(new_location) = res.headers().get("location") {
-                            res = client
-                                .get(str::from_utf8(new_location.as_ref())?.parse()?)
-                                .await?;
-                            archive = hyper::body::to_bytes(res).await?;
-                        }
-                    } else {
-                        archive = hyper::body::to_bytes(res).await?;
-                    }
-                }
-                _ => return Err(format_err!("unknown url scheme {}", scheme)),
-            }
-            container.upload_archive(&archive, &opts).await?;
-        } else {
-            let src_path = format!(
-                "{}/{}/{}",
-                &self.config.recipes_dir, &info.name, &info.source
-            );
-            match fs::read(&src_path) {
-                Ok(archive) => {
-                    container.upload_archive(&archive, &opts).await?;
-                }
-                Err(e) => return Err(format_err!("no archive in {} - {}", src_path, e)),
-            }
-        }
+        let archive = self.get_src(&info).await?;
+        container.upload_archive(&archive, &opts).await?;
+
         Ok(build_dir)
     }
 
+    async fn get_src(&self, info: &Info) -> Result<Vec<u8>, Error> {
+        // first we check if git is present in the recipe
+        if let Some(repo) = &info.git {
+            let archive_path = fetch_git_src(&repo, &info.name)?;
+            Ok(fs::read(archive_path.as_path())?)
+        } else {
+            // Then we check if it's a url
+            if info.source.starts_with("http://") || info.source.starts_with("https://") {
+                trace!("treating source as URL");
+                let url: Uri = info.source.parse()?;
+                let scheme = url.scheme_str().unwrap_or("");
+                let builder = hyper::client::Client::builder();
+                let mut archive = bytes::Bytes::new();
+                trace!("downloading {}", &info.source);
+                match scheme {
+                    "http" => {
+                        let client = builder.build::<_, Body>(hyper::client::HttpConnector::new());
+                        let res = client.get(info.source.parse()?).await?;
+                        archive = hyper::body::to_bytes(res).await?;
+                    }
+                    "https" => {
+                        let client = builder.build::<_, Body>(hyper_tls::HttpsConnector::new());
+                        let mut res = client.get(info.source.parse()?).await?;
+                        if res.status().is_redirection() {
+                            if let Some(new_location) = res.headers().get("location") {
+                                res = client
+                                    .get(str::from_utf8(new_location.as_ref())?.parse()?)
+                                    .await?;
+                                archive = hyper::body::to_bytes(res).await?;
+                            }
+                        } else {
+                            archive = hyper::body::to_bytes(res).await?;
+                        }
+                    }
+                    _ => return Err(format_err!("unknown url scheme {}", scheme)),
+                }
+                Ok(archive[..].to_vec())
+            } else {
+                // if it's not a url then its a file
+                let src_path = format!(
+                    "{}/{}/{}",
+                    &self.config.recipes_dir, &info.name, &info.source
+                );
+                match fs::read(&src_path) {
+                    Ok(archive) => Ok(archive),
+                    Err(e) => return Err(format_err!("no archive in {} - {}", src_path, e)),
+                }
+            }
+        }
+    }
     async fn execute_build_steps(
         &self,
         container: &'_ Container<'_>,
@@ -1096,4 +1110,29 @@ Architecture: {}
 
     trace!("{}", &control);
     control
+}
+
+fn fetch_git_src(repo: &str, package: &str) -> Result<PathBuf, Error> {
+    trace!("fetching source for package {} from {}", package, repo);
+    let mut src_dir = PathBuf::from(&format!("/tmp/{}-src", &package));
+    if src_dir.exists() {
+        fs::remove_dir_all(src_dir.as_path())?;
+    }
+    fs::create_dir_all(src_dir.as_path())?;
+    let _ = git2::Repository::clone(&repo, src_dir.as_path())?;
+
+    let mut archive_path = PathBuf::from(&format!(
+        "/tmp/{}-{}.tar",
+        package,
+        Local::now().timestamp()
+    ));
+    let f = File::create(&archive_path)?;
+    trace!(
+        "creating archive with source in {}",
+        archive_path.as_path().display()
+    );
+    let mut ar = tar::Builder::new(f);
+    ar.append_dir_all(".", src_dir.as_path())?;
+    ar.finish().unwrap();
+    Ok(archive_path)
 }
