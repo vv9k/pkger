@@ -1001,11 +1001,12 @@ Architecture: {}
         Some(section) => control.push_str(section),
         None => control.push_str("base"),
     }
-    control.push_str("Priority: ");
+    control.push_str("\nPriority: ");
     match &info.priority {
         Some(priority) => control.push_str(priority),
         None => control.push_str("optional"),
     }
+    control.push('\n');
 
     if let Some(dependencies) = &info.depends {
         control.push_str("Depends: ");
