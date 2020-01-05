@@ -148,7 +148,7 @@ impl Image {
             match fs::metadata(self.path.as_path()) {
                 Ok(metadata) => match metadata.modified() {
                     Ok(mod_time) => {
-                        if mod_time > *prvs_bld_time {
+                        if mod_time > prvs_bld_time.1 {
                             trace!("image directory was modified since last build so marking for rebuild");
                             return Ok(true);
                         } else {
@@ -175,7 +175,7 @@ type Images = HashMap<String, Image>;
 
 #[derive(Deserialize, Debug, Default, Serialize)]
 struct ImageState {
-    images: HashMap<String, SystemTime>,
+    images: HashMap<String, (String, SystemTime)>,
     #[serde(skip)]
     statef: String,
 }
@@ -198,18 +198,22 @@ impl ImageState {
         }
         trace!("loading image state file from {}", &path);
         let contents = fs::read(statef.as_ref())?;
-        let mut s: ImageState = toml::from_slice(&contents)?;
+        let mut s: ImageState = serde_json::from_slice(&contents)?;
         trace!("{:?}", s);
         s.statef = path;
         Ok(s)
     }
-    fn update(&mut self, image: &str) {
+    fn update(&mut self, image: &str, current_tag: &str) {
         trace!("updating build time of {}", image);
-        self.images.insert(image.to_string(), SystemTime::now());
+        self.images.insert(
+            image.to_string(),
+            (current_tag.to_string(), SystemTime::now()),
+        );
     }
     fn save(&self) -> Result<(), Error> {
         trace!("saving images state to {}", &self.statef);
-        fs::write(&self.statef, toml::to_vec(&self)?).unwrap();
+        trace!("{:#?}", &self);
+        fs::write(&self.statef, serde_json::to_vec(&self)?).unwrap();
         Ok(())
     }
 }
@@ -293,9 +297,9 @@ impl Pkger {
 
     async fn build_image(&self, image: &Image, state: &mut ImageState) -> Result<String, Error> {
         trace!("building image {:#?}", image);
-        let image_name = format!("{}:{}", &image.name, Local::now().timestamp());
+        let image_with_tag = format!("{}:{}", &image.name, Local::now().timestamp());
         let mut opts = ImageBuilderOpts::new();
-        opts.name(&image_name);
+        opts.name(&image_with_tag);
 
         let mut archive_path = PathBuf::from(&self.config.images_dir);
         archive_path.push(format!("{}.tar", &image.name));
@@ -325,7 +329,7 @@ impl Pkger {
             images.build(&archive_content, &opts).await,
             format!("failed to build image {}", &image.name)
         );
-        state.update(&image.name);
+        state.update(&image.name, &image_with_tag);
         state.save()?;
 
         map_return!(
@@ -335,7 +339,7 @@ impl Pkger {
                 archive_path.as_path().display()
             )
         );
-        Ok(image_name)
+        Ok(image_with_tag)
     }
 
     async fn image_exists(&self, image: &str) -> bool {
@@ -351,7 +355,10 @@ impl Pkger {
         trace!("creating container from image {}", &image.name);
         let mut opts = ContainerBuilderOpts::new();
         let mut image_name = image.name.clone();
-        if !self.image_exists(&image.name).await || image.should_be_rebuilt().unwrap_or(true) {
+        if let Some(cache) = state.images.get(&image_name) {
+            image_name = cache.0.clone();
+        }
+        if !self.image_exists(&image_name).await || image.should_be_rebuilt().unwrap_or(true) {
             image_name = self.build_image(&image, &mut state).await?;
         }
         opts.image(&image_name)
