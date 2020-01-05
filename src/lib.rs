@@ -1097,3 +1097,28 @@ Architecture: {}
     trace!("{}", &control);
     control
 }
+
+fn fetch_git_src(repo: &str, package: &str) -> Result<PathBuf, Error> {
+    trace!("fetching source for package {} from {}", package, repo);
+    let mut src_dir = PathBuf::from(&format!("/tmp/{}-src", &package));
+    if src_dir.exists() {
+        fs::remove_dir_all(src_dir.as_path())?;
+    }
+    fs::create_dir_all(src_dir.as_path())?;
+    let _ = git2::Repository::clone(&repo, src_dir.as_path())?;
+
+    let mut archive_path = PathBuf::from(&format!(
+        "/tmp/{}-{}.tar",
+        package,
+        Local::now().timestamp()
+    ));
+    let f = File::create(&archive_path)?;
+    trace!(
+        "creating archive with source in {}",
+        archive_path.as_path().display()
+    );
+    let mut ar = tar::Builder::new(f);
+    ar.append_dir_all(".", src_dir.as_path())?;
+    ar.finish().unwrap();
+    Ok(archive_path)
+}
