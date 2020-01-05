@@ -63,6 +63,7 @@ impl Os {
 
 #[derive(Deserialize, Debug)]
 struct Info {
+    // General
     name: String,
     version: String,
     arch: String,
@@ -71,12 +72,18 @@ struct Info {
     license: String,
     source: String,
     images: Vec<String>,
-    maintainer: Option<String>,
+
+    // Packages
     depends: Option<Vec<String>>,
     obsoletes: Option<Vec<String>>,
     conflicts: Option<Vec<String>>,
     provides: Option<Vec<String>>,
     exclude: Option<Vec<String>>,
+
+    // Only Debian based
+    maintainer: Option<String>,
+    section: Option<String>,
+    priority: Option<String>,
 }
 #[derive(Deserialize, Debug)]
 struct Build {
@@ -984,13 +991,21 @@ fn generate_deb_control(info: &Info) -> String {
     trace!("generating control file");
     let mut control = format!(
         "Package: {}
-Version: {}{}
-Section: base
-Priority: optional
+Version: {}-{}
 Architecture: {}
 ",
         &info.name, &info.version, &info.revision, &arch
     );
+    control.push_str("Section: ");
+    match &info.section {
+        Some(section) => control.push_str(section),
+        None => control.push_str("base"),
+    }
+    control.push_str("Priority: ");
+    match &info.priority {
+        Some(priority) => control.push_str(priority),
+        None => control.push_str("optional"),
+    }
 
     if let Some(dependencies) = &info.depends {
         control.push_str("Depends: ");
@@ -1034,8 +1049,9 @@ Architecture: {}
     }
 
     control.push_str("Maintainer: ");
-    if let Some(maintainer) = &info.maintainer {
-        control.push_str(maintainer);
+    match &info.maintainer {
+        Some(maintainer) => control.push_str(maintainer),
+        None => control.push_str("null <null@email.com>"),
     }
 
     control.push_str(&format!("\nDescription: {}\n", &info.description));
