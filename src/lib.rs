@@ -718,11 +718,19 @@ impl Pkger {
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
+        let archive = self.get_src(&info).await?;
+        container.upload_archive(&archive, &opts).await?;
+
+        Ok(build_dir)
+    }
+
+    async fn get_src(&self, info: &Info) -> Result<Vec<u8>, Error> {
+        // first we check if git is present in the recipe
         if let Some(repo) = &info.git {
             let archive_path = fetch_git_src(&repo, &info.name)?;
-            let archive = fs::read(archive_path.as_path())?;
-            container.upload_archive(&archive, &opts).await?;
+            Ok(fs::read(archive_path.as_path())?)
         } else {
+            // Then we check if it's a url
             if info.source.starts_with("http://") || info.source.starts_with("https://") {
                 trace!("treating source as URL");
                 let url: Uri = info.source.parse()?;
@@ -752,23 +760,20 @@ impl Pkger {
                     }
                     _ => return Err(format_err!("unknown url scheme {}", scheme)),
                 }
-                container.upload_archive(&archive, &opts).await?;
+                Ok(archive[..].to_vec())
             } else {
+                // if it's not a url then its a file
                 let src_path = format!(
                     "{}/{}/{}",
                     &self.config.recipes_dir, &info.name, &info.source
                 );
                 match fs::read(&src_path) {
-                    Ok(archive) => {
-                        container.upload_archive(&archive, &opts).await?;
-                    }
+                    Ok(archive) => Ok(archive),
                     Err(e) => return Err(format_err!("no archive in {} - {}", src_path, e)),
                 }
             }
         }
-        Ok(build_dir)
     }
-
     async fn execute_build_steps(
         &self,
         container: &'_ Container<'_>,
