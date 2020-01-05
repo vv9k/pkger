@@ -75,6 +75,9 @@ struct Info {
     source: String,
     images: Vec<String>,
 
+    // Git repository as source
+    git: Option<String>,
+
     // Packages
     depends: Option<Vec<String>>,
     obsoletes: Option<Vec<String>>,
@@ -715,46 +718,52 @@ impl Pkger {
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
 
-        if info.source.starts_with("http://") || info.source.starts_with("https://") {
-            trace!("treating source as URL");
-            let url: Uri = info.source.parse()?;
-            let scheme = url.scheme_str().unwrap_or("");
-            let builder = hyper::client::Client::builder();
-            let mut archive = bytes::Bytes::new();
-            trace!("downloading {}", &info.source);
-            match scheme {
-                "http" => {
-                    let client = builder.build::<_, Body>(hyper::client::HttpConnector::new());
-                    let res = client.get(info.source.parse()?).await?;
-                    archive = hyper::body::to_bytes(res).await?;
-                }
-                "https" => {
-                    let client = builder.build::<_, Body>(hyper_tls::HttpsConnector::new());
-                    let mut res = client.get(info.source.parse()?).await?;
-                    if res.status().is_redirection() {
-                        if let Some(new_location) = res.headers().get("location") {
-                            res = client
-                                .get(str::from_utf8(new_location.as_ref())?.parse()?)
-                                .await?;
-                            archive = hyper::body::to_bytes(res).await?;
-                        }
-                    } else {
-                        archive = hyper::body::to_bytes(res).await?;
-                    }
-                }
-                _ => return Err(format_err!("unknown url scheme {}", scheme)),
-            }
+        if let Some(repo) = &info.git {
+            let archive_path = fetch_git_src(&repo, &info.name)?;
+            let archive = fs::read(archive_path.as_path())?;
             container.upload_archive(&archive, &opts).await?;
         } else {
-            let src_path = format!(
-                "{}/{}/{}",
-                &self.config.recipes_dir, &info.name, &info.source
-            );
-            match fs::read(&src_path) {
-                Ok(archive) => {
-                    container.upload_archive(&archive, &opts).await?;
+            if info.source.starts_with("http://") || info.source.starts_with("https://") {
+                trace!("treating source as URL");
+                let url: Uri = info.source.parse()?;
+                let scheme = url.scheme_str().unwrap_or("");
+                let builder = hyper::client::Client::builder();
+                let mut archive = bytes::Bytes::new();
+                trace!("downloading {}", &info.source);
+                match scheme {
+                    "http" => {
+                        let client = builder.build::<_, Body>(hyper::client::HttpConnector::new());
+                        let res = client.get(info.source.parse()?).await?;
+                        archive = hyper::body::to_bytes(res).await?;
+                    }
+                    "https" => {
+                        let client = builder.build::<_, Body>(hyper_tls::HttpsConnector::new());
+                        let mut res = client.get(info.source.parse()?).await?;
+                        if res.status().is_redirection() {
+                            if let Some(new_location) = res.headers().get("location") {
+                                res = client
+                                    .get(str::from_utf8(new_location.as_ref())?.parse()?)
+                                    .await?;
+                                archive = hyper::body::to_bytes(res).await?;
+                            }
+                        } else {
+                            archive = hyper::body::to_bytes(res).await?;
+                        }
+                    }
+                    _ => return Err(format_err!("unknown url scheme {}", scheme)),
                 }
-                Err(e) => return Err(format_err!("no archive in {} - {}", src_path, e)),
+                container.upload_archive(&archive, &opts).await?;
+            } else {
+                let src_path = format!(
+                    "{}/{}/{}",
+                    &self.config.recipes_dir, &info.name, &info.source
+                );
+                match fs::read(&src_path) {
+                    Ok(archive) => {
+                        container.upload_archive(&archive, &opts).await?;
+                    }
+                    Err(e) => return Err(format_err!("no archive in {} - {}", src_path, e)),
+                }
             }
         }
         Ok(build_dir)
