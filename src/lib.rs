@@ -286,10 +286,11 @@ impl Pkger {
         Ok(recipes)
     }
 
-    async fn build_image(&self, image: &Image, state: &mut ImageState) -> Result<(), Error> {
+    async fn build_image(&self, image: &Image, state: &mut ImageState) -> Result<String, Error> {
         trace!("building image {:#?}", image);
+        let image_name = format!("{}:{}", &image.name, Local::now().timestamp());
         let mut opts = ImageBuilderOpts::new();
-        opts.name(&image.name);
+        opts.name(&image_name);
 
         let mut archive_path = PathBuf::from(&self.config.images_dir);
         archive_path.push(format!("{}.tar", &image.name));
@@ -322,13 +323,14 @@ impl Pkger {
         state.update(&image.name);
         state.save()?;
 
-        Ok(map_return!(
+        map_return!(
             fs::remove_file(archive_path.as_path()),
             format!(
                 "failed to delete temporary archive from {}",
                 archive_path.as_path().display()
             )
-        ))
+        );
+        Ok(image_name)
     }
 
     async fn image_exists(&self, image: &str) -> bool {
@@ -343,10 +345,11 @@ impl Pkger {
     ) -> Result<Container<'_>, Error> {
         trace!("creating container from image {}", &image.name);
         let mut opts = ContainerBuilderOpts::new();
+        let mut image_name = image.name.clone();
         if !self.image_exists(&image.name).await || image.should_be_rebuilt().unwrap_or(true) {
-            self.build_image(&image, &mut state).await?;
+            image_name = self.build_image(&image, &mut state).await?;
         }
-        opts.image(&image.name)
+        opts.image(&image_name)
             .shell(&["/bin/bash"])
             .cmd(&["/bin/bash"])
             .tty(true)
