@@ -63,6 +63,8 @@ destdir = "/opt/curl/7.67.0"
 ```
 
 ## Usage
+To install `pkger` run `cargo install pkger` or clone and build this repository with `crago build --release`.
+
 To use `pkger` you need a [docker daemon running on a tcp port](https://success.docker.com/article/how-do-i-enable-the-remote-api-for-dockerd).
 After that run:
  - `pkger -d $docker_address -c $config_file [RECIPES]`
