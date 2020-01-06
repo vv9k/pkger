@@ -1,0 +1,29 @@
+[info]
+name = "pkger"
+description = "pkger"
+arch = "x86_64"
+license = "MIT"
+version = "0.0.5"
+revision = "0"
+source = ""
+git = "https://github.com/wojciechkepka/pkger.git"
+depends = ["curl", "gcc", "pkg-config", "openssl-devel"]
+exclude = ["share", "info"]
+provides = ["pkger"]
+images = [
+	"centos8",
+]
+
+[build]
+steps = [
+	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
+	"sh /tmp/install_rust.sh -y --default-toolchain stable",
+	"mkdir -p /opt/pkger",
+	"/root/.cargo/bin/cargo build --release --target-dir /tmp",
+]
+
+[install]
+steps = [
+	"mv /tmp/release/pkger /opt/pkger"
+]
+destdir = "/opt/pkger"
