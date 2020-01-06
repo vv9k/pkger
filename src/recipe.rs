@@ -56,7 +56,7 @@ pub fn generate_deb_control(info: &Info) -> String {
     let arch = match &info.arch[..] {
         "x86_64" => "amd64",
         // #TODO
-        _ => "unimplemented",
+        _ => "all",
     };
     trace!("generating control file");
     let mut control = format!(
@@ -69,7 +69,7 @@ Architecture: {}
     control.push_str("Section: ");
     match &info.section {
         Some(section) => control.push_str(section),
-        None => control.push_str("base"),
+        None => control.push_str("custom"),
     }
     control.push_str("\nPriority: ");
     match &info.priority {
