@@ -75,23 +75,32 @@ impl Pkger {
     fn parse_images_dir(p: &str) -> Result<Images, Error> {
         trace!("parsing images dir - {}", p);
         let mut images = HashMap::new();
-        for _entry in map_return!(fs::read_dir(p), format!("failed to read images_dir {}", p)) {
-            if let Ok(entry) = _entry {
-                if let Ok(ftype) = entry.file_type() {
-                    if ftype.is_dir() {
-                        let image = Image::new(entry);
-                        trace!("{:?}", image);
-                        if image.has_dockerfile {
-                            images.insert(image.name.clone(), image);
-                        } else {
-                            error!(
-                                "image {} doesn't have Dockerfile in it's root directory",
-                                image.name
-                            );
+        if Path::new(&p).exists() {
+            for _entry in map_return!(fs::read_dir(p), format!("failed to read images_dir {}", p)) {
+                if let Ok(entry) = _entry {
+                    if let Ok(ftype) = entry.file_type() {
+                        if ftype.is_dir() {
+                            let image = Image::new(entry);
+                            trace!("{:?}", image);
+                            if image.has_dockerfile {
+                                images.insert(image.name.clone(), image);
+                            } else {
+                                error!(
+                                    "image {} doesn't have Dockerfile in it's root directory",
+                                    image.name
+                                );
+                            }
                         }
                     }
                 }
             }
+        } else {
+            warn!("images directory in {} doesn't exist", &p);
+            info!("creating directory {}", &p);
+            map_return!(
+                fs::create_dir_all(&p),
+                format!("failed to create directory for images in {}", &p)
+            );
         }
         trace!("{:?}", images);
         Ok(images)
@@ -100,25 +109,34 @@ impl Pkger {
     fn parse_recipes_dir(p: &str) -> Result<Recipes, Error> {
         trace!("parsing recipes dir - {}", p);
         let mut recipes = HashMap::new();
-        for _entry in map_return!(fs::read_dir(p), "failed to read recipes_dir") {
-            if let Ok(entry) = _entry {
-                if let Ok(ftype) = entry.file_type() {
-                    if ftype.is_dir() {
-                        let path = entry.path();
-                        match Recipe::new(entry) {
-                            Ok(recipe) => {
-                                trace!("{:?}", recipe);
-                                recipes.insert(recipe.info.name.clone(), recipe);
+        if Path::new(&p).exists() {
+            for _entry in map_return!(fs::read_dir(p), "failed to read recipes_dir") {
+                if let Ok(entry) = _entry {
+                    if let Ok(ftype) = entry.file_type() {
+                        if ftype.is_dir() {
+                            let path = entry.path();
+                            match Recipe::new(entry) {
+                                Ok(recipe) => {
+                                    trace!("{:?}", recipe);
+                                    recipes.insert(recipe.info.name.clone(), recipe);
+                                }
+                                Err(e) => error!(
+                                    "directory {} doesn't have a recipe.toml or the recipe is wrong - {}",
+                                    path.as_path().display(),
+                                    e
+                                ),
                             }
-                            Err(e) => error!(
-                                "directory {} doesn't have a recipe.toml or the recipe is wrong - {}",
-                                path.as_path().display(),
-                                e
-                            ),
                         }
                     }
                 }
             }
+        } else {
+            warn!("recipes directory in {} doesn't exist", &p);
+            info!("creating directory {}", &p);
+            map_return!(
+                fs::create_dir_all(&p),
+                format!("failed to create directory for recipes in {}", &p)
+            );
         }
         trace!("{:?}", recipes);
         Ok(recipes)
@@ -860,12 +878,27 @@ impl Pkger {
         let mut out_path = PathBuf::from(&self.config.output_dir);
         out_path.push(os);
         out_path.push(ver);
+        if !out_path.exists() {
+            map_return!(
+                fs::create_dir_all(&out_path),
+                format!(
+                    "failed to create output directory in {}",
+                    &out_path.as_path().display()
+                )
+            );
+        }
         out_path.push(format!(
             "{}-{}-{}.{}.rpm",
             &info.name, &info.version, &info.revision, &info.arch
         ));
         trace!("saving to {}", out_path.as_path().display());
-        let mut f = File::create(out_path.as_path())?;
+        let mut f = map_return!(
+            File::create(out_path.as_path()),
+            format!(
+                "failed to create a file in {}",
+                out_path.as_path().display()
+            )
+        );
         match pkg.write(&mut f) {
             Ok(_) => Ok(()),
             Err(e) => Err(format_err!(
