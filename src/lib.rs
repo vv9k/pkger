@@ -2,6 +2,7 @@
 extern crate failure;
 extern crate tar;
 mod image;
+mod package;
 mod recipe;
 mod util;
 use self::image::*;
@@ -369,28 +370,10 @@ impl Pkger {
             &os,
             &ver
         );
+        let tmp_file = package::deb::prepare_archive(&r.info, &os).await?;
+        let archive = fs::read(tmp_file.as_path())?;
 
-        // generate and upload control file
-        let control_file = generate_deb_control(&r.info);
-        let mut tmp_file = PathBuf::from(TEMPORARY_BUILD_DIR);
-        if !Path::new(TEMPORARY_BUILD_DIR).exists() {
-            fs::create_dir_all(TEMPORARY_BUILD_DIR).unwrap();
-        }
-        let fname = format!("{}-{}-deb-{}", &r.info.name, &os, Local::now().timestamp());
-        tmp_file.push(fname);
-        trace!(
-            "saving control file to {} temporarily",
-            tmp_file.as_path().display()
-        );
-        let f = File::create(tmp_file.as_path())?;
-        trace!("creating archive with control file");
-        let mut ar = tar::Builder::new(f);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(control_file.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        ar.append_data(&mut header, "./control", control_file.as_bytes())
-            .unwrap();
-        ar.finish().unwrap();
+        // create build dir in container
         let bld_dir = format!(
             "/tmp/pkger/{}_{}-{}",
             &r.info.name, &r.info.version, &r.info.revision
@@ -401,10 +384,10 @@ impl Pkger {
             "/",
         )
         .await?;
+
+        trace!("uploading control file to container:{}/DEBIAN", &bld_dir);
         let mut upload = UploadArchiveOpts::new();
         upload.path(&format!("{}/DEBIAN", &bld_dir));
-        let archive = fs::read(tmp_file.as_path())?;
-        trace!("uploading control file to container:{}/DEBIAN", &bld_dir);
         container.upload_archive(&archive, &upload).await?;
 
         // create all necessary directories to move files to
@@ -412,37 +395,16 @@ impl Pkger {
         self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
             .await?;
 
-        // move files to build dir
-        trace!("uploading helper script");
-        let script = format!(
-            "#!/bin/bash\n\nfor file in {}/*; do mv $file {}$file; done\n",
-            &r.install.destdir, &bld_dir
-        );
-        let move_files_script = format!(
-            "{}/move_files{}.tar",
-            TEMPORARY_BUILD_DIR,
-            Local::now().timestamp()
-        );
-        let f = File::create(&move_files_script)?;
-        let mut ar = tar::Builder::new(f);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(control_file.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        ar.append_data(&mut header, "./move_files.sh", script.as_bytes())
-            .unwrap();
-        ar.finish().unwrap();
+        trace!("uploading helper scripts");
+        let scripts = package::deb::prepare_helper_scripts(&r, &bld_dir)?;
         let mut upload_script = UploadArchiveOpts::new();
         upload_script.path("/tmp");
-        let script_archive = fs::read(&move_files_script)?;
-        container
-            .upload_archive(&script_archive, &upload_script)
-            .await?;
+        container.upload_archive(&scripts, &upload_script).await?;
+
+        // move files from destdir to build directory
         self.exec_step(&["bash", "/tmp/move_files.sh"], &container, "/")
             .await?;
-        trace!("cleaning up {}", &move_files_script);
-        fs::remove_file(move_files_script).unwrap();
 
-        // Build the .deb file
         trace!("building .deb with dpkg-deb");
         self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/")
             .await?;
@@ -489,7 +451,8 @@ impl Pkger {
             .await?;
         let build_dir = self.prepare_build_dir(&r.info)?;
         let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
-        self.build_rpm(
+        package::_rpm::build_rpm(
+            &self.config.output_dir,
             &files,
             &r.info,
             &r.install.destdir,
@@ -782,130 +745,5 @@ impl Pkger {
         }
         trace!("finished unpacking");
         Ok(paths)
-    }
-
-    fn build_rpm<P: AsRef<Path>>(
-        &self,
-        files: &[PathBuf],
-        info: &Info,
-        dest: &str,
-        build_dir: P,
-        os: &str,
-        ver: &str,
-    ) -> Result<(), Error> {
-        trace!(
-            "building rpm for:\npackage: {}\nos: {} {}\nver: {}-{}\narch: {}",
-            &info.name,
-            os,
-            ver,
-            &info.version,
-            &info.revision,
-            &info.arch,
-        );
-        let mut builder = rpm::RPMBuilder::new(
-            &info.name,
-            &info.version,
-            &info.license,
-            &info.arch,
-            &info.description,
-        )
-        .compression(rpm::Compressor::from_str("gzip")?);
-        if let Some(dependencies) = &info.depends {
-            for d in dependencies {
-                trace!("adding dependency {}", d);
-                builder = builder.requires(rpm::Dependency::any(d));
-            }
-        }
-        if let Some(conflicts) = &info.conflicts {
-            for c in conflicts {
-                trace!("adding conflict {}", c);
-                builder = builder.conflicts(rpm::Dependency::any(c));
-            }
-        }
-        if let Some(obsoletes) = &info.obsoletes {
-            for o in obsoletes {
-                trace!("adding obsolete {}", o);
-                builder = builder.obsoletes(rpm::Dependency::any(o));
-            }
-        }
-        if let Some(provides) = &info.provides {
-            for p in provides {
-                trace!("adding provide {}", p);
-                builder = builder.provides(rpm::Dependency::any(p));
-            }
-        }
-        let dest_dir = PathBuf::from(dest);
-        let _path = files[0].clone();
-        let path = _path.strip_prefix(build_dir.as_ref()).unwrap();
-        let parent = find_penultimate_ancestor(path);
-        trace!("adding files to builder");
-        for file in files {
-            if let Ok(metadata) = fs::metadata(file.as_path()) {
-                if !metadata.file_type().is_dir() {
-                    let fpath = {
-                        let f = file
-                            .strip_prefix(build_dir.as_ref().to_str().unwrap())
-                            .unwrap();
-                        match f.strip_prefix(parent.as_path()) {
-                            Ok(_f) => _f,
-                            Err(_e) => f,
-                        }
-                    };
-                    let should_include = {
-                        match &info.exclude {
-                            Some(excl) => should_include(fpath, &excl),
-                            None => true,
-                        }
-                    };
-                    if should_include {
-                        trace!("adding {}", fpath.display());
-                        builder = builder
-                            .with_file(
-                                file.as_path().to_str().unwrap(),
-                                rpm::RPMFileOptions::new(format!(
-                                    "{}",
-                                    dest_dir.join(fpath).as_path().display()
-                                )),
-                            )
-                            .unwrap();
-                    } else {
-                        trace!("skipping {}", fpath.display());
-                    }
-                }
-            }
-        }
-        let pkg = builder.build()?;
-        let mut out_path = PathBuf::from(&self.config.output_dir);
-        out_path.push(os);
-        out_path.push(ver);
-        if !out_path.exists() {
-            map_return!(
-                fs::create_dir_all(&out_path),
-                format!(
-                    "failed to create output directory in {}",
-                    &out_path.as_path().display()
-                )
-            );
-        }
-        out_path.push(format!(
-            "{}-{}-{}.{}.rpm",
-            &info.name, &info.version, &info.revision, &info.arch
-        ));
-        trace!("saving to {}", out_path.as_path().display());
-        let mut f = map_return!(
-            File::create(out_path.as_path()),
-            format!(
-                "failed to create a file in {}",
-                out_path.as_path().display()
-            )
-        );
-        match pkg.write(&mut f) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format_err!(
-                "failed to create rpm for {} - {}",
-                &info.name,
-                e
-            )),
-        }
     }
 }
