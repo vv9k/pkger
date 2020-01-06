@@ -395,12 +395,14 @@ impl Pkger {
             .attach_stdout(true);
 
         match container.exec(&opts).await {
-            Ok(out) if out.info.exit_code != 0 => Err(format_err!(
-                "failed to exec step {:?} in container {} - {:?}",
-                cmd,
-                &container.id,
-                out
-            )),
+            Ok(out) if out.info.exit_code != 0 => {
+                error!("{}\n{:?}", &out.out, &out.info);
+                Err(format_err!(
+                    "failed to exec step {:?} in container {}",
+                    cmd,
+                    &container.id,
+                ))
+            }
             Ok(out) => Ok(out),
             Err(e) => Err(format_err!(
                 "failed to exec step {:?} in container {} - {:?}",
