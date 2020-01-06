@@ -9,24 +9,6 @@ on:
       - master
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2-beta
-        with:
-          repository: 'wojciechkepka/pkger'
-          ref: 'master'
-      - name: Install Rust stable
-        run: |
-          rustup toolchain update --no-self-update stable
-          rustup default stable
-          rustup component add clippy rustfmt
-      - name: Run rustfmt
-        run: cargo fmt -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all --all-features -- -Dwarnings
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +22,7 @@ jobs:
       
     - name: Run tests
       run: |
-        apt install docker
+        sudo apt install docker
         dockerd -H http://0.0.0.0:2376 &
         RUST_LOG=pkger=trace cargo run -- -d http://0.0.0.0:2376 -c example/conf.toml pkger
 
