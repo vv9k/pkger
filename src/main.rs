@@ -25,7 +25,7 @@ struct Opt {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let opts = Opt::from_args();
-    if opts.quiet == false {
+    if !opts.quiet {
         if env::var_os("RUST_LOG").is_none() {
             env::set_var("RUST_LOG", "pkger=info");
         }

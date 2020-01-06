@@ -776,7 +776,7 @@ impl Pkger {
                 );
                 match fs::read(&src_path) {
                     Ok(archive) => Ok(archive),
-                    Err(e) => return Err(format_err!("no archive in {} - {}", src_path, e)),
+                    Err(e) => Err(format_err!("no archive in {} - {}", src_path, e)),
                 }
             }
         }
@@ -1120,14 +1120,14 @@ Architecture: {}
 
 fn fetch_git_src(repo: &str, package: &str) -> Result<PathBuf, Error> {
     trace!("fetching source for package {} from {}", package, repo);
-    let mut src_dir = PathBuf::from(&format!("/tmp/{}-src", &package));
+    let src_dir = PathBuf::from(&format!("/tmp/{}-src", &package));
     if src_dir.exists() {
         fs::remove_dir_all(src_dir.as_path())?;
     }
     fs::create_dir_all(src_dir.as_path())?;
     let _ = git2::Repository::clone(&repo, src_dir.as_path())?;
 
-    let mut archive_path = PathBuf::from(&format!(
+    let archive_path = PathBuf::from(&format!(
         "/tmp/{}-{}.tar",
         package,
         Local::now().timestamp()
