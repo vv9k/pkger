@@ -53,11 +53,18 @@ impl Image {
     }
 }
 
-#[derive(Deserialize, Debug, Default, Serialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ImageState {
     pub images: HashMap<String, (String, SystemTime)>,
-    #[serde(skip)]
     pub statef: String,
+}
+impl Default for ImageState {
+    fn default() -> Self {
+        ImageState {
+            images: HashMap::new(),
+            statef: DEFAULT_STATE_FILE.to_string(),
+        }
+    }
 }
 impl ImageState {
     pub fn load<P: AsRef<Path>>(statef: P) -> Result<Self, Error> {
@@ -93,7 +100,19 @@ impl ImageState {
     pub fn save(&self) -> Result<(), Error> {
         trace!("saving images state to {}", &self.statef);
         trace!("{:#?}", &self);
-        fs::write(&self.statef, serde_json::to_vec(&self)?).unwrap();
+        if !Path::new(&self.statef).exists() {
+            map_return!(
+                fs::File::create(&self.statef),
+                format!("failed to create state file in {}", &self.statef)
+            );
+        }
+        match serde_json::to_vec(&self) {
+            Ok(d) => map_return!(
+                fs::write(&self.statef, d),
+                format!("failed to save state file in {}", &self.statef)
+            ),
+            Err(e) => return Err(format_err!("failed to serialize image state - {}", e)),
+        }
         Ok(())
     }
 }
