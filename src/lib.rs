@@ -29,6 +29,7 @@ use wharf::Docker;
 const DEFAULT_STATE_FILE: &str = ".pkger.state";
 const TEMPORARY_BUILD_DIR: &str = "/tmp";
 
+#[macro_export]
 macro_rules! map_return {
     ($f:expr, $e:expr) => {
         match $f {
