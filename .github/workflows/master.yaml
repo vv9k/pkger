@@ -22,7 +22,7 @@ jobs:
       
     - name: Run tests
       run: |
-        sudo apt install docker
-        dockerd -H http://0.0.0.0:2376 &
+        sudo apt -y install docker
+        dockerd -H tcp://0.0.0.0:2376 &
         RUST_LOG=pkger=trace cargo run -- -d http://0.0.0.0:2376 -c example/conf.toml pkger
 
