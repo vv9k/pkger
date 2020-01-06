@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate failure;
 extern crate tar;
+mod recipe;
+use self::recipe::*;
 use chrono::prelude::Local;
 use failure::Error;
 use hyper::{Body, Uri};
@@ -62,57 +64,6 @@ impl Os {
         }
     }
 }
-
-#[derive(Deserialize, Debug)]
-struct Info {
-    // General
-    name: String,
-    version: String,
-    arch: String,
-    revision: String,
-    description: String,
-    license: String,
-    source: String,
-    images: Vec<String>,
-
-    // Git repository as source
-    git: Option<String>,
-
-    // Packages
-    depends: Option<Vec<String>>,
-    obsoletes: Option<Vec<String>>,
-    conflicts: Option<Vec<String>>,
-    provides: Option<Vec<String>>,
-    exclude: Option<Vec<String>>,
-
-    // Only Debian based
-    maintainer: Option<String>,
-    section: Option<String>,
-    priority: Option<String>,
-}
-#[derive(Deserialize, Debug)]
-struct Build {
-    steps: Vec<String>,
-}
-#[derive(Deserialize, Debug)]
-struct Install {
-    steps: Vec<String>,
-    destdir: String,
-}
-#[derive(Deserialize, Debug)]
-struct Recipe {
-    info: Info,
-    build: Build,
-    install: Install,
-}
-impl Recipe {
-    fn new(entry: DirEntry) -> Result<Recipe, Error> {
-        let mut path = entry.path();
-        path.push("recipe.toml");
-        Ok(toml::from_str::<Recipe>(&fs::read_to_string(&path)?)?)
-    }
-}
-type Recipes = HashMap<String, Recipe>;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
