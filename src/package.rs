@@ -2,32 +2,8 @@ use super::*;
 
 pub mod _rpm {
     use super::*;
-    pub fn build_rpm<P: AsRef<Path>>(
-        out_dir: &str,
-        files: &[PathBuf],
-        info: &Info,
-        dest: &str,
-        build_dir: P,
-        os: &str,
-        ver: &str,
-    ) -> Result<(), Error> {
-        trace!(
-            "building rpm for:\npackage: {}\nos: {} {}\nver: {}-{}\narch: {}",
-            &info.name,
-            os,
-            ver,
-            &info.version,
-            &info.revision,
-            &info.arch,
-        );
-        let mut builder = rpm::RPMBuilder::new(
-            &info.name,
-            &info.version,
-            &info.license,
-            &info.arch,
-            &info.description,
-        )
-        .compression(rpm::Compressor::from_str("gzip")?);
+    fn handle_dependencies(info: &Info, mut builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
+        trace!("handling dependencies");
         if let Some(dependencies) = &info.depends {
             for d in dependencies {
                 trace!("adding dependency {}", d);
@@ -52,10 +28,16 @@ pub mod _rpm {
                 builder = builder.provides(rpm::Dependency::any(p));
             }
         }
-        let dest_dir = PathBuf::from(dest);
-        let _path = files[0].clone();
-        let path = _path.strip_prefix(build_dir.as_ref()).unwrap();
-        let parent = find_penultimate_ancestor(path);
+        builder
+    }
+    fn add_files<P: AsRef<Path>>(
+        info: &Info,
+        files: &[PathBuf],
+        mut builder: rpm::RPMBuilder,
+        build_dir: P,
+        dest_dir: P,
+        parent: P,
+    ) -> rpm::RPMBuilder {
         trace!("adding files to builder");
         for file in files {
             if let Ok(metadata) = fs::metadata(file.as_path()) {
@@ -64,7 +46,7 @@ pub mod _rpm {
                         let f = file
                             .strip_prefix(build_dir.as_ref().to_str().unwrap())
                             .unwrap();
-                        match f.strip_prefix(parent.as_path()) {
+                        match f.strip_prefix(parent.as_ref()) {
                             Ok(_f) => _f,
                             Err(_e) => f,
                         }
@@ -82,7 +64,7 @@ pub mod _rpm {
                                 file.as_path().to_str().unwrap(),
                                 rpm::RPMFileOptions::new(format!(
                                     "{}",
-                                    dest_dir.join(fpath).as_path().display()
+                                    dest_dir.as_ref().join(fpath).as_path().display()
                                 )),
                             )
                             .unwrap();
@@ -92,7 +74,15 @@ pub mod _rpm {
                 }
             }
         }
-        let pkg = builder.build()?;
+        builder
+    }
+    fn write_rpm(
+        info: &Info,
+        out_dir: &str,
+        os: &str,
+        ver: &str,
+        pkg: rpm::RPMPackage,
+    ) -> Result<(), Error> {
         let mut out_path = PathBuf::from(&out_dir);
         out_path.push(os);
         out_path.push(ver);
@@ -125,6 +115,48 @@ pub mod _rpm {
                 e
             )),
         }
+    }
+    pub fn build_rpm<P: AsRef<Path>>(
+        out_dir: &str,
+        files: &[PathBuf],
+        info: &Info,
+        dest: &str,
+        build_dir: P,
+        os: &str,
+        ver: &str,
+    ) -> Result<(), Error> {
+        trace!(
+            "building rpm for:\npackage: {}\nos: {} {}\nver: {}-{}\narch: {}",
+            &info.name,
+            os,
+            ver,
+            &info.version,
+            &info.revision,
+            &info.arch,
+        );
+        let mut builder = rpm::RPMBuilder::new(
+            &info.name,
+            &info.version,
+            &info.license,
+            &info.arch,
+            &info.description,
+        )
+        .compression(rpm::Compressor::from_str("gzip")?);
+        builder = handle_dependencies(&info, builder);
+        let dest_dir = PathBuf::from(dest);
+        let _path = files[0].clone();
+        let path = _path.strip_prefix(build_dir.as_ref()).unwrap();
+        let parent = find_penultimate_ancestor(path);
+        builder = add_files(
+            &info,
+            &files,
+            builder,
+            build_dir.as_ref(),
+            dest_dir.as_path(),
+            parent.as_path(),
+        );
+        let pkg = builder.build()?;
+        Ok(write_rpm(&info, &out_dir, &os, &ver, pkg)?)
     }
 }
 
