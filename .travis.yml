@@ -8,9 +8,7 @@ addons:
 install:
   - sudo apt -y install docker
   - sudo mkdir -p /etc/systemd/system/docker.service.d
-  - sudo echo -e "[Service]\nExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2376\n" > /etc/systemd/system/docker.service.d/override.conf
-  - sudo systemctl daemon-reload
-  - sudo systemctl restart docker || sudo systemctl start docker
-  - sudo dockerd -H tcp://0.0.0.0:2376 --pidfile /var/run/docker_api.pid &
+  - sudo systemctl stop docker
+  - sudo dockerd -H tcp://0.0.0.0:2376 --pidfile /var/run/docker.pid &
 script:
   - RUST_LOG=pkger=trace cargo run -- -d http://0.0.0.0:2376 -c example/conf.toml pkger
