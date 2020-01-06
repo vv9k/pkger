@@ -38,37 +38,6 @@ macro_rules! map_return {
     };
 }
 
-// enum holding version of os
-#[derive(Clone)]
-enum Os {
-    Debian(String, String),
-    Redhat(String, String),
-}
-impl Os {
-    fn from(s: &str, version: Option<String>) -> Result<Os, Error> {
-        trace!("os: {}, version {:?}", s, version);
-        let version = version.unwrap_or_default();
-        match s {
-            "ubuntu" | "debian" => Ok(Os::Debian(s.to_string(), version)),
-            "centos" | "redhat" | "fedora" => Ok(Os::Redhat(s.to_string(), version)),
-            os => Err(format_err!("unknown os {}", os)),
-        }
-    }
-    fn os_ver(self) -> (String, String) {
-        match self {
-            Os::Debian(os, v) => (os, v),
-            Os::Redhat(os, v) => (os, v),
-        }
-    }
-    fn package_manager(self) -> String {
-        match self {
-            Os::Debian(_, _) => "apt".to_string(),
-            Os::Redhat(_, v) if v == "8" => "dnf".to_string(),
-            Os::Redhat(_, _) => "yum".to_string(),
-        }
-    }
-}
-
 #[derive(Deserialize, Debug)]
 pub struct Config {
     images_dir: String,
