@@ -15,6 +15,7 @@ use rpm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, DirBuilder, DirEntry, File};
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::str;
 use std::time::SystemTime;
@@ -431,7 +432,9 @@ impl Pkger {
             "{}_{}-{}.deb",
             &r.info.name, &r.info.version, &r.info.revision
         );
-        let deb = container
+
+        // deb archived in tar
+        let deb_archive = container
             .archive_path(format!("/tmp/pkger/{}", &file_name))
             .await?;
         let mut out_path = PathBuf::from(&self.config.output_dir);
@@ -440,9 +443,16 @@ impl Pkger {
         if !out_path.exists() {
             fs::create_dir_all(&out_path)?;
         }
-        out_path.push(&file_name);
         trace!("downloading .deb file to {}", out_path.as_path().display());
-        fs::write(out_path, deb).unwrap();
+        // need to unpack the .deb
+        let mut ar = Archive::new(Cursor::new(&deb_archive));
+        map_return!(
+            ar.unpack(out_path.as_path()),
+            format!(
+                "failed to unpack archive with .deb file in {}",
+                out_path.as_path().display()
+            )
+        );
 
         trace!("cleaning up {}", tmp_file.as_path().display());
         fs::remove_file(tmp_file).unwrap();
