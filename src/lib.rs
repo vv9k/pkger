@@ -789,16 +789,15 @@ impl Pkger {
         build_dir: &str,
     ) -> Result<(), Error> {
         for step in build.steps.iter().chain(install.steps.iter()) {
-            info!(
-                "{}",
-                self.exec_step(
+            let exec = self
+                .exec_step(
                     &step.split_ascii_whitespace().collect::<Vec<&str>>(),
                     container,
                     &build_dir,
                 )
-                .await?
-                .out
-            );
+                .await?;
+            trace!("{:?}", exec);
+            info!("{}", exec.out);
         }
         Ok(())
     }
