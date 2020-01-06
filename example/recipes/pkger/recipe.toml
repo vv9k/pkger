@@ -19,7 +19,7 @@ steps = [
 	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
 	"sh /tmp/install_rust.sh -y --default-toolchain stable",
 	"mkdir -p /opt/pkger",
-	"/root/.cargo/bin/cargo build --release --target-dir /tmp",
+	"/root/.cargo/bin/cargo build --target-dir /tmp",
 ]
 
 [install]
