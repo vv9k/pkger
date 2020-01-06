@@ -4,25 +4,25 @@ pub mod _rpm {
     use super::*;
     fn handle_dependencies(info: &Info, mut builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
         trace!("handling dependencies");
-        if let Some(dependencies) = &info.depends {
+        if let Some(dependencies) = &info.depends_rh {
             for d in dependencies {
                 trace!("adding dependency {}", d);
                 builder = builder.requires(rpm::Dependency::any(d));
             }
         }
-        if let Some(conflicts) = &info.conflicts {
+        if let Some(conflicts) = &info.conflicts_rh {
             for c in conflicts {
                 trace!("adding conflict {}", c);
                 builder = builder.conflicts(rpm::Dependency::any(c));
             }
         }
-        if let Some(obsoletes) = &info.obsoletes {
+        if let Some(obsoletes) = &info.obsoletes_rh {
             for o in obsoletes {
                 trace!("adding obsolete {}", o);
                 builder = builder.obsoletes(rpm::Dependency::any(o));
             }
         }
-        if let Some(provides) = &info.provides {
+        if let Some(provides) = &info.provides_rh {
             for p in provides {
                 trace!("adding provide {}", p);
                 builder = builder.provides(rpm::Dependency::any(p));
