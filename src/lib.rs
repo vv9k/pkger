@@ -370,28 +370,10 @@ impl Pkger {
             &os,
             &ver
         );
+        let tmp_file = package::deb::prepare_archive(&r.info, &os).await?;
+        let archive = fs::read(tmp_file.as_path())?;
 
-        // generate and upload control file
-        let control_file = generate_deb_control(&r.info);
-        let mut tmp_file = PathBuf::from(TEMPORARY_BUILD_DIR);
-        if !Path::new(TEMPORARY_BUILD_DIR).exists() {
-            fs::create_dir_all(TEMPORARY_BUILD_DIR).unwrap();
-        }
-        let fname = format!("{}-{}-deb-{}", &r.info.name, &os, Local::now().timestamp());
-        tmp_file.push(fname);
-        trace!(
-            "saving control file to {} temporarily",
-            tmp_file.as_path().display()
-        );
-        let f = File::create(tmp_file.as_path())?;
-        trace!("creating archive with control file");
-        let mut ar = tar::Builder::new(f);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(control_file.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        ar.append_data(&mut header, "./control", control_file.as_bytes())
-            .unwrap();
-        ar.finish().unwrap();
+        // create build dir in container
         let bld_dir = format!(
             "/tmp/pkger/{}_{}-{}",
             &r.info.name, &r.info.version, &r.info.revision
@@ -402,10 +384,10 @@ impl Pkger {
             "/",
         )
         .await?;
+
+        trace!("uploading control file to container:{}/DEBIAN", &bld_dir);
         let mut upload = UploadArchiveOpts::new();
         upload.path(&format!("{}/DEBIAN", &bld_dir));
-        let archive = fs::read(tmp_file.as_path())?;
-        trace!("uploading control file to container:{}/DEBIAN", &bld_dir);
         container.upload_archive(&archive, &upload).await?;
 
         // create all necessary directories to move files to
@@ -413,37 +395,16 @@ impl Pkger {
         self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
             .await?;
 
-        // move files to build dir
-        trace!("uploading helper script");
-        let script = format!(
-            "#!/bin/bash\n\nfor file in {}/*; do mv $file {}$file; done\n",
-            &r.install.destdir, &bld_dir
-        );
-        let move_files_script = format!(
-            "{}/move_files{}.tar",
-            TEMPORARY_BUILD_DIR,
-            Local::now().timestamp()
-        );
-        let f = File::create(&move_files_script)?;
-        let mut ar = tar::Builder::new(f);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(control_file.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        ar.append_data(&mut header, "./move_files.sh", script.as_bytes())
-            .unwrap();
-        ar.finish().unwrap();
+        trace!("uploading helper scripts");
+        let scripts = package::deb::prepare_helper_scripts(&r, &bld_dir)?;
         let mut upload_script = UploadArchiveOpts::new();
         upload_script.path("/tmp");
-        let script_archive = fs::read(&move_files_script)?;
-        container
-            .upload_archive(&script_archive, &upload_script)
-            .await?;
+        container.upload_archive(&scripts, &upload_script).await?;
+
+        // move files from destdir to build directory
         self.exec_step(&["bash", "/tmp/move_files.sh"], &container, "/")
             .await?;
-        trace!("cleaning up {}", &move_files_script);
-        fs::remove_file(move_files_script).unwrap();
 
-        // Build the .deb file
         trace!("building .deb with dpkg-deb");
         self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/")
             .await?;
