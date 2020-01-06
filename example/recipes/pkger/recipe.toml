@@ -24,6 +24,6 @@ steps = [
 
 [install]
 steps = [
-	"mv /tmp/release/pkger /opt/pkger"
+	"mv /tmp/debug/pkger /opt/pkger"
 ]
 destdir = "/opt/pkger"
