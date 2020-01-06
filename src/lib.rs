@@ -324,7 +324,7 @@ impl Pkger {
                             let (os_name, ver) = os.clone().os_ver();
                             let container_bld_dir =
                                 self.extract_src_in_container(&container, &r.info).await?;
-                            self.install_deps(&container, &r.info, &package_manager)
+                            self.install_deps(&container, &r.info, &package_manager, os.clone())
                                 .await?;
                             self.execute_build_steps(
                                 &container,
@@ -484,41 +484,59 @@ impl Pkger {
         container: &'_ Container<'_>,
         info: &Info,
         package_manager: &str,
+        os: Os,
     ) -> Result<(), Error> {
-        if let Some(dependencies) = &info.depends {
-            trace!("installing dependencies - {:?}", dependencies);
-            trace!("using {} as package manager", package_manager);
-            match self
-                .exec_step(&[&package_manager, "-y", "update"], &container, "/")
-                .await
-            {
-                Ok(out) => info!("{}", out.out),
-                Err(e) => {
-                    return Err(format_err!(
-                        "failed to update container {} - {}",
-                        &container.id,
-                        e
-                    ))
+        let dependencies = match os {
+            Os::Debian(_, _) => {
+                if let Some(dependencies) = &info.depends {
+                    dependencies
+                        .iter()
+                        .map(|s| s.as_ref())
+                        .collect::<Vec<&str>>()
+                } else {
+                    Vec::new()
                 }
             }
-
-            let install_cmd = [
-                &vec![package_manager, "-y", "install"][..],
-                &dependencies
-                    .iter()
-                    .map(|s| s.as_ref())
-                    .collect::<Vec<&str>>()[..],
-            ]
-            .concat();
-            match self.exec_step(&install_cmd, &container, "/").await {
-                Ok(out) => info!("{}", out.out),
-                Err(e) => {
-                    return Err(format_err!(
-                        "failed to install dependencies in container {} - {}",
-                        &container.id,
-                        e
-                    ))
+            Os::Redhat(_, _) => {
+                if let Some(dependencies) = &info.depends_rh {
+                    dependencies
+                        .iter()
+                        .map(|s| s.as_ref())
+                        .collect::<Vec<&str>>()
+                } else {
+                    Vec::new()
                 }
+            }
+        };
+        trace!("installing dependencies - {:?}", dependencies);
+        trace!("using {} as package manager", package_manager);
+        match self
+            .exec_step(&[&package_manager, "-y", "update"], &container, "/")
+            .await
+        {
+            Ok(out) => info!("{}", out.out),
+            Err(e) => {
+                return Err(format_err!(
+                    "failed to update container {} - {}",
+                    &container.id,
+                    e
+                ))
+            }
+        }
+
+        let install_cmd = [
+            &vec![package_manager, "-y", "install"][..],
+            &dependencies[..],
+        ]
+        .concat();
+        match self.exec_step(&install_cmd, &container, "/").await {
+            Ok(out) => info!("{}", out.out),
+            Err(e) => {
+                return Err(format_err!(
+                    "failed to install dependencies in container {} - {}",
+                    &container.id,
+                    e
+                ))
             }
         }
         Ok(())

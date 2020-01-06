@@ -7,11 +7,13 @@ version = "0.0.5"
 revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-depends = ["curl", "gcc", "pkg-config", "openssl-devel"]
+depends = ["curl", "gcc", "pkg-config", "libssl-dev"]
+depends_rh = ["curl", "gcc", "pkg-config", "openssl-devel"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
 	"centos8",
+	"debian10",
 ]
 
 [build]
