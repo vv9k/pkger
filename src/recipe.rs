@@ -28,11 +28,19 @@ pub struct Info {
     // Git repository as source
     pub git: Option<String>,
 
-    // Packages
+    // Debian based specific packages
     pub depends: Option<Vec<String>>,
     pub obsoletes: Option<Vec<String>>,
     pub conflicts: Option<Vec<String>>,
     pub provides: Option<Vec<String>>,
+
+    // RedHat based specific packages
+    pub depends_rh: Option<Vec<String>>,
+    pub obsoletes_rh: Option<Vec<String>>,
+    pub conflicts_rh: Option<Vec<String>>,
+    pub provides_rh: Option<Vec<String>>,
+
+    // Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
 
     // Only Debian based
