@@ -5,6 +5,11 @@ addons:
   apt:
     packages:
       - docker
+before_install:
+  - rustup toolchain update --no-self-update stable
+  - rustup component add rustfmt clippy
+  - cargo fmt -- --check
+  - cargo clippy --all -- --Dwarnings
 install:
   - sudo apt -y install docker
   - sudo mkdir -p /etc/systemd/system/docker.service.d

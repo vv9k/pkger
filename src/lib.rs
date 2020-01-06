@@ -15,7 +15,7 @@ use rpm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, DirBuilder, DirEntry, File};
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str;
 use std::time::SystemTime;
