@@ -1,5 +1,5 @@
 # pkger 📦🐳
-[![Travis CI](https://travis-ci.org/wojciechkepka/pkger.svg?branch=master)](https://travis-ci.org/wojciechkepka/pkger/builds)
+[![Travis CI](https://travis-ci.org/wojciechkepka/pkger.svg?branch=master)](https://travis-ci.org/wojciechkepka/pkger/builds)  
 Package building tool utilizing Docker.
 
 The main purpose of pkger is to automate building `.rpm` or `.deb` (perhaps more in the future) packages on multiple operating systems, versions and architectures.
