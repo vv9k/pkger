@@ -2,6 +2,7 @@
 extern crate failure;
 extern crate tar;
 mod image;
+mod package;
 mod recipe;
 mod util;
 use self::image::*;
