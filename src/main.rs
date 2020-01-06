@@ -1,6 +1,7 @@
 use failure::Error;
 use log::*;
 use pkger::Pkger;
+use std::env;
 use structopt::StructOpt;
 
 const DEFAULT_CONF_FILE: &str = "conf.toml";
@@ -16,12 +17,20 @@ struct Opt {
     /// Path to config file (default - "./conf.toml")
     #[structopt(short, long)]
     config: Option<String>,
+    /// No output printed to stdout
+    #[structopt(short, long)]
+    quiet: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    pretty_env_logger::init();
     let opts = Opt::from_args();
+    if opts.quiet == false {
+        if env::var_os("RUST_LOG").is_none() {
+            env::set_var("RUST_LOG", "pkger=info");
+        }
+        pretty_env_logger::init();
+    }
     trace!("{:?}", opts);
     let cfg = opts.config.unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
     let pkger = Pkger::new(&opts.docker, &cfg)?;
