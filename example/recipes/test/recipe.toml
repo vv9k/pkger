@@ -1,0 +1,37 @@
+[info]
+name = "test"
+description = "pkger"
+arch = "x86_64"
+license = "MIT"
+version = "0.0.5"
+revision = "0"
+source = ""
+git = "https://github.com/wojciechkepka/pkger.git"
+depends = ["libssl-dev"]
+depends_rh = ["openssl-devel"]
+exclude = ["share", "info"]
+provides = ["pkger"]
+images = [
+	"debian10",
+	"centos8",
+]
+[env]
+ENV_VAR_TEST = "test.com:1010"
+PKGER_TEST = "123"
+
+[build]
+steps = [
+	"mkdir -p /opt/pkger",
+	# test if env variables work correctly
+	"bash -c \"if [[ \"${ENV_VAR_TEST}\" == \"test.com:1010\" ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi\"",
+	"bash -c \"if [[ \"${PKGER_TEST}\" == \"123\" ]]; then exit 0; else echo 'Environment variable PKGER_TEST is not set properly'; exit 1; fi\""
+]
+
+[install]
+steps = [
+	"touch /opt/pkger/test_file"
+]
+
+[finish]
+files = "/opt/pkger"
+install_dir = "/tmp"
