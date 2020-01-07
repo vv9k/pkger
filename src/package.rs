@@ -86,7 +86,12 @@ pub mod _rpm {
         let mut out_path = PathBuf::from(&out_dir);
         out_path.push(os);
         out_path.push(ver);
+        trace!(
+            "checking if directory {} exists",
+            out_path.as_path().display()
+        );
         if !out_path.exists() {
+            trace!("creating directory {}", out_path.as_path().display());
             map_return!(
                 fs::create_dir_all(&out_path),
                 format!(

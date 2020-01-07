@@ -300,9 +300,9 @@ impl Pkger {
     }
 
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
-        trace!("building recipe {}", recipe.as_ref());
         match self.recipes.get(recipe.as_ref()) {
             Some(r) => {
+                trace!("building recipe {:#?}", &r);
                 let mut state = ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default();
                 for image_name in r.info.images.iter() {
                     let image = match self.images.get(image_name) {
@@ -565,10 +565,11 @@ impl Pkger {
             ));
         }
 
+        let archive = self.get_src(&info).await?;
+
+        trace!("extracting source in {}:{}", &container.id, &build_dir);
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
-
-        let archive = self.get_src(&info).await?;
         container.upload_archive(&archive, &opts).await?;
 
         Ok(build_dir)
