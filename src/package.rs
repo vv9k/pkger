@@ -189,7 +189,7 @@ pub mod deb {
     pub fn prepare_helper_scripts(r: &Recipe, bld_dir: &str) -> Result<Vec<u8>, Error> {
         let script = format!(
             "#!/bin/bash\n\nfor file in {}/*; do mv $file {}$file; done\n",
-            &r.install.destdir, &bld_dir
+            &r.finish.files, &bld_dir
         );
         let scripts_archive = format!(
             "{}/scripts_archive_{}.tar",
