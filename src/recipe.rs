@@ -4,6 +4,7 @@ pub struct Recipe {
     pub info: Info,
     pub build: Build,
     pub install: Install,
+    pub finish: Final,
 }
 impl Recipe {
     pub fn new(entry: DirEntry) -> Result<Recipe, Error> {
@@ -55,5 +56,11 @@ pub struct Build {
 #[derive(Deserialize, Debug)]
 pub struct Install {
     pub steps: Vec<String>,
-    pub destdir: String,
+}
+#[derive(Deserialize, Debug)]
+pub struct Final {
+    // Final directory where all installed files are
+    pub files: String,
+    // Path to prepend to all installed files
+    pub install_dir: String,
 }

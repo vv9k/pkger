@@ -391,7 +391,7 @@ impl Pkger {
         container.upload_archive(&archive, &upload).await?;
 
         // create all necessary directories to move files to
-        let final_destination = format!("{}{}", &bld_dir, &r.install.destdir);
+        let final_destination = format!("{}{}", &bld_dir, &r.finish.install_dir);
         self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
             .await?;
 
@@ -447,7 +447,7 @@ impl Pkger {
         ver: &str,
     ) -> Result<(), Error> {
         let archive = self
-            .download_archive(&container, &r.info, &r.install, &os, &ver)
+            .download_archive(&container, &r, &os, &ver)
             .await?;
         let build_dir = self.prepare_build_dir(&r.info)?;
         let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
@@ -455,7 +455,7 @@ impl Pkger {
             &self.config.output_dir,
             &files,
             &r.info,
-            &r.install.destdir,
+            &r.finish.install_dir,
             build_dir.as_path(),
             &os,
             &ver,
@@ -670,17 +670,16 @@ impl Pkger {
     async fn download_archive(
         &self,
         container: &'_ Container<'_>,
-        info: &Info,
-        install: &Install,
+        r: &Recipe,
         os: &str,
         ver: &str,
     ) -> Result<PathBuf, Error> {
         trace!(
             "downloading archive from {} {}",
             &container.id,
-            &install.destdir
+            &r.finish.files
         );
-        let archive = container.archive_path(&install.destdir).await?;
+        let archive = container.archive_path(&r.finish.files).await?;
         let mut out_path = PathBuf::from(&self.config.output_dir);
         out_path.push(os);
         out_path.push(ver);
@@ -692,7 +691,7 @@ impl Pkger {
         }
         out_path.push(format!(
             "{}-{}-{}.tar",
-            &info.name, &info.version, &info.revision
+            &r.info.name, &r.info.version, &r.info.revision
         ));
 
         trace!("saving archive to {}", out_path.as_path().display());
