@@ -2,6 +2,7 @@ use super::*;
 #[derive(Deserialize, Debug)]
 pub struct Recipe {
     pub info: Info,
+    pub env: Option<toml::value::Table>,
     pub build: Build,
     pub install: Install,
     pub finish: Final,
