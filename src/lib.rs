@@ -236,12 +236,14 @@ impl Pkger {
         cmd: &[&str],
         container: &'_ Container<'_>,
         build_dir: &str,
+        env: &[&str],
     ) -> Result<CmdOut, Error> {
         info!("executing {:?} in {}", cmd, &container.id);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
             .tty(true)
             .working_dir(&build_dir)
+            .env(&env)
             .attach_stderr(true)
             .attach_stdout(true);
 
@@ -329,11 +331,24 @@ impl Pkger {
                                 self.extract_src_in_container(&container, &r.info).await?;
                             self.install_deps(&container, &r.info, &package_manager, os.clone())
                                 .await?;
+
+                            // Helper env vars for recipe build execs
+                            let _pkger_vars = vec![
+                                format!("PKGER_OS={}", &os_name),
+                                format!("PKGER_OS_VER={}", &ver),
+                                format!("PKGER_BLD_DIR={}", &container_bld_dir),
+                            ];
+                            let pkger_vars = _pkger_vars
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<&str>>();
+
                             self.execute_build_steps(
                                 &container,
                                 &r.build,
                                 &r.install,
                                 &container_bld_dir,
+                                &pkger_vars,
                             )
                             .await?;
                             match os {
@@ -385,6 +400,7 @@ impl Pkger {
             &["mkdir", "-p", &format!("{}/DEBIAN", &bld_dir)],
             &container,
             "/",
+            &[],
         )
         .await?;
 
@@ -395,7 +411,7 @@ impl Pkger {
 
         // create all necessary directories to move files to
         let final_destination = format!("{}{}", &bld_dir, &r.finish.install_dir);
-        self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
+        self.exec_step(&["mkdir", "-p", &final_destination], &container, "/", &[])
             .await?;
 
         trace!(
@@ -411,11 +427,12 @@ impl Pkger {
             ],
             &container,
             "/",
+            &[],
         )
         .await?;
 
         trace!("building .deb with dpkg-deb");
-        self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/")
+        self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/", &[])
             .await?;
         let file_name = format!(
             "{}_{}-{}.deb",
@@ -518,7 +535,7 @@ impl Pkger {
         trace!("installing dependencies - {:?}", dependencies);
         trace!("using {} as package manager", package_manager);
         match self
-            .exec_step(&[&package_manager, "-y", "update"], &container, "/")
+            .exec_step(&[&package_manager, "-y", "update"], &container, "/", &[])
             .await
         {
             Ok(out) => info!("{}", out.out),
@@ -536,7 +553,7 @@ impl Pkger {
             &dependencies[..],
         ]
         .concat();
-        match self.exec_step(&install_cmd, &container, "/").await {
+        match self.exec_step(&install_cmd, &container, "/", &[]).await {
             Ok(out) => info!("{}", out.out),
             Err(e) => {
                 return Err(format_err!(
@@ -557,7 +574,7 @@ impl Pkger {
     ) -> Result<String, Error> {
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
         if let Err(e) = self
-            .exec_step(&["mkdir", &build_dir], &container, "/")
+            .exec_step(&["mkdir", &build_dir], &container, "/", &[])
             .await
         {
             return Err(format_err!(
@@ -669,10 +686,11 @@ impl Pkger {
         build: &Build,
         install: &Install,
         build_dir: &str,
+        pkgr_vars: &[&str],
     ) -> Result<(), Error> {
         for step in build.steps.iter().chain(install.steps.iter()) {
             let exec = self
-                .exec_step(&["sh", "-c", &step], container, &build_dir)
+                .exec_step(&["sh", "-c", &step], container, &build_dir, &pkgr_vars)
                 .await?;
             trace!("{:?}", exec);
             info!("{}", exec.out);
