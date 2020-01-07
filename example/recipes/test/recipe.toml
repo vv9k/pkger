@@ -17,14 +17,20 @@ images = [
 ]
 [env]
 ENV_VAR_TEST = "test.com:1010"
-PKGER_TEST = "123"
 
 [build]
 steps = [
 	"mkdir -p /opt/pkger",
-	# test if env variables work correctly
-	"bash -c \"if [[ \"${ENV_VAR_TEST}\" == \"test.com:1010\" ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi\"",
-	"bash -c \"if [[ \"${PKGER_TEST}\" == \"123\" ]]; then exit 0; else echo 'Environment variable PKGER_TEST is not set properly'; exit 1; fi\""
+	# test if env variables from recipe work correctly
+	"bash -c \"if [[ $ENV_VAR_TEST == \"test.com:1010\" ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi\"",
+
+	# test if pkger env variables work correctly
+	"echo $PKGER_OS",
+	"bash -c \"if [[ $PKGER_OS =~ debian|centos ]]; then exit 0; else echo 'Environment variable PKGER_OS is not set properly'; exit 1; fi\"",
+	"echo $PKGER_OS_VER",
+	"bash -c \"if [[ $PKGER_OS_VER =~ 10|8 ]]; then exit 0; else echo 'Environment variable PKGER_VER is not set properly'; exit 1; fi\"",
+	"echo $PKGER_BLD_DIR",
+	"bash -c \"if [[ $PKGER_BLD_DIR =~ /tmp/test-[0-9]*/ ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi\"",
 ]
 
 [install]
