@@ -186,29 +186,6 @@ pub mod deb {
         ar.finish().unwrap();
         Ok(tmp_file)
     }
-    pub fn prepare_helper_scripts(r: &Recipe, bld_dir: &str) -> Result<Vec<u8>, Error> {
-        let script = format!(
-            "#!/bin/bash\n\nfor file in {}/*; do mv $file {}$file; done\n",
-            &r.finish.files, &bld_dir
-        );
-        let scripts_archive = format!(
-            "{}/scripts_archive_{}.tar",
-            TEMPORARY_BUILD_DIR,
-            Local::now().timestamp()
-        );
-        let f = File::create(&scripts_archive)?;
-        let mut ar = tar::Builder::new(f);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(script.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        ar.append_data(&mut header, "./move_files.sh", script.as_bytes())
-            .unwrap();
-        ar.finish().unwrap();
-        let archive = fs::read(&scripts_archive)?;
-        fs::remove_file(scripts_archive)?;
-
-        Ok(archive)
-    }
     // # TODO
     // Find a nicer way to generate this
     pub fn generate_deb_control(info: &Info) -> String {
