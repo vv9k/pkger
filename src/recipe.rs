@@ -172,3 +172,35 @@ fn is_valid_ch(ch: char) -> bool {
         false
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parses_single_image_cmd() {
+        let cmd = "pkger%:centos8 echo 'this is a test'";
+        let exec = Exec::new(cmd).unwrap();
+        assert_eq!(exec.images, Some(vec!["centos8"]));
+        assert_eq!(&exec.cmd, "echo 'this is a test'");
+    }
+    #[test]
+    fn parses_multiple_image_cmd_with_whitespace() {
+        let cmd = "pkger%:{centos8, debian10, ubuntu18} echo 'this is a test'";
+        let exec = Exec::new(cmd).unwrap();
+        assert_eq!(exec.images, Some(vec!["centos8", "debian10", "ubuntu18"]));
+        assert_eq!(&exec.cmd, "echo 'this is a test'");
+    }
+    #[test]
+    fn parses_multiple_image_cmd_without_whitespace() {
+        let cmd = "pkger%:{centos8,debian10,ubuntu18} echo 'this is a test'";
+        let exec = Exec::new(cmd).unwrap();
+        assert_eq!(exec.images, Some(vec!["centos8", "debian10", "ubuntu18"]));
+        assert_eq!(&exec.cmd, "echo 'this is a test'");
+    }
+    #[test]
+    fn parses_normal_cmd() {
+        let cmd = "echo 'this is a test' || exit 1";
+        let exec = Exec::new(cmd).unwrap();
+        assert_eq!(exec.images, None);
+        assert_eq!(&exec.cmd, "echo 'this is a test' || exit 1");
+    }
+}
