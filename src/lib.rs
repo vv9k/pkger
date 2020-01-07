@@ -395,15 +395,21 @@ impl Pkger {
         self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
             .await?;
 
-        trace!("uploading helper scripts");
-        let scripts = package::deb::prepare_helper_scripts(&r, &bld_dir)?;
-        let mut upload_script = UploadArchiveOpts::new();
-        upload_script.path("/tmp");
-        container.upload_archive(&scripts, &upload_script).await?;
-
-        // move files from destdir to build directory
-        self.exec_step(&["bash", "/tmp/move_files.sh"], &container, "/")
-            .await?;
+        trace!(
+            "moving final files from {} to build directory {}",
+            &r.finish.files,
+            &bld_dir
+        );
+        self.exec_step(
+            &[
+                "sh",
+                "-c",
+                &format!("cp -r {} {}", &r.finish.files, &bld_dir),
+            ],
+            &container,
+            "/",
+        )
+        .await?;
 
         trace!("building .deb with dpkg-deb");
         self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/")
