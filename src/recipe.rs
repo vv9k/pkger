@@ -66,6 +66,12 @@ pub struct Final {
     pub install_dir: String,
 }
 
+const CMD_MLTPL_IMGS: &str = "pkger%:{";
+const CMD_MLTPL_IMGS_OFFSET: usize = CMD_MLTPL_IMGS.len();
+const CMD_SNGL_IMG: &str = "pkger%:";
+const CMD_SNGL_IMG_OFFSET: usize = CMD_SNGL_IMG.len();
+
+#[derive(Debug)]
 pub struct Exec<'a> {
     cmd: String,
     images: Option<Vec<&'a str>>,
@@ -74,25 +80,30 @@ impl<'a> Exec<'a> {
     fn new(cmd: &'a str) -> Result<Self, Error> {
         trace!("parsing command {}", &cmd);
         // Handle multiple image situation
-        if cmd.starts_with("pkger%:{") {
-            let (images, cmd_idx) = Self::parse_images(cmd)?;
+        if cmd.starts_with(CMD_MLTPL_IMGS) {
+            trace!("handling multiple image situation");
+            let (images, cmd_idx) = Self::parse_images(&cmd[CMD_MLTPL_IMGS_OFFSET..])?;
             return Ok(Exec {
                 cmd: cmd[cmd_idx..].to_string(),
                 images: Some(images),
             });
         // Handle single image situation
-        } else if cmd.starts_with("pkger%:") {
-            match cmd.chars().nth(7) {
+        } else if cmd.starts_with(CMD_SNGL_IMG) {
+            trace!("handling single image situation");
+            match cmd.chars().nth(CMD_SNGL_IMG_OFFSET) {
                 Some(_ch) => {
                     let mut image_name = String::new();
 
-                    for (i, ch) in cmd[7..].chars().enumerate() {
+                    for (i, ch) in cmd[CMD_SNGL_IMG_OFFSET..].chars().enumerate() {
+                        trace!("{}", ch);
                         if is_valid_ch(ch) {
                             image_name.push(ch);
                         } else if ch == ' ' {
                             return Ok(Exec {
-                                cmd: cmd[i + 1..].to_string(),
-                                images: Some(vec![&cmd[7..i - 1]]),
+                                cmd: cmd[i + CMD_SNGL_IMG_OFFSET + 1..].to_string(),
+                                images: Some(vec![
+                                    &cmd[CMD_SNGL_IMG_OFFSET..i + CMD_SNGL_IMG_OFFSET],
+                                ]),
                             });
                         } else {
                             return Err(format_err!(
@@ -113,8 +124,6 @@ impl<'a> Exec<'a> {
         })
     }
     fn parse_images(cmd: &str) -> Result<(Vec<&str>, usize), Error> {
-        trace!("parsing image names from cmd {}", &cmd);
-        // Handle multiple images situation
         let mut images = Vec::new();
         let mut str_start_idx = 0;
         // Allow whitespace only after ','
@@ -123,10 +132,8 @@ impl<'a> Exec<'a> {
             if is_valid_ch(ch) {
                 continue;
             } else if ch == ',' {
-                // The flag had to be false otherwise the cmd is invalid
-                assert!(!sep);
                 sep = true;
-                images.push(&cmd[str_start_idx..i - 1]);
+                images.push(&cmd[str_start_idx..i]);
                 str_start_idx = i + 1;
             } else if ch == ' ' {
                 if sep {
@@ -140,8 +147,8 @@ impl<'a> Exec<'a> {
                     ));
                 }
             } else if ch == '}' {
-                images.push(&cmd[str_start_idx..i - 1]);
-                return Ok((images, i + 2));
+                images.push(&cmd[str_start_idx..i]);
+                return Ok((images, i + CMD_MLTPL_IMGS_OFFSET + 2));
             } else {
                 return Err(format_err!(
                     "invalid character {} at column {} in command {}",
