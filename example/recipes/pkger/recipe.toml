@@ -20,12 +20,16 @@ images = [
 steps = [
 	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
 	"sh /tmp/install_rust.sh -y --default-toolchain stable",
-	"mkdir -p /opt/pkger",
+	"mkdir -p /opt/pkger/bin",
 	"/root/.cargo/bin/cargo build --target-dir /tmp",
 ]
 
 [install]
 steps = [
-	"mv /tmp/debug/pkger /opt/pkger"
+	"mv /tmp/debug/pkger /opt/pkger/bin"
 ]
 destdir = "/opt/pkger"
+
+[finish]
+files = "/opt/pkger"
+install_dir = "/"
