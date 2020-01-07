@@ -24,25 +24,26 @@ output_dir = ""
 The recipe is divided into 3 parts:
  - ### Info
    - All the metadata and information needed for the build
-   - `pkger` will install all dependencies listed in `depends` choosing the appropriate package manager for each supported distribution.
-   - This recipe will be built for all 3 images `centos`, `fedora`, `ubuntu_latest`.
-   - `pkger` will look for the image directory in f.e. `$images_dir/centos`.
+   - `pkger` will install all dependencies listed in `depends`(for Debian based) or `depends_rh`(for RedHat based) depending on the Os type choosing the appropriate package manager for each supported distribution.
+   - This recipe will be built for 2 images `centos8` and `debian10`.
+   - `pkger` will look for the image directory in f.e. `$images_dir/centos8`.
 ```
 [info]
-name = "curl"
-description = "curl"
+name = "pkger"
+description = "pkger"
 arch = "x86_64"
-license = "null"
-version = "7.67.0"
+license = "MIT"
+version = "0.0.5"
 revision = "0"
-source = "curl-7.67.0.tar.gz"
-depends = ["gcc", "make", "patch", "binutils", "strace"]
+source = ""
+git = "https://github.com/wojciechkepka/pkger.git"
+depends = ["curl", "gcc", "pkg-config", "libssl-dev"]
+depends_rh = ["curl", "gcc", "pkg-config", "openssl-devel"]
 exclude = ["share", "info"]
-provides = ["curl"]
+provides = ["pkger"]
 images = [
-	"centos",
-	"fedora",
-	"ubuntu_latest",
+	"centos8",
+	"debian10",
 ]
 ```
  - ### Build
@@ -50,21 +51,31 @@ images = [
 ```
 [build]
 steps = [
-	"./curl-7.67.0/configure --prefix=/opt/curl/7.67.0",
-	"make"
+	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
+	"sh /tmp/install_rust.sh -y --default-toolchain stable",
+	"mkdir -p /opt/pkger/bin",
+	"/root/.cargo/bin/cargo build --target-dir /tmp",
 ]
 ```
  - ### Install
    - All install steps presented as a list of string
-   - `destdir` which is the directory where the installed files are. All the steps from `build` and `install` must result in built files in `destdir` which will then be archived and built into a package.
 ```
 [install]
-steps = ["make install"]
-destdir = "/opt/curl/7.67.0"
+steps = [
+	"mv /tmp/debug/pkger /opt/pkger/bin"
+]
+```
+ - ### Finish
+   - `files` specifies the directory where all installed files are
+     - in the example below if there is a file `/opt/pkger/usr/bin/file` it will be inserted into the package under `install_dir` path. In this case `/opt/pkger/usr/bin/file` will be installed to `/usr/bin/file`
+```
+[finish]
+files = "/opt/pkger"
+install_dir = "/"
 ```
 
 ## Usage
-To install `pkger` run `cargo install pkger` or clone and build this repository with `crago build --release`.
+To install `pkger` clone and build this repository with `crago build --release`.
 
 To use `pkger` you need a [docker daemon running on a tcp port](https://success.docker.com/article/how-do-i-enable-the-remote-api-for-dockerd).
 After that run:
