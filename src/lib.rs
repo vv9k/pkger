@@ -198,6 +198,7 @@ impl Pkger {
     async fn create_container(
         &self,
         image: &Image,
+        r: &Recipe,
         mut state: &mut ImageState,
     ) -> Result<Container<'_>, Error> {
         trace!("creating container from image {}", &image.name);
@@ -209,7 +210,9 @@ impl Pkger {
         if !self.image_exists(&image_name).await || image.should_be_rebuilt().unwrap_or(true) {
             image_name = self.build_image(&image, &mut state).await?;
         }
+        let vars = util::parse_env_vars(&r.env);
         opts.image(&image_name)
+            .env(&vars.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
             .shell(&["/bin/bash"])
             .cmd(&["/bin/bash"])
             .tty(true)
@@ -316,7 +319,7 @@ impl Pkger {
                         }
                     };
                     trace!("using image - {}", image_name);
-                    match self.create_container(&image, &mut state).await {
+                    match self.create_container(&image, &r, &mut state).await {
                         Ok(container) => {
                             container.start().await?;
                             let os = self.determine_os(&container).await?;
