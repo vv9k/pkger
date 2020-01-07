@@ -591,8 +591,17 @@ impl Pkger {
                 match scheme {
                     "http" => {
                         let client = builder.build::<_, Body>(hyper::client::HttpConnector::new());
-                        let res = client.get(info.source.parse()?).await?;
-                        archive = hyper::body::to_bytes(res).await?;
+                        let mut res = client.get(info.source.parse()?).await?;
+                        if res.status().is_redirection() {
+                            if let Some(new_location) = res.headers().get("location") {
+                                res = client
+                                    .get(str::from_utf8(new_location.as_ref())?.parse()?)
+                                    .await?;
+                                archive = hyper::body::to_bytes(res).await?;
+                            }
+                        } else {
+                            archive = hyper::body::to_bytes(res).await?;
+                        }
                     }
                     "https" => {
                         let client = builder.build::<_, Body>(hyper_tls::HttpsConnector::new());
