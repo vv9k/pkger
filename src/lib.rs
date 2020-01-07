@@ -446,9 +446,7 @@ impl Pkger {
         os: &str,
         ver: &str,
     ) -> Result<(), Error> {
-        let archive = self
-            .download_archive(&container, &r, &os, &ver)
-            .await?;
+        let archive = self.download_archive(&container, &r, &os, &ver).await?;
         let build_dir = self.prepare_build_dir(&r.info)?;
         let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
         package::_rpm::build_rpm(
