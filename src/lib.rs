@@ -198,6 +198,7 @@ impl Pkger {
     async fn create_container(
         &self,
         image: &Image,
+        r: &Recipe,
         mut state: &mut ImageState,
     ) -> Result<Container<'_>, Error> {
         trace!("creating container from image {}", &image.name);
@@ -209,7 +210,9 @@ impl Pkger {
         if !self.image_exists(&image_name).await || image.should_be_rebuilt().unwrap_or(true) {
             image_name = self.build_image(&image, &mut state).await?;
         }
+        let vars = util::parse_env_vars(&r.env);
         opts.image(&image_name)
+            .env(&vars.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
             .shell(&["/bin/bash"])
             .cmd(&["/bin/bash"])
             .tty(true)
@@ -233,12 +236,14 @@ impl Pkger {
         cmd: &[&str],
         container: &'_ Container<'_>,
         build_dir: &str,
+        env: &[&str],
     ) -> Result<CmdOut, Error> {
         info!("executing {:?} in {}", cmd, &container.id);
         let mut opts = ExecOpts::new();
         opts.cmd(&cmd)
             .tty(true)
             .working_dir(&build_dir)
+            .env(&env)
             .attach_stderr(true)
             .attach_stdout(true);
 
@@ -300,9 +305,9 @@ impl Pkger {
     }
 
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
-        trace!("building recipe {}", recipe.as_ref());
         match self.recipes.get(recipe.as_ref()) {
             Some(r) => {
+                trace!("building recipe {:#?}", &r);
                 let mut state = ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default();
                 for image_name in r.info.images.iter() {
                     let image = match self.images.get(image_name) {
@@ -316,7 +321,7 @@ impl Pkger {
                         }
                     };
                     trace!("using image - {}", image_name);
-                    match self.create_container(&image, &mut state).await {
+                    match self.create_container(&image, &r, &mut state).await {
                         Ok(container) => {
                             container.start().await?;
                             let os = self.determine_os(&container).await?;
@@ -326,11 +331,24 @@ impl Pkger {
                                 self.extract_src_in_container(&container, &r.info).await?;
                             self.install_deps(&container, &r.info, &package_manager, os.clone())
                                 .await?;
+
+                            // Helper env vars for recipe build execs
+                            let _pkger_vars = vec![
+                                format!("PKGER_OS={}", &os_name),
+                                format!("PKGER_OS_VER={}", &ver),
+                                format!("PKGER_BLD_DIR={}", &container_bld_dir),
+                            ];
+                            let pkger_vars = _pkger_vars
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<&str>>();
+
                             self.execute_build_steps(
                                 &container,
                                 &r.build,
                                 &r.install,
                                 &container_bld_dir,
+                                &pkger_vars,
                             )
                             .await?;
                             match os {
@@ -382,6 +400,7 @@ impl Pkger {
             &["mkdir", "-p", &format!("{}/DEBIAN", &bld_dir)],
             &container,
             "/",
+            &[],
         )
         .await?;
 
@@ -392,7 +411,7 @@ impl Pkger {
 
         // create all necessary directories to move files to
         let final_destination = format!("{}{}", &bld_dir, &r.finish.install_dir);
-        self.exec_step(&["mkdir", "-p", &final_destination], &container, "/")
+        self.exec_step(&["mkdir", "-p", &final_destination], &container, "/", &[])
             .await?;
 
         trace!(
@@ -408,11 +427,12 @@ impl Pkger {
             ],
             &container,
             "/",
+            &[],
         )
         .await?;
 
         trace!("building .deb with dpkg-deb");
-        self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/")
+        self.exec_step(&["dpkg-deb", "-b", &bld_dir], &container, "/", &[])
             .await?;
         let file_name = format!(
             "{}_{}-{}.deb",
@@ -515,7 +535,7 @@ impl Pkger {
         trace!("installing dependencies - {:?}", dependencies);
         trace!("using {} as package manager", package_manager);
         match self
-            .exec_step(&[&package_manager, "-y", "update"], &container, "/")
+            .exec_step(&[&package_manager, "-y", "update"], &container, "/", &[])
             .await
         {
             Ok(out) => info!("{}", out.out),
@@ -533,7 +553,7 @@ impl Pkger {
             &dependencies[..],
         ]
         .concat();
-        match self.exec_step(&install_cmd, &container, "/").await {
+        match self.exec_step(&install_cmd, &container, "/", &[]).await {
             Ok(out) => info!("{}", out.out),
             Err(e) => {
                 return Err(format_err!(
@@ -554,7 +574,7 @@ impl Pkger {
     ) -> Result<String, Error> {
         let build_dir = format!("/tmp/{}-{}/", info.name, Local::now().timestamp());
         if let Err(e) = self
-            .exec_step(&["mkdir", &build_dir], &container, "/")
+            .exec_step(&["mkdir", &build_dir], &container, "/", &[])
             .await
         {
             return Err(format_err!(
@@ -565,10 +585,11 @@ impl Pkger {
             ));
         }
 
+        let archive = self.get_src(&info).await?;
+
+        trace!("extracting source in {}:{}", &container.id, &build_dir);
         let mut opts = UploadArchiveOpts::new();
         opts.path(&build_dir);
-
-        let archive = self.get_src(&info).await?;
         container.upload_archive(&archive, &opts).await?;
 
         Ok(build_dir)
@@ -591,8 +612,17 @@ impl Pkger {
                 match scheme {
                     "http" => {
                         let client = builder.build::<_, Body>(hyper::client::HttpConnector::new());
-                        let res = client.get(info.source.parse()?).await?;
-                        archive = hyper::body::to_bytes(res).await?;
+                        let mut res = client.get(info.source.parse()?).await?;
+                        if res.status().is_redirection() {
+                            if let Some(new_location) = res.headers().get("location") {
+                                res = client
+                                    .get(str::from_utf8(new_location.as_ref())?.parse()?)
+                                    .await?;
+                                archive = hyper::body::to_bytes(res).await?;
+                            }
+                        } else {
+                            archive = hyper::body::to_bytes(res).await?;
+                        }
                     }
                     "https" => {
                         let client = builder.build::<_, Body>(hyper_tls::HttpsConnector::new());
@@ -656,10 +686,11 @@ impl Pkger {
         build: &Build,
         install: &Install,
         build_dir: &str,
+        pkgr_vars: &[&str],
     ) -> Result<(), Error> {
         for step in build.steps.iter().chain(install.steps.iter()) {
             let exec = self
-                .exec_step(&["sh", "-c", &step], container, &build_dir)
+                .exec_step(&["sh", "-c", &step], container, &build_dir, &pkgr_vars)
                 .await?;
             trace!("{:?}", exec);
             info!("{}", exec.out);

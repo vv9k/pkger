@@ -73,6 +73,13 @@ steps = [
 files = "/opt/pkger"
 install_dir = "/"
 ```
+ - ### Env (Optional)
+   - Set environment variables to use in recipes during build
+```
+[env]
+HTTPS_PROXY = "http://proxy.domain.com:1234"
+RUST_LOG = "trace"
+```
 
 ## Usage
 To install `pkger` clone and build this repository with `crago build --release`.

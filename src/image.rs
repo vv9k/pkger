@@ -124,12 +124,12 @@ pub enum Os {
     Redhat(String, String),
 }
 impl Os {
-    pub fn from(s: &str, version: Option<String>) -> Result<Os, Error> {
-        trace!("os: {}, version {:?}", s, version);
+    pub fn from(os: &str, version: Option<String>) -> Result<Os, Error> {
+        trace!("os: {}, version {:?}", os, version);
         let version = version.unwrap_or_default();
-        match s {
-            "ubuntu" | "debian" => Ok(Os::Debian(s.to_string(), version)),
-            "centos" | "redhat" | "fedora" => Ok(Os::Redhat(s.to_string(), version)),
+        match os {
+            "ubuntu" | "debian" => Ok(Os::Debian(os.to_string(), version)),
+            "centos" | "redhat" | "fedora" => Ok(Os::Redhat(os.to_string(), version)),
             os => Err(format_err!("unknown os {}", os)),
         }
     }
