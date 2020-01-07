@@ -654,7 +654,7 @@ impl Pkger {
         for step in build.steps.iter().chain(install.steps.iter()) {
             let exec = self
                 .exec_step(
-                    &vec!["sh", "-c", &format!("{}", &step)],
+                    &vec!["sh", "-c", &step],
                     container,
                     &build_dir,
                 )
