@@ -93,7 +93,7 @@ impl<'a> Cmd<'a> {
             match cmd.chars().nth(CMD_SNGL_IMG_OFFSET) {
                 Some(_ch) => {
                     for (i, ch) in cmd[CMD_SNGL_IMG_OFFSET..].chars().enumerate() {
-                        if is_valid_ch(ch) {
+                        if is_valid_name_ch(ch) {
                             continue;
                         } else if ch == ' ' {
                             trace!(
@@ -130,7 +130,7 @@ impl<'a> Cmd<'a> {
         // Allow whitespace only after ','
         let mut sep = false;
         for (i, ch) in cmd.chars().enumerate() {
-            if is_valid_ch(ch) {
+            if is_valid_name_ch(ch) {
                 continue;
             } else if ch == ',' {
                 sep = true;
@@ -166,12 +166,8 @@ impl<'a> Cmd<'a> {
     }
 }
 // Checks if character is [a-zA-Z0-9-_]
-fn is_valid_ch(ch: char) -> bool {
-    if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
-        true
-    } else {
-        false
-    }
+fn is_valid_name_ch(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'
 }
 #[cfg(test)]
 mod command {
