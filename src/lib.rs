@@ -349,6 +349,7 @@ impl Pkger {
                                 &r.install,
                                 &container_bld_dir,
                                 &pkger_vars,
+                                &image_name,
                             )
                             .await?;
                             match os {
@@ -687,13 +688,37 @@ impl Pkger {
         install: &Install,
         build_dir: &str,
         pkgr_vars: &[&str],
+        current_image: &str,
     ) -> Result<(), Error> {
         for step in build.steps.iter().chain(install.steps.iter()) {
-            let exec = self
-                .exec_step(&["sh", "-c", &step], container, &build_dir, &pkgr_vars)
-                .await?;
-            trace!("{:?}", exec);
-            info!("{}", exec.out);
+            match Cmd::new(&step) {
+                Ok(cmd) => {
+                    trace!("{:?}", cmd);
+                    match cmd.images {
+                        Some(images) if images.contains(&current_image) => {
+                            let exec = self
+                                .exec_step(
+                                    &["sh", "-c", &cmd.cmd],
+                                    container,
+                                    &build_dir,
+                                    &pkgr_vars,
+                                )
+                                .await?;
+                            trace!("{:?}", exec.info);
+                            info!("{}", exec.out);
+                        }
+                        None => {
+                            let exec = self
+                                .exec_step(&["sh", "-c", &step], container, &build_dir, &pkgr_vars)
+                                .await?;
+                            trace!("{:?}", exec.info);
+                            info!("{}", exec.out);
+                        }
+                        _ => {}
+                    }
+                }
+                Err(e) => return Err(format_err!("failed while executing build step - {}", e)),
+            }
         }
         Ok(())
     }
