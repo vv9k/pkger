@@ -72,11 +72,11 @@ const CMD_SNGL_IMG: &str = "pkger%:";
 const CMD_SNGL_IMG_OFFSET: usize = CMD_SNGL_IMG.len();
 
 #[derive(Debug)]
-pub struct Exec<'a> {
+pub struct Cmd<'a> {
     cmd: String,
     images: Option<Vec<&'a str>>,
 }
-impl<'a> Exec<'a> {
+impl<'a> Cmd<'a> {
     pub fn new(cmd: &'a str) -> Result<Self, Error> {
         trace!("parsing command {}", &cmd);
         // Handle multiple image situation
