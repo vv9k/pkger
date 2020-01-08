@@ -275,33 +275,40 @@ impl Pkger {
             .attach_stdout(true)
             .attach_stderr(true);
         let out = container.exec(&os_release).await?;
-        trace!("{}", &out.out);
-        let mut id = None;
-        let mut version = None;
-        for line in out.out.split('\n').into_iter() {
-            if line.starts_with("ID=") {
-                id = Some(
-                    line[3..]
-                        .trim_end_matches('\r')
-                        .trim_matches('"')
-                        .to_string(),
-                );
-            } else if line.starts_with("VERSION_ID=") {
-                version = Some(
-                    line[11..]
-                        .trim_end_matches('\r')
-                        .trim_matches('"')
-                        .to_string(),
-                );
+        if out.info.exit_code == 0 {
+            trace!("{}", &out.out);
+            let mut id = None;
+            let mut version = None;
+            for line in out.out.split('\n').into_iter() {
+                if line.starts_with("ID=") {
+                    id = Some(
+                        line[3..]
+                            .trim_end_matches('\r')
+                            .trim_matches('"')
+                            .to_string(),
+                    );
+                } else if line.starts_with("VERSION_ID=") {
+                    version = Some(
+                        line[11..]
+                            .trim_end_matches('\r')
+                            .trim_matches('"')
+                            .to_string(),
+                    );
+                }
             }
+            if let Some(os_name) = id {
+                return Ok(Os::from(&os_name, version)?);
+            } else {
+                return Err(format_err!(
+                    "failed to determine containers {} os",
+                    &container.id
+                ));
+            }
+        } else {
+            Err(format_err!(
+                "no /etc/os-release found, can't determine container's os"
+            ))
         }
-        if let Some(os_name) = id {
-            return Ok(Os::from(&os_name, version)?);
-        }
-        Err(format_err!(
-            "failed to determine containers {} os",
-            &container.id
-        ))
     }
 
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
