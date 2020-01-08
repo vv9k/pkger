@@ -73,8 +73,8 @@ const CMD_SNGL_IMG_OFFSET: usize = CMD_SNGL_IMG.len();
 
 #[derive(Debug)]
 pub struct Cmd<'a> {
-    cmd: String,
-    images: Option<Vec<&'a str>>,
+    pub cmd: String,
+    pub images: Option<Vec<&'a str>>,
 }
 impl<'a> Cmd<'a> {
     pub fn new(cmd: &'a str) -> Result<Self, Error> {
@@ -83,7 +83,7 @@ impl<'a> Cmd<'a> {
         if cmd.starts_with(CMD_MLTPL_IMGS) {
             trace!("handling multiple image situation");
             let (images, cmd_idx) = Self::parse_images(&cmd[CMD_MLTPL_IMGS_OFFSET..])?;
-            return Ok(Exec {
+            return Ok(Cmd {
                 cmd: cmd[cmd_idx..].to_string(),
                 images: Some(images),
             });
@@ -100,7 +100,7 @@ impl<'a> Cmd<'a> {
                                 "found image {}",
                                 &cmd[CMD_SNGL_IMG_OFFSET..i + CMD_SNGL_IMG_OFFSET]
                             );
-                            return Ok(Exec {
+                            return Ok(Cmd {
                                 cmd: cmd[i + CMD_SNGL_IMG_OFFSET + 1..].to_string(),
                                 images: Some(vec![
                                     &cmd[CMD_SNGL_IMG_OFFSET..i + CMD_SNGL_IMG_OFFSET],
@@ -119,7 +119,7 @@ impl<'a> Cmd<'a> {
                 None => return Err(format_err!("command too short: {}", cmd)),
             }
         }
-        Ok(Exec {
+        Ok(Cmd {
             cmd: cmd.to_string(),
             images: None,
         })
@@ -174,33 +174,33 @@ fn is_valid_ch(ch: char) -> bool {
     }
 }
 #[cfg(test)]
-mod tests {
+mod command {
     use super::*;
     #[test]
     fn parses_single_image_cmd() {
         let cmd = "pkger%:centos8 echo 'this is a test'";
-        let exec = Exec::new(cmd).unwrap();
+        let exec = Cmd::new(cmd).unwrap();
         assert_eq!(exec.images, Some(vec!["centos8"]));
         assert_eq!(&exec.cmd, "echo 'this is a test'");
     }
     #[test]
     fn parses_multiple_image_cmd_with_whitespace() {
         let cmd = "pkger%:{centos8, debian10, ubuntu18} echo 'this is a test'";
-        let exec = Exec::new(cmd).unwrap();
+        let exec = Cmd::new(cmd).unwrap();
         assert_eq!(exec.images, Some(vec!["centos8", "debian10", "ubuntu18"]));
         assert_eq!(&exec.cmd, "echo 'this is a test'");
     }
     #[test]
     fn parses_multiple_image_cmd_without_whitespace() {
         let cmd = "pkger%:{centos8,debian10,ubuntu18} echo 'this is a test'";
-        let exec = Exec::new(cmd).unwrap();
+        let exec = Cmd::new(cmd).unwrap();
         assert_eq!(exec.images, Some(vec!["centos8", "debian10", "ubuntu18"]));
         assert_eq!(&exec.cmd, "echo 'this is a test'");
     }
     #[test]
     fn parses_normal_cmd() {
         let cmd = "echo 'this is a test' || exit 1";
-        let exec = Exec::new(cmd).unwrap();
+        let exec = Cmd::new(cmd).unwrap();
         assert_eq!(exec.images, None);
         assert_eq!(&exec.cmd, "echo 'this is a test' || exit 1");
     }
