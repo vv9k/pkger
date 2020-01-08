@@ -48,6 +48,9 @@ images = [
 ```
  - ### Build
    - All build steps presented as a list of string
+   - To execute a command only in a container with specific image/images you can write:
+     - `pkger%:centos8 echo 'test'` for a single image
+     - `pkger%:{centos8,debian10} echo 'test'` or `pkger%:{centos8, debian10} echo 'test'` for multiple images
 ```
 [build]
 steps = [
@@ -75,6 +78,10 @@ install_dir = "/"
 ```
  - ### Env (Optional)
    - Set environment variables to use in recipes during build
+   - `pkger` also provides some env variables to use for adding logic to the build part
+     - `$PKGER_OS` the os of current container
+     - `$PKGER_OS_VER` version of current os
+     - `$PKGER_BLD_DIR` the build directory with fetched source in a container
 ```
 [env]
 HTTPS_PROXY = "http://proxy.domain.com:1234"

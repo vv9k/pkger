@@ -10,6 +10,7 @@ before_install:
   - rustup component add rustfmt clippy
   - cargo fmt -- --check
   - cargo clippy --all -- --D warnings
+  - cargo test --color=always
 install:
   - sudo apt -y install docker
   - sudo mkdir -p /etc/systemd/system/docker.service.d
