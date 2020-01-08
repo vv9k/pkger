@@ -1,8 +1,8 @@
 # pkger 📦🐳
 [![Travis CI](https://travis-ci.org/wojciechkepka/pkger.svg?branch=master)](https://travis-ci.org/wojciechkepka/pkger/builds)  
-Package building tool utilizing Docker.
+Package building tool utilizing Docker written in Rust 🦀.
 
-The main purpose of pkger is to automate building `.rpm` or `.deb` (perhaps more in the future) packages on multiple operating systems, versions and architectures.
+The main purpose of pkger is to automate building `.rpm` or `.deb` (perhaps more in the future) binary, pre-built packages on multiple operating systems, versions and architectures.
 
 ## Config
 Config file has a following structure:
@@ -21,7 +21,7 @@ output_dir = ""
      - `$os` and `$ver` are taken from container during build
 
 ## Recipe
-The recipe is divided into 3 parts:
+The recipe is divided into 4 parts:
  - ### Info
    - All the metadata and information needed for the build
    - `pkger` will install all dependencies listed in `depends`(for Debian based) or `depends_rh`(for RedHat based) depending on the Os type choosing the appropriate package manager for each supported distribution.
@@ -89,7 +89,7 @@ RUST_LOG = "trace"
 ```
 
 ## Usage
-To install `pkger` clone and build this repository with `crago build --release`.
+To install `pkger` clone and build this repository with `cargo build --release`.
 
 To use `pkger` you need a [docker daemon running on a tcp port](https://success.docker.com/article/how-do-i-enable-the-remote-api-for-dockerd).
 After that run:
@@ -98,10 +98,36 @@ After that run:
  - Substitute `$config_file` with path to the config file 
  - Add any amount of recipes whitespace separated at the end
 
-To get some informative output run with `RUST_LOG=pkger=trace` env variable set
+To debug run with `RUST_LOG=pkger=trace` env variable set. By default `pkger` will set `RUST_LOG=pkger=info` to display basic output.
 
 ## Example
-Example configuration, recipe and file structure can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)
+ - Example configuration, recipe can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)
+ - Example file structure:
+```
+example_structure/
+├── conf.toml
+├── images
+│   ├── centos8
+│   │   └── Dockerfile
+│   └── debian10
+│       ├── Dockerfile
+│       └── some_archive.tar.gz
+├── out
+│   ├── centos
+│   │   └── 8
+│   │       ├── curl_7.67.0-0.rpm
+│   │       └── nginx_1.17.6-0.rpm
+│   └── debian
+│       └── 10
+│           ├── curl_7.67.0-0.deb
+│           └── nginx_1.17.6-0.deb
+├── pkger
+└── recipes
+    ├── curl
+    │   └── recipe.toml
+    └── nginx
+        └── recipe.toml
+```
 
 ## License
 [MIT](https://github.com/wojciechkepka/pkger/blob/master/LICENSE)
