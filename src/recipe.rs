@@ -77,7 +77,7 @@ pub struct Exec<'a> {
     images: Option<Vec<&'a str>>,
 }
 impl<'a> Exec<'a> {
-    fn new(cmd: &'a str) -> Result<Self, Error> {
+    pub fn new(cmd: &'a str) -> Result<Self, Error> {
         trace!("parsing command {}", &cmd);
         // Handle multiple image situation
         if cmd.starts_with(CMD_MLTPL_IMGS) {
@@ -92,13 +92,14 @@ impl<'a> Exec<'a> {
             trace!("handling single image situation");
             match cmd.chars().nth(CMD_SNGL_IMG_OFFSET) {
                 Some(_ch) => {
-                    let mut image_name = String::new();
-
                     for (i, ch) in cmd[CMD_SNGL_IMG_OFFSET..].chars().enumerate() {
-                        trace!("{}", ch);
                         if is_valid_ch(ch) {
-                            image_name.push(ch);
+                            continue;
                         } else if ch == ' ' {
+                            trace!(
+                                "found image {}",
+                                &cmd[CMD_SNGL_IMG_OFFSET..i + CMD_SNGL_IMG_OFFSET]
+                            );
                             return Ok(Exec {
                                 cmd: cmd[i + CMD_SNGL_IMG_OFFSET + 1..].to_string(),
                                 images: Some(vec![
