@@ -297,12 +297,12 @@ impl Pkger {
                 }
             }
             if let Some(os_name) = id {
-                Ok(Os::from(&os_name, version)?);
+                Ok(Os::from(&os_name, version)?)
             } else {
                 Err(format_err!(
                     "failed to determine containers {} os",
                     &container.id
-                ));
+                ))
             }
         } else {
             Err(format_err!(
