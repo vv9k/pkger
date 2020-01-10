@@ -143,13 +143,125 @@ impl Pkger {
         Ok(recipes)
     }
 
+    pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
+        match self.recipes.get(recipe.as_ref()) {
+            Some(r) => {
+                trace!("building recipe {:#?}", &r);
+                for image_name in r.info.images.iter() {
+                    let image = match self.images.get(image_name) {
+                        Some(i) => i,
+                        None => {
+                            error!(
+                                "image {} not found in {}",
+                                image_name, &self.config.images_dir
+                            );
+                            continue;
+                        }
+                    };
+                    trace!("using image - {}", image_name);
+                    Worker::spawn_working(&self.config, &self.docker, &image, &r).await?;
+                }
+            }
+            None => error!(
+                "no recipe named {} found in recipes directory {}",
+                recipe.as_ref(),
+                self.config.recipes_dir
+            ),
+        }
+
+        Ok(())
+    }
+}
+
+struct Worker<'p> {
+    cfg: &'p Config,
+    docker: &'p Docker,
+    image: &'p Image,
+    recipe: &'p Recipe,
+}
+impl<'p> Worker<'p> {
+    pub async fn spawn_working(
+        cfg: &'p Config,
+        docker: &'p Docker,
+        image: &'p Image,
+        recipe: &'p Recipe,
+    ) -> Result<(), Error> {
+        let worker = Worker::new(&cfg, &docker, &image, &recipe);
+        Ok(worker.do_work().await?)
+    }
+    fn new(
+        cfg: &'p Config,
+        docker: &'p Docker,
+        image: &'p Image,
+        recipe: &'p Recipe,
+    ) -> Worker<'p> {
+        Worker {
+            cfg,
+            docker,
+            image,
+            recipe,
+        }
+    }
+    pub async fn do_work(&self) -> Result<(), Error> {
+        let mut state = ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default();
+        match self
+            .create_container(&self.image, &self.recipe, &mut state)
+            .await
+        {
+            Ok(container) => {
+                container.start().await?;
+                let os = self.determine_os(&container).await?;
+                let package_manager = os.clone().package_manager();
+                let (os_name, ver) = os.clone().os_ver();
+                let container_bld_dir = self
+                    .extract_src_in_container(&container, &self.recipe.info)
+                    .await?;
+                self.install_deps(&container, &self.recipe.info, &package_manager, os.clone())
+                    .await?;
+
+                // Helper env vars for recipe build execs
+                let _pkger_vars = vec![
+                    format!("PKGER_OS={}", &os_name),
+                    format!("PKGER_OS_VER={}", &ver),
+                    format!("PKGER_BLD_DIR={}", &container_bld_dir),
+                ];
+                let pkger_vars = _pkger_vars
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<&str>>();
+
+                self.execute_build_steps(
+                    &container,
+                    &self.recipe.build,
+                    &self.recipe.install,
+                    &container_bld_dir,
+                    &pkger_vars,
+                    &self.image.name,
+                )
+                .await?;
+                match os {
+                    Os::Debian(_, _) => {
+                        self.handle_deb_build(&container, self.recipe, &os_name, &ver)
+                            .await?;
+                    }
+                    Os::Redhat(_, _) => {
+                        self.handle_rpm_build(&container, self.recipe, &os_name, &ver)
+                            .await?;
+                    }
+                }
+                Self::remove_container(container).await;
+            }
+            Err(e) => return Err(e),
+        }
+        Ok(())
+    }
     async fn build_image(&self, image: &Image, state: &mut ImageState) -> Result<String, Error> {
         trace!("building image {:#?}", image);
         let image_with_tag = format!("{}:{}", &image.name, Local::now().timestamp());
         let mut opts = ImageBuilderOpts::new();
         opts.name(&image_with_tag);
 
-        let mut archive_path = PathBuf::from(&self.config.images_dir);
+        let mut archive_path = PathBuf::from(&self.cfg.images_dir);
         archive_path.push(format!("{}.tar", &image.name));
         trace!("creating archive in {}", archive_path.as_path().display());
         let file = map_return!(
@@ -189,7 +301,6 @@ impl Pkger {
         );
         Ok(image_with_tag)
     }
-
     async fn image_exists(&self, image: &str) -> bool {
         trace!("checking if image {} exists", image);
         let images = self.docker.images();
@@ -265,7 +376,6 @@ impl Pkger {
             )),
         }
     }
-
     async fn determine_os(&self, container: &'_ Container<'_>) -> Result<Os, Error> {
         trace!("determining container {} os", &container.id);
         let mut os_release = ExecOpts::new();
@@ -310,79 +420,6 @@ impl Pkger {
             ))
         }
     }
-
-    pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
-        match self.recipes.get(recipe.as_ref()) {
-            Some(r) => {
-                trace!("building recipe {:#?}", &r);
-                let mut state = ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default();
-                for image_name in r.info.images.iter() {
-                    let image = match self.images.get(image_name) {
-                        Some(i) => i,
-                        None => {
-                            error!(
-                                "image {} not found in {}",
-                                image_name, &self.config.images_dir
-                            );
-                            continue;
-                        }
-                    };
-                    trace!("using image - {}", image_name);
-                    match self.create_container(&image, &r, &mut state).await {
-                        Ok(container) => {
-                            container.start().await?;
-                            let os = self.determine_os(&container).await?;
-                            let package_manager = os.clone().package_manager();
-                            let (os_name, ver) = os.clone().os_ver();
-                            let container_bld_dir =
-                                self.extract_src_in_container(&container, &r.info).await?;
-                            self.install_deps(&container, &r.info, &package_manager, os.clone())
-                                .await?;
-
-                            // Helper env vars for recipe build execs
-                            let _pkger_vars = vec![
-                                format!("PKGER_OS={}", &os_name),
-                                format!("PKGER_OS_VER={}", &ver),
-                                format!("PKGER_BLD_DIR={}", &container_bld_dir),
-                            ];
-                            let pkger_vars = _pkger_vars
-                                .iter()
-                                .map(|s| s.as_str())
-                                .collect::<Vec<&str>>();
-
-                            self.execute_build_steps(
-                                &container,
-                                &r.build,
-                                &r.install,
-                                &container_bld_dir,
-                                &pkger_vars,
-                                &image_name,
-                            )
-                            .await?;
-                            match os {
-                                Os::Debian(_, _) => {
-                                    self.handle_deb_build(&container, r, &os_name, &ver).await?;
-                                }
-                                Os::Redhat(_, _) => {
-                                    self.handle_rpm_build(&container, r, &os_name, &ver).await?;
-                                }
-                            }
-                            Pkger::remove_container(container).await;
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-            }
-            None => error!(
-                "no recipe named {} found in recipes directory {}",
-                recipe.as_ref(),
-                self.config.recipes_dir
-            ),
-        }
-
-        Ok(())
-    }
-
     async fn handle_deb_build(
         &self,
         container: &'_ Container<'_>,
@@ -451,7 +488,7 @@ impl Pkger {
         let deb_archive = container
             .archive_path(format!("/tmp/pkger/{}", &file_name))
             .await?;
-        let mut out_path = PathBuf::from(&self.config.output_dir);
+        let mut out_path = PathBuf::from(&self.cfg.output_dir);
         out_path.push(&os);
         out_path.push(&ver);
         if !out_path.exists() {
@@ -484,7 +521,7 @@ impl Pkger {
         let build_dir = self.prepare_build_dir(&r.info)?;
         let files = self.unpack_archive(archive.clone(), build_dir.clone())?;
         package::_rpm::build_rpm(
-            &self.config.output_dir,
+            &self.cfg.output_dir,
             &files,
             &r.info,
             &r.finish.install_dir,
@@ -606,7 +643,7 @@ impl Pkger {
     async fn get_src(&self, info: &Info) -> Result<Vec<u8>, Error> {
         // first we check if git is present in the recipe
         if let Some(repo) = &info.git {
-            let archive_path = Pkger::fetch_git_src(&repo, &info.name)?;
+            let archive_path = Self::fetch_git_src(&repo, &info.name)?;
             Ok(fs::read(archive_path.as_path())?)
         } else {
             // Then we check if it's a url
@@ -651,10 +688,7 @@ impl Pkger {
                 Ok(archive[..].to_vec())
             } else {
                 // if it's not a url then its a file
-                let src_path = format!(
-                    "{}/{}/{}",
-                    &self.config.recipes_dir, &info.name, &info.source
-                );
+                let src_path = format!("{}/{}/{}", &self.cfg.recipes_dir, &info.name, &info.source);
                 match fs::read(&src_path) {
                     Ok(archive) => Ok(archive),
                     Err(e) => Err(format_err!("no archive in {} - {}", src_path, e)),
@@ -743,7 +777,7 @@ impl Pkger {
             &r.finish.files
         );
         let archive = container.archive_path(&r.finish.files).await?;
-        let mut out_path = PathBuf::from(&self.config.output_dir);
+        let mut out_path = PathBuf::from(&self.cfg.output_dir);
         out_path.push(os);
         out_path.push(ver);
         if !out_path.as_path().exists() {
