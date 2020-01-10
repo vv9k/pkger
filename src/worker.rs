@@ -22,7 +22,11 @@ impl<'p> Worker<'p> {
         image: &'p Image,
         recipe: &'p Recipe,
     ) -> Worker<'p> {
-        trace!("creating a new worker for {} on {}", &recipe.info.name, &image.name);
+        trace!(
+            "creating a new worker for {} on {}",
+            &recipe.info.name,
+            &image.name
+        );
         Worker {
             cfg,
             docker,
@@ -689,4 +693,3 @@ impl<'p> Worker<'p> {
         Ok(paths)
     }
 }
-
