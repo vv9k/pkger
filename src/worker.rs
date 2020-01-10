@@ -194,9 +194,11 @@ impl<'p> Worker<'p> {
             Ok(out) if out.info.exit_code != 0 => {
                 error!("{}\n{:?}", &out.out, &out.info);
                 Err(format_err!(
-                    "failed to exec step {:?} in container {}",
+                    "failed to exec step {:?} in container {}:\n(exit code: {}) - \"{}\"",
                     cmd,
                     &container.id,
+                    &out.info.exit_code,
+                    &out.out.trim(),
                 ))
             }
             Ok(out) => Ok(out),
