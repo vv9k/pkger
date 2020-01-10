@@ -182,6 +182,7 @@ impl Pkger {
         }
 
         let f = join_all(futures).await;
+        info!("Finished bulding recipe {}", recipe.as_ref());
         info!("Total build time: {} seconds", start.elapsed().as_secs());
         let results = names.iter().zip(f);
         let mut ok = Vec::new();
