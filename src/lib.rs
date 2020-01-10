@@ -178,7 +178,13 @@ impl Pkger {
             ),
         }
 
-        join_all(futures).await;
+        let f = join_all(futures).await;
+
+        for result in f {
+            if let Err(e) = result {
+                error!("{}", e);
+            }
+        }
 
         Ok(())
     }
