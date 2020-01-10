@@ -22,7 +22,7 @@ use std::fs::{self, DirBuilder, DirEntry, File};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str;
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 use tar::Archive;
 use wharf::api::Container;
 use wharf::opts::{
@@ -147,6 +147,8 @@ impl Pkger {
     }
 
     pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
+        let start = Instant::now();
+        let mut names = Vec::new();
         let mut futures = Vec::new();
         match self.recipes.get(recipe.as_ref()) {
             Some(r) => {
@@ -163,6 +165,7 @@ impl Pkger {
                         }
                     };
                     trace!("using image - {}", image_name);
+                    names.push(image_name);
                     futures.push(Worker::spawn_working(
                         &self.config,
                         &self.docker,
@@ -179,12 +182,26 @@ impl Pkger {
         }
 
         let f = join_all(futures).await;
+        info!("Total build time: {} seconds", start.elapsed().as_secs());
+        let results = names.iter().zip(f);
+        let mut ok = Vec::new();
+        let mut err = Vec::new();
 
-        for result in f {
-            if let Err(e) = result {
-                error!("{}", e);
+        for result in results {
+            match result.1 {
+                Ok(_) => ok.push(result.0),
+                Err(e) => err.push((result.0, e)),
             }
         }
+
+        info!("Succesful builds:");
+        ok.iter().for_each(|name| info!(" - {}", name));
+
+        info!("Failed builds:");
+        err.iter().for_each(|(name, e)| {
+            error!(" - {}", name);
+            error!("   - Error message: {}", e);
+        });
 
         Ok(())
     }
