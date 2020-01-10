@@ -8,11 +8,11 @@ mod util;
 mod worker;
 use self::image::*;
 use self::recipe::*;
-use futures::future::join_all;
 use self::util::*;
 use self::worker::*;
 use chrono::prelude::Local;
 use failure::Error;
+use futures::future::join_all;
 use hyper::{Body, Uri};
 use log::*;
 use rpm;
@@ -163,7 +163,12 @@ impl Pkger {
                         }
                     };
                     trace!("using image - {}", image_name);
-                    futures.push(Worker::spawn_working(&self.config, &self.docker, &image, &r));
+                    futures.push(Worker::spawn_working(
+                        &self.config,
+                        &self.docker,
+                        &image,
+                        &r,
+                    ));
                 }
             }
             None => error!(
@@ -172,7 +177,6 @@ impl Pkger {
                 self.config.recipes_dir
             ),
         }
-
 
         join_all(futures).await;
 
