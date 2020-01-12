@@ -5,6 +5,7 @@ pub struct Worker<'p> {
     docker: &'p Docker,
     image: &'p Image,
     recipe: &'p Recipe,
+    state: State,
 }
 impl<'p> Worker<'p> {
     pub async fn spawn_working(
@@ -12,8 +13,9 @@ impl<'p> Worker<'p> {
         docker: &'p Docker,
         image: &'p Image,
         recipe: &'p Recipe,
+        state: State,
     ) -> Result<(), Error> {
-        let worker = Worker::new(&cfg, &docker, &image, &recipe);
+        let worker = Worker::new(&cfg, &docker, &image, &recipe, state);
         Ok(worker.do_work().await?)
     }
     fn new(
@@ -21,6 +23,7 @@ impl<'p> Worker<'p> {
         docker: &'p Docker,
         image: &'p Image,
         recipe: &'p Recipe,
+        state: State,
     ) -> Worker<'p> {
         trace!(
             "creating a new worker for {} on {}",
@@ -32,14 +35,11 @@ impl<'p> Worker<'p> {
             docker,
             image,
             recipe,
+            state,
         }
     }
     async fn do_work(&self) -> Result<(), Error> {
-        let mut state = ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default();
-        match self
-            .create_container(&self.image, &self.recipe, &mut state)
-            .await
-        {
+        match self.create_container(&self.image, &self.recipe).await {
             Ok(container) => {
                 container.start().await?;
                 let os = self.determine_os(&container).await?;
@@ -87,7 +87,7 @@ impl<'p> Worker<'p> {
         }
         Ok(())
     }
-    async fn build_image(&self, image: &Image, state: &mut ImageState) -> Result<String, Error> {
+    async fn build_image(&self, image: &Image) -> Result<String, Error> {
         trace!("building image {:#?}", image);
         let image_with_tag = format!("{}:{}", &image.name, Local::now().timestamp());
         let mut opts = ImageBuilderOpts::new();
@@ -121,8 +121,10 @@ impl<'p> Worker<'p> {
             images.build(&archive_content, &opts).await,
             format!("failed to build image {}", &image.name)
         );
+        let mut state = self.state.lock().unwrap();
         state.update(&image.name, &image_with_tag);
         state.save()?;
+        std::mem::drop(state);
 
         map_return!(
             fs::remove_file(archive_path.as_path()),
@@ -138,20 +140,19 @@ impl<'p> Worker<'p> {
         let images = self.docker.images();
         images.inspect(image).await.is_ok()
     }
-    async fn create_container(
-        &self,
-        image: &Image,
-        r: &Recipe,
-        mut state: &mut ImageState,
-    ) -> Result<Container<'_>, Error> {
+    async fn create_container(&self, image: &Image, r: &Recipe) -> Result<Container<'_>, Error> {
         trace!("creating container from image {}", &image.name);
         let mut opts = ContainerBuilderOpts::new();
         let mut image_name = image.name.clone();
+        let state = self.state.lock().unwrap();
         if let Some(cache) = state.images.get(&image_name) {
             image_name = cache.0.clone();
         }
-        if !self.image_exists(&image_name).await || image.should_be_rebuilt().unwrap_or(true) {
-            image_name = self.build_image(&image, &mut state).await?;
+        std::mem::drop(state);
+        if !self.image_exists(&image_name).await
+            || image.should_be_rebuilt(&self.state).unwrap_or(true)
+        {
+            image_name = self.build_image(&image).await?;
         }
         let vars = util::parse_env_vars(&r.env);
         opts.image(&image_name)
