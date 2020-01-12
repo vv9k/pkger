@@ -191,16 +191,15 @@ impl Pkger {
         let f = join_all(futures).await;
         info!("Finished bulding recipe {}", recipe.as_ref());
         info!("Total build time: {} seconds", start.elapsed().as_secs());
+
         let results = names.iter().zip(f);
         let mut ok = Vec::new();
         let mut err = Vec::new();
-
-        for result in results {
-            match result.1 {
-                Ok(_) => ok.push(result.0),
-                Err(e) => err.push((result.0, e)),
-            }
-        }
+        // `r.0` is a name of the image for which this result (`r.1`) is matched
+        results.for_each(|r| match r.1 {
+            Ok(_) => ok.push(r.0),
+            Err(e) => err.push((r.0, e)),
+        });
 
         info!("Succesful builds:");
         ok.iter().for_each(|name| info!(" - {}", name));
