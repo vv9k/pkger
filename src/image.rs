@@ -22,9 +22,10 @@ impl Image {
         p.push("Dockerfile");
         p.as_path().exists()
     }
-    pub fn should_be_rebuilt(&self) -> Result<bool, Error> {
+    pub fn should_be_rebuilt(&self, state: &State) -> Result<bool, Error> {
         trace!("checking if image {} should be rebuilt", &self.name);
-        let state = ImageState::load(DEFAULT_STATE_FILE)?;
+        let _state = state.clone();
+        let state = _state.lock().unwrap();
         if let Some(prvs_bld_time) = state.images.get(&self.name) {
             match fs::metadata(self.path.as_path()) {
                 Ok(metadata) => match metadata.modified() {

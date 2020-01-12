@@ -22,6 +22,7 @@ use std::fs::{self, DirBuilder, DirEntry, File};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str;
+use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 use tar::Archive;
 use wharf::api::Container;
@@ -33,6 +34,8 @@ use wharf::Docker;
 
 const DEFAULT_STATE_FILE: &str = ".pkger.state";
 const TEMPORARY_BUILD_DIR: &str = "/tmp";
+
+pub type State = Arc<Mutex<ImageState>>;
 
 #[macro_export]
 macro_rules! map_return {
@@ -153,6 +156,9 @@ impl Pkger {
         match self.recipes.get(recipe.as_ref()) {
             Some(r) => {
                 trace!("building recipe {:#?}", &r);
+                let state = Arc::new(Mutex::new(
+                    ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default(),
+                ));
                 for image_name in r.info.images.iter() {
                     let image = match self.images.get(image_name) {
                         Some(i) => i,
@@ -171,6 +177,7 @@ impl Pkger {
                         &self.docker,
                         &image,
                         &r,
+                        Arc::clone(&state),
                     ));
                 }
             }
