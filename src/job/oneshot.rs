@@ -1,6 +1,6 @@
 use crate::job::JobCtx;
+use crate::Result;
 
-use anyhow::Result;
 use futures::StreamExt;
 use moby::{tty::TtyChunk, ContainerOptions, Docker, LogsOptions};
 

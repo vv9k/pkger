@@ -3,9 +3,8 @@ use crate::image::{Image, ImageState, ImagesState};
 use crate::job::JobCtx;
 use crate::recipe::Recipe;
 use crate::Config;
-use crate::Error;
+use crate::Result;
 
-use anyhow::Result;
 use futures::StreamExt;
 use log::{debug, error, info};
 use moby::{
@@ -69,7 +68,7 @@ impl<'j> BuildCtx<'j> {
     }
 
     // If successful returns id of the container
-    async fn container_spawn(&self, image_state: &ImageState) -> Result<String, Error> {
+    async fn container_spawn(&self, image_state: &ImageState) -> Result<String> {
         let mut env = vec![
             format!("PKGER_BLD_DIR={}", self.bld_dir.display()),
             format!("PKGER_OS={}", image_state.os.as_ref()),
@@ -95,11 +94,7 @@ impl<'j> BuildCtx<'j> {
             .map(|info| info.id)?)
     }
 
-    async fn container_exec<S: AsRef<str>>(
-        &self,
-        container: &Container<'j>,
-        cmd: S,
-    ) -> Result<(), Error> {
+    async fn container_exec<S: AsRef<str>>(&self, container: &Container<'j>, cmd: S) -> Result<()> {
         let opts = ExecContainerOptions::builder()
             .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
             .attach_stdout(true)
@@ -126,7 +121,7 @@ impl<'j> BuildCtx<'j> {
         Ok(())
     }
 
-    async fn image_build(&mut self) -> Result<ImageState, Error> {
+    async fn image_build(&mut self) -> Result<ImageState> {
         debug!("building image {}", &self.image.name);
         let images = self.docker.images();
         let opts = BuildOptions::builder(self.image.path.to_string_lossy().to_string())

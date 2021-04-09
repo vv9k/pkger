@@ -4,7 +4,7 @@ mod oneshot;
 pub use build::BuildCtx;
 pub use oneshot::OneShotCtx;
 
-use anyhow::Result;
+use crate::Result;
 
 pub enum JobCtx<'j> {
     Build(BuildCtx<'j>),

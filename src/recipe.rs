@@ -1,4 +1,5 @@
-use crate::Error;
+use crate::{Error, Result};
+
 use log::error;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ pub const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
 pub struct Recipes(HashMap<String, Recipe>);
 
 impl Recipes {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut recipes = Recipes::default();
         let path = env::current_dir()?.join(path.as_ref());
 
@@ -57,13 +58,13 @@ pub struct Recipe {
     pub finish: Final,
 }
 impl Recipe {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(toml::from_slice::<Recipe>(&fs::read(&path)?)?)
     }
 }
 impl TryFrom<DirEntry> for Recipe {
     type Error = Error;
-    fn try_from(entry: DirEntry) -> Result<Self, Self::Error> {
+    fn try_from(entry: DirEntry) -> Result<Self> {
         let mut path = entry.path();
         path.push(DEFAULT_RECIPE_FILE);
         Recipe::new(path)

@@ -1,6 +1,6 @@
-use pkger::{Error, Pkger};
+use pkger::{Pkger, Result};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<()> {
     Pkger::main().await
 }
