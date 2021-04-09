@@ -2,6 +2,7 @@
 extern crate anyhow;
 
 mod cmd;
+mod deps;
 mod image;
 mod job;
 mod opts;
