@@ -1,8 +1,9 @@
+use crate::job::OneShotCtx;
 use crate::{map_return, Error};
+
 use anyhow::Result;
-use futures::StreamExt;
-use log::{debug, error};
-use moby::{tty::TtyChunk, ContainerOptions, Docker, LogsOptions, RmContainerOptions};
+use log::error;
+use moby::{ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::AsRef;
@@ -58,7 +59,7 @@ impl Image {
             return Err(anyhow!("Dockerfile missing from image"));
         }
         Ok(Image {
-            // we can unwrap here because we know Dockerfile exists
+            // we can unwrap here because we know the Dockerfile exists
             name: path.file_name().unwrap().to_string_lossy().to_string(),
             path,
         })
@@ -97,45 +98,23 @@ impl ImageState {
         let name = format!(
             "pkger-{}-{}",
             image,
-            timestamp.duration_since(UNIX_EPOCH)?.as_secs()
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
         );
-        let handle = docker
-            .containers()
-            .create(
-                &ContainerOptions::builder(image.as_ref())
-                    .name(&name)
-                    .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
-                    .build(),
-            )
-            .await
-            .map(|info| docker.containers().get(info.id))
-            .map_err(|e| anyhow!("failed to create a container - {}", e))?;
+        let out = OneShotCtx::new(
+            docker,
+            &ContainerOptions::builder(image.as_ref())
+                .name(&name)
+                .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
+                .build(),
+            true,
+            false,
+        )
+        .run()
+        .await
+        .map_err(|e| anyhow!("failed to check image os - {}", e))?;
 
-        handle.start().await?;
-
-        let mut logs_stream = handle.logs(&LogsOptions::builder().stdout(true).build());
-        let mut out = String::new();
-        while let Some(chunk) = logs_stream.next().await {
-            match chunk? {
-                TtyChunk::StdOut(_chunk) => out.push_str(&String::from_utf8_lossy(&_chunk)),
-                _ => {}
-            }
-        }
-        debug!("{:?}", out);
         let os_name = extract_key(&out, "ID");
         let version = extract_key(&out, "VERSION_ID");
-
-        if let Err(e) = handle
-            .remove(
-                &RmContainerOptions::builder()
-                    .force(true)
-                    .volumes(true)
-                    .build(),
-            )
-            .await
-        {
-            error!("failed to delete container - {}", e);
-        }
 
         Ok(ImageState {
             id: id.to_string(),

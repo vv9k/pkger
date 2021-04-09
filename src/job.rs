@@ -4,11 +4,12 @@ use crate::recipe::Recipe;
 use crate::Config;
 use crate::Error;
 
+use anyhow::Result;
 use futures::StreamExt;
 use log::{debug, error, info};
 use moby::{
     image::ImageBuildChunk, tty::TtyChunk, BuildOptions, Container, ContainerOptions, Docker,
-    ExecContainerOptions, RmContainerOptions,
+    ExecContainerOptions, LogsOptions, RmContainerOptions,
 };
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -16,7 +17,6 @@ use std::str;
 use std::time::SystemTime;
 
 #[allow(dead_code)]
-
 pub struct BuildCtx<'j> {
     id: String,
     config: &'j Config,
@@ -170,14 +170,113 @@ impl<'j> BuildCtx<'j> {
 
         Err(anyhow!("stream ended before image id was received"))
     }
-}
-impl<'j> Into<JobCtx<'j>> for BuildCtx<'j> {
-    fn into(self) -> JobCtx<'j> {
-        JobCtx::Build(self)
+
+    pub async fn run(&mut self) -> Result<()> {
+        if self.verbose {
+            info!("running job {}", &self.id);
+        }
+        let image_state = self
+            .image_build()
+            .await
+            .map_err(|e| anyhow!("failed to build image - {}", e))?;
+
+        if self.verbose {
+            info!("image: {}", image_state.image);
+        }
+
+        let id = self.container_spawn(&image_state).await?;
+        let containers = self.docker.containers();
+        let container = containers.get(&id);
+        if self.verbose {
+            info!("container id: {}", id);
+        }
+
+        info!("starting container");
+        container.start().await?;
+
+        for step in &self.recipe.build.steps {
+            let cmd = Cmd::new(&step)?;
+            if let Some(images) = cmd.images {
+                if !images.contains(&self.image.name.as_str()) {
+                    continue;
+                }
+            }
+            self.container_exec(&container, &cmd.cmd).await?;
+        }
+
+        if let Err(e) = container
+            .remove(
+                &RmContainerOptions::builder()
+                    .force(true)
+                    .volumes(true)
+                    .build(),
+            )
+            .await
+        {
+            error!("failed to delete container - {}", e);
+        }
+
+        Ok(())
     }
 }
+impl<'j> From<BuildCtx<'j>> for JobCtx<'j> {
+    fn from(ctx: BuildCtx<'j>) -> Self {
+        JobCtx::Build(ctx)
+    }
+}
+pub struct OneShotCtx<'j> {
+    docker: &'j Docker,
+    opts: &'j ContainerOptions,
+    stdout: bool,
+    stderr: bool,
+}
+
+impl<'j> OneShotCtx<'j> {
+    pub fn new(docker: &'j Docker, opts: &'j ContainerOptions, stdout: bool, stderr: bool) -> Self {
+        Self {
+            docker,
+            opts,
+            stdout,
+            stderr,
+        }
+    }
+    pub async fn run(&mut self) -> Result<String> {
+        let handle = self
+            .docker
+            .containers()
+            .create(self.opts)
+            .await
+            .map(|info| self.docker.containers().get(info.id))
+            .map_err(|e| anyhow!("failed to create a container - {}", e))?;
+
+        handle.start().await?;
+
+        let mut logs_stream = handle.logs(
+            &LogsOptions::builder()
+                .stdout(self.stdout)
+                .stderr(self.stderr)
+                .build(),
+        );
+        let mut out = String::new();
+        while let Some(chunk) = logs_stream.next().await {
+            match chunk? {
+                TtyChunk::StdOut(_chunk) => out.push_str(&String::from_utf8_lossy(&_chunk)),
+                _ => {}
+            }
+        }
+
+        Ok(out)
+    }
+}
+impl<'j> From<OneShotCtx<'j>> for JobCtx<'j> {
+    fn from(ctx: OneShotCtx<'j>) -> Self {
+        JobCtx::OneShot(ctx)
+    }
+}
+
 pub enum JobCtx<'j> {
     Build(BuildCtx<'j>),
+    OneShot(OneShotCtx<'j>),
 }
 
 pub struct JobRunner<'j> {
@@ -191,49 +290,10 @@ impl<'j> JobRunner<'j> {
     pub async fn run(mut self) -> Result<(), Error> {
         match &mut self.ctx {
             JobCtx::Build(ctx) => {
-                if ctx.verbose {
-                    info!("running job {}", &ctx.id);
-                }
-                let image_state = ctx
-                    .image_build()
-                    .await
-                    .map_err(|e| anyhow!("failed to build image - {}", e))?;
-
-                if ctx.verbose {
-                    info!("image: {}", image_state.image);
-                }
-
-                let id = ctx.container_spawn(&image_state).await?;
-                let containers = ctx.docker.containers();
-                let container = containers.get(&id);
-                if ctx.verbose {
-                    info!("container id: {}", id);
-                }
-
-                info!("starting container");
-                container.start().await?;
-
-                for step in &ctx.recipe.build.steps {
-                    let cmd = Cmd::new(&step)?;
-                    if let Some(images) = cmd.images {
-                        if !images.contains(&ctx.image.name.as_str()) {
-                            continue;
-                        }
-                    }
-                    ctx.container_exec(&container, &cmd.cmd).await?;
-                }
-
-                if let Err(e) = container
-                    .remove(
-                        &RmContainerOptions::builder()
-                            .force(true)
-                            .volumes(true)
-                            .build(),
-                    )
-                    .await
-                {
-                    error!("failed to delete container - {}", e);
-                }
+                ctx.run().await?;
+            }
+            JobCtx::OneShot(ctx) => {
+                ctx.run().await?;
             }
         }
 
