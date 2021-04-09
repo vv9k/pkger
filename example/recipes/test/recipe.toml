@@ -12,8 +12,8 @@ depends_rh = ["openssl-devel"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
-	"debian10",
-	#"centos8",
+	{ name = "debian10" },
+	{ name = "centos8" }
 ]
 [env]
 ENV_VAR_TEST = "test.com:1010"
@@ -55,12 +55,3 @@ steps = [
 	# assure the file exists on both images
 	"pkger%:{centos8,debian10} if [ ! -f '/tmp/pkger_group_no_whitespace' ]; then echo 'File /tmp/pkger_group_no_whitespace should exist on image both centos8 and debian10'; exit 1; fi",
 ]
-
-[install]
-steps = [
-	"touch /opt/pkger/test_file"
-]
-
-[finish]
-files = "/opt/pkger"
-install_dir = "/tmp"
