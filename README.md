@@ -1,5 +1,5 @@
 # pkger 📦🐳
-[![Travis CI](https://travis-ci.org/wojciechkepka/pkger.svg?branch=master)](https://travis-ci.org/wojciechkepka/pkger/builds)  
+[![Build Status](https://github.com/wojciechkepka/pkger/workflows/pkger%20CI/badge.svg)](https://github.com/wojciechkepka/pkger/actions?query=workflow%3A%22pkger+CI%22)
 Package building tool utilizing Docker written in Rust 🦀.
 
 The main purpose of pkger is to automate building `.rpm` or `.deb` (perhaps more in the future) binary, pre-built packages on multiple operating systems, versions and architectures.
@@ -28,7 +28,7 @@ The recipe is divided into 4 parts:
    - This recipe will be built for 2 images `centos8` and `debian10`.
    - `pkger` will look for the image directory in f.e. `$images_dir/centos8`.
 ```
-[info]
+[metadata]
 name = "pkger"
 description = "pkger"
 arch = "x86_64"

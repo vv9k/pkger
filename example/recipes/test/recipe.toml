@@ -1,4 +1,4 @@
-[info]
+[metadata]
 name = "test"
 description = "pkger"
 arch = "x86_64"
@@ -13,7 +13,7 @@ exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
 	"debian10",
-	"centos8",
+	#"centos8",
 ]
 [env]
 ENV_VAR_TEST = "test.com:1010"
@@ -25,15 +25,16 @@ steps = [
 	# ENV VARS
 	"echo 'Testing environment variables'",
 	# test if env variables from recipe work correctly
-	"bash -c \"if [[ $ENV_VAR_TEST == \"test.com:1010\" ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi\"",
+    "echo ENV_VAR_TEST=$ENV_VAR_TEST",
+	"bash -c \"if [[ ! '$ENV_VAR_TEST' == 'test.com:1010' ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly; exit 1; fi\"",
 	"echo 'Testing pkger env variables'",
 	# test if pkger env variables work correctly
-	"echo $PKGER_OS",
-	"bash -c \"if [[ $PKGER_OS =~ debian|centos ]]; then exit 0; else echo 'Environment variable PKGER_OS is not set properly'; exit 1; fi\"",
-	"echo $PKGER_OS_VER",
-	"bash -c \"if [[ $PKGER_OS_VER =~ 10|8 ]]; then exit 0; else echo 'Environment variable PKGER_VER is not set properly'; exit 1; fi\"",
-	"echo $PKGER_BLD_DIR",
-	"bash -c \"if [[ $PKGER_BLD_DIR =~ /tmp/test-[0-9]*/ ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi\"",
+	"echo PKGER_OS=$PKGER_OS",
+	"bash -c \"if [[ '$PKGER_OS' =~ debian|centos ]]; then exit 0; else echo 'Environment variable PKGER_OS is not set properly'; exit 1; fi\"",
+	"echo PKGER_OS_VERSION=$PKGER_OS_VERSION",
+	"bash -c \"if [[ '$PKGER_OS_VERSION' =~ 10|8 ]]; then exit 0; else echo 'Environment variable PKGER_OS_VERSION is not set properly'; exit 1; fi\"",
+	"echo PKGER_BLD_DIR=$PKGER_BLD_DIR",
+	"bash -c \"if [[ '$PKGER_BLD_DIR' =~ /tmp/test-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi\"",
 
 	# SYNTAX
 	"echo 'Testing pkger command syntax'",

@@ -1,44 +1,44 @@
-use super::*;
-
+#![allow(dead_code)]
 pub mod _rpm {
-    use super::*;
-    fn handle_dependencies(info: &Info, mut builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
-        trace!("handling dependencies");
+    use crate::recipe::Metadata;
+    use crate::util::*;
+    use crate::{map_return, Error};
+    use rpm;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::str::FromStr;
+
+    fn handle_dependencies(info: &Metadata, mut builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
         if let Some(dependencies) = &info.depends_rh {
             for d in dependencies {
-                trace!("adding dependency {}", d);
                 builder = builder.requires(rpm::Dependency::any(d));
             }
         }
         if let Some(conflicts) = &info.conflicts_rh {
             for c in conflicts {
-                trace!("adding conflict {}", c);
                 builder = builder.conflicts(rpm::Dependency::any(c));
             }
         }
         if let Some(obsoletes) = &info.obsoletes_rh {
             for o in obsoletes {
-                trace!("adding obsolete {}", o);
                 builder = builder.obsoletes(rpm::Dependency::any(o));
             }
         }
         if let Some(provides) = &info.provides_rh {
             for p in provides {
-                trace!("adding provide {}", p);
                 builder = builder.provides(rpm::Dependency::any(p));
             }
         }
         builder
     }
     fn add_files<P: AsRef<Path>>(
-        info: &Info,
+        info: &Metadata,
         files: &[PathBuf],
         mut builder: rpm::RPMBuilder,
         build_dir: P,
         dest_dir: P,
         parent: P,
     ) -> rpm::RPMBuilder {
-        trace!("adding files to builder");
         for file in files {
             if let Ok(metadata) = fs::metadata(file.as_path()) {
                 if !metadata.file_type().is_dir() {
@@ -58,7 +58,6 @@ pub mod _rpm {
                         }
                     };
                     if should_include {
-                        trace!("adding {}", fpath.display());
                         builder = builder
                             .with_file(
                                 file.as_path().to_str().unwrap(),
@@ -69,7 +68,6 @@ pub mod _rpm {
                             )
                             .unwrap();
                     } else {
-                        trace!("skipping {}", fpath.display());
                     }
                 }
             }
@@ -77,7 +75,7 @@ pub mod _rpm {
         builder
     }
     fn write_rpm(
-        info: &Info,
+        info: &Metadata,
         out_dir: &str,
         os: &str,
         ver: &str,
@@ -86,12 +84,7 @@ pub mod _rpm {
         let mut out_path = PathBuf::from(&out_dir);
         out_path.push(os);
         out_path.push(ver);
-        trace!(
-            "checking if directory {} exists",
-            out_path.as_path().display()
-        );
         if !out_path.exists() {
-            trace!("creating directory {}", out_path.as_path().display());
             map_return!(
                 fs::create_dir_all(&out_path),
                 format!(
@@ -104,9 +97,8 @@ pub mod _rpm {
             "{}-{}-{}.{}.rpm",
             &info.name, &info.version, &info.revision, &info.arch
         ));
-        trace!("saving to {}", out_path.as_path().display());
         let mut f = map_return!(
-            File::create(out_path.as_path()),
+            fs::File::create(out_path.as_path()),
             format!(
                 "failed to create a file in {}",
                 out_path.as_path().display()
@@ -124,21 +116,12 @@ pub mod _rpm {
     pub fn build_rpm<P: AsRef<Path>>(
         out_dir: &str,
         files: &[PathBuf],
-        info: &Info,
+        info: &Metadata,
         dest: &str,
         build_dir: P,
         os: &str,
         ver: &str,
     ) -> Result<(), Error> {
-        trace!(
-            "building rpm for:\npackage: {}\nos: {} {}\nver: {}-{}\narch: {}",
-            &info.name,
-            os,
-            ver,
-            &info.version,
-            &info.revision,
-            &info.arch,
-        );
         let mut builder = rpm::RPMBuilder::new(
             &info.name,
             &info.version,
@@ -146,7 +129,7 @@ pub mod _rpm {
             &info.arch,
             &info.description,
         )
-        .compression(rpm::Compressor::from_str("gzip")?);
+        .compression(rpm::Compressor::from_str("gzip").map_err(|e| anyhow!(e.to_string()))?);
         builder = handle_dependencies(&info, builder);
         let dest_dir = PathBuf::from(dest);
         let _path = files[0].clone();
@@ -160,14 +143,21 @@ pub mod _rpm {
             dest_dir.as_path(),
             parent.as_path(),
         );
-        let pkg = builder.build()?;
+        let pkg = builder.build().map_err(|e| anyhow!(e.to_string()))?;
         Ok(write_rpm(&info, &out_dir, &os, &ver, pkg)?)
     }
 }
 
 pub mod deb {
-    use super::*;
-    pub async fn prepare_archive(info: &Info, os: &str) -> Result<PathBuf, Error> {
+    use crate::recipe::Metadata;
+    use crate::Error;
+    use chrono::Local;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    const TEMPORARY_BUILD_DIR: &str = "/tmp";
+
+    pub fn prepare_archive(info: &Metadata, os: &str) -> Result<PathBuf, Error> {
         // generate and upload control file
         let control_file = generate_deb_control(&info);
         let mut tmp_file = PathBuf::from(TEMPORARY_BUILD_DIR);
@@ -176,12 +166,7 @@ pub mod deb {
         }
         let fname = format!("{}-{}-deb-{}", &info.name, &os, Local::now().timestamp());
         tmp_file.push(fname);
-        trace!(
-            "saving control file to {} temporarily",
-            tmp_file.as_path().display()
-        );
-        let f = File::create(tmp_file.as_path())?;
-        trace!("creating archive with control file");
+        let f = fs::File::create(tmp_file.as_path())?;
         let mut ar = tar::Builder::new(f);
         let mut header = tar::Header::new_gnu();
         header.set_size(control_file.as_bytes().iter().count() as u64);
@@ -193,13 +178,12 @@ pub mod deb {
     }
     // # TODO
     // Find a nicer way to generate this
-    pub fn generate_deb_control(info: &Info) -> String {
+    pub fn generate_deb_control(info: &Metadata) -> String {
         let arch = match &info.arch[..] {
             "x86_64" => "amd64",
             // #TODO
             _ => "all",
         };
-        trace!("generating control file");
         let mut control = format!(
             "Package: {}
 Version: {}-{}
@@ -223,7 +207,6 @@ Architecture: {}
             control.push_str("Depends: ");
             let mut deps = String::new();
             for d in dependencies {
-                trace!("adding dependency {}", d);
                 deps.push_str(&format!("{}, ", d));
             }
             control.push_str(deps.trim_end_matches(", "));
@@ -233,7 +216,6 @@ Architecture: {}
             control.push_str("Conflicts: ");
             let mut confs = String::new();
             for c in conflicts {
-                trace!("adding conflict {}", c);
                 confs.push_str(&format!("{}, ", c));
             }
             control.push_str(confs.trim_end_matches(", "));
@@ -243,7 +225,6 @@ Architecture: {}
             control.push_str("Breaks: ");
             let mut obs = String::new();
             for o in obsoletes {
-                trace!("adding obsolete {}", o);
                 obs.push_str(&format!("{}, ", o));
             }
             control.push_str(obs.trim_end_matches(", "));
@@ -253,7 +234,6 @@ Architecture: {}
             control.push_str("Provides: ");
             let mut prvds = String::new();
             for p in provides {
-                trace!("adding provide {}", p);
                 prvds.push_str(&format!("{}, ", p));
             }
             control.push_str(prvds.trim_end_matches(", "));
@@ -268,7 +248,6 @@ Architecture: {}
 
         control.push_str(&format!("\nDescription: {}\n", &info.description));
 
-        trace!("{}", &control);
         control
     }
 }
