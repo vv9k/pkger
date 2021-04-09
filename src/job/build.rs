@@ -1,5 +1,6 @@
 use crate::cmd::Cmd;
 use crate::image::{Image, ImageState, ImagesState};
+use crate::job::JobCtx;
 use crate::recipe::Recipe;
 use crate::Config;
 use crate::Error;
@@ -9,7 +10,7 @@ use futures::StreamExt;
 use log::{debug, error, info};
 use moby::{
     image::ImageBuildChunk, tty::TtyChunk, BuildOptions, Container, ContainerOptions, Docker,
-    ExecContainerOptions, LogsOptions, RmContainerOptions,
+    ExecContainerOptions, RmContainerOptions,
 };
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -222,81 +223,5 @@ impl<'j> BuildCtx<'j> {
 impl<'j> From<BuildCtx<'j>> for JobCtx<'j> {
     fn from(ctx: BuildCtx<'j>) -> Self {
         JobCtx::Build(ctx)
-    }
-}
-pub struct OneShotCtx<'j> {
-    docker: &'j Docker,
-    opts: &'j ContainerOptions,
-    stdout: bool,
-    stderr: bool,
-}
-
-impl<'j> OneShotCtx<'j> {
-    pub fn new(docker: &'j Docker, opts: &'j ContainerOptions, stdout: bool, stderr: bool) -> Self {
-        Self {
-            docker,
-            opts,
-            stdout,
-            stderr,
-        }
-    }
-    pub async fn run(&mut self) -> Result<String> {
-        let handle = self
-            .docker
-            .containers()
-            .create(self.opts)
-            .await
-            .map(|info| self.docker.containers().get(info.id))
-            .map_err(|e| anyhow!("failed to create a container - {}", e))?;
-
-        handle.start().await?;
-
-        let mut logs_stream = handle.logs(
-            &LogsOptions::builder()
-                .stdout(self.stdout)
-                .stderr(self.stderr)
-                .build(),
-        );
-        let mut out = String::new();
-        while let Some(chunk) = logs_stream.next().await {
-            match chunk? {
-                TtyChunk::StdOut(_chunk) => out.push_str(&String::from_utf8_lossy(&_chunk)),
-                _ => {}
-            }
-        }
-
-        Ok(out)
-    }
-}
-impl<'j> From<OneShotCtx<'j>> for JobCtx<'j> {
-    fn from(ctx: OneShotCtx<'j>) -> Self {
-        JobCtx::OneShot(ctx)
-    }
-}
-
-pub enum JobCtx<'j> {
-    Build(BuildCtx<'j>),
-    OneShot(OneShotCtx<'j>),
-}
-
-pub struct JobRunner<'j> {
-    pub ctx: JobCtx<'j>,
-}
-
-impl<'j> JobRunner<'j> {
-    pub fn new<J: Into<JobCtx<'j>>>(ctx: J) -> JobRunner<'j> {
-        JobRunner { ctx: ctx.into() }
-    }
-    pub async fn run(mut self) -> Result<(), Error> {
-        match &mut self.ctx {
-            JobCtx::Build(ctx) => {
-                ctx.run().await?;
-            }
-            JobCtx::OneShot(ctx) => {
-                ctx.run().await?;
-            }
-        }
-
-        Ok(())
     }
 }
