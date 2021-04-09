@@ -3,7 +3,7 @@ use crate::map_return;
 use crate::os::Os;
 
 use anyhow::Result;
-use log::{error, trace};
+use log::{error, trace, warn};
 use moby::{ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -58,7 +58,10 @@ impl Image {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Image> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
-            return Err(anyhow!("Dockerfile missing from image"));
+            return Err(anyhow!(
+                "Dockerfile missing from image `{}`",
+                path.display()
+            ));
         }
         Ok(Image {
             // we can unwrap here because we know the Dockerfile exists
@@ -66,21 +69,46 @@ impl Image {
             path,
         })
     }
+
     /// Checks whether any of the files located at the path of this Image changed since last build
-    pub fn should_be_rebuilt(&self, state: &RefCell<ImagesState>) -> Result<bool> {
+    pub fn should_be_rebuilt(&self, state: &RefCell<ImagesState>) -> bool {
         trace!("checking if image should be rebuilt");
         if let Some(state) = state.borrow().images.get(&self.name) {
-            for file in fs::read_dir(self.path.as_path())? {
-                let file = file?;
-                let metadata = fs::metadata(file.path())?;
-                let mod_time = metadata.modified()?;
-                if mod_time > state.timestamp {
-                    return Ok(true);
+            if let Ok(entries) = fs::read_dir(self.path.as_path()) {
+                for file in entries {
+                    if let Err(e) = file {
+                        warn!("error while loading file - {} ", e);
+                        continue;
+                    }
+                    let file = file.unwrap();
+                    let path = file.path();
+                    let metadata = fs::metadata(path.as_path());
+                    if let Err(e) = metadata {
+                        warn!(
+                            "error while reading metadata of `{}` - {}",
+                            path.display(),
+                            e
+                        );
+                        continue;
+                    }
+                    let metadata = metadata.unwrap();
+                    let mod_time = metadata.modified();
+                    if let Err(e) = &mod_time {
+                        warn!(
+                            "error while checking modification time of `{}` - {}",
+                            path.display(),
+                            e
+                        );
+                    }
+                    let mod_time = mod_time.unwrap();
+                    if mod_time > state.timestamp {
+                        return true;
+                    }
                 }
             }
-            return Ok(false);
+            return false;
         }
-        Ok(true)
+        true
     }
 }
 

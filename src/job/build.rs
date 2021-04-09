@@ -122,7 +122,7 @@ impl<'j> BuildCtx<'j> {
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
-        if !self.image.should_be_rebuilt(&self.image_state)? {
+        if !self.image.should_be_rebuilt(&self.image_state) {
             if let Some(image) = self
                 .image_state
                 .borrow()
