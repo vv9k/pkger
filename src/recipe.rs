@@ -39,8 +39,12 @@ impl Recipes {
         Ok(recipes)
     }
 
-    pub fn recipes(&self) -> &HashMap<String, Recipe> {
+    pub fn as_ref(&self) -> &HashMap<String, Recipe> {
         &self.0
+    }
+
+    pub fn as_ref_mut(&mut self) -> &mut HashMap<String, Recipe> {
+        &mut self.0
     }
 }
 

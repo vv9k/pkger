@@ -80,7 +80,7 @@ impl TryFrom<Config> for Pkger {
 impl Pkger {
     async fn build_recipes(&self) {
         let mut tasks = Vec::new();
-        for (_, recipe) in self.recipes.recipes() {
+        for (_, recipe) in self.recipes.as_ref() {
             for image in &recipe.metadata.images {
                 if let Some(image) = self.images.images().get(image) {
                     tasks.push(
@@ -124,7 +124,10 @@ impl Pkger {
         }
         trace!("{:?}", opts);
 
-        let config_path = opts.config.unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
+        let config_path = opts
+            .config
+            .clone()
+            .unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
 
         dbg!(&config_path);
 
@@ -132,6 +135,21 @@ impl Pkger {
             .map_err(|e| anyhow!("Failed to read config file from {} - {}", config_path, e))?;
         let mut pkger = Pkger::try_from(config)
             .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
+
+        if !opts.recipes.is_empty() {
+            let filtered = pkger
+                .recipes
+                .as_ref()
+                .iter()
+                .filter(|(recipe, _)| !&opts.recipes.contains(recipe))
+                .map(|(recipe, _)| recipe.clone())
+                .collect::<Vec<_>>();
+
+            let recipes = pkger.recipes.as_ref_mut();
+            for recipe in filtered {
+                recipes.remove(&recipe);
+            }
+        }
 
         pkger.docker = docker_from_uri(opts.docker)
             .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?;
