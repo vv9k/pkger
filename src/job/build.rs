@@ -53,24 +53,16 @@ impl<'j> BuildCtx<'j> {
         target: Option<String>,
         verbose: bool,
     ) -> Self {
+        let timestamp = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
         let id = format!(
             "pkger-{}-{}-{}",
-            &recipe.metadata.name,
-            &image.name,
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
+            &recipe.metadata.name, &image.name, &timestamp,
         );
         debug!("{}", id);
-        let bld_dir = PathBuf::from(format!(
-            "/tmp/{}-{}",
-            &recipe.metadata.name,
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-        ));
+        let bld_dir = PathBuf::from(format!("/tmp/{}-{}", &recipe.metadata.name, &timestamp,));
 
         BuildCtx {
             id,
