@@ -99,7 +99,9 @@ impl Pkger {
         for (_, recipe) in self.recipes.as_ref() {
             for image_info in &recipe.metadata.images {
                 if let Some(name) = image_info.get("name") {
-                    if let Some(image) = self.images.images().get(&name.to_string()) {
+                    if let Some(image) =
+                        self.images.images().get(name.to_string().trim_matches('"'))
+                    {
                         tasks.push(
                             JobRunner::new(BuildCtx::new(
                                 &self.config,
@@ -107,7 +109,9 @@ impl Pkger {
                                 &recipe,
                                 &self.docker,
                                 &self.images_state,
-                                image_info.get("target").map(toml::Value::to_string),
+                                image_info
+                                    .get("target")
+                                    .map(|s| s.to_string().trim_matches('"').to_string()),
                                 self.verbose,
                             ))
                             .run(),
@@ -152,7 +156,6 @@ async fn main() -> Result<()> {
         .config
         .clone()
         .unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
-    dbg!(&config_path);
     let config = Config::from_path(&config_path)
         .map_err(|e| anyhow!("Failed to read config file from {} - {}", config_path, e))?;
 
