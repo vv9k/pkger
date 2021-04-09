@@ -1,4 +1,4 @@
-[info]
+[metadata]
 name = "pkger"
 description = "pkger"
 arch = "x86_64"
@@ -13,7 +13,6 @@ exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
 	"centos8",
-	"debian10",
 ]
 
 [build]

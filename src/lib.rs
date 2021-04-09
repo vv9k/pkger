@@ -1,48 +1,39 @@
 #[macro_use]
-extern crate failure;
-extern crate tar;
-mod image;
+extern crate anyhow;
+
+pub mod cmd;
+pub mod image;
+pub mod job;
+mod opts;
 mod package;
-mod recipe;
-mod util;
-mod worker;
-use self::image::*;
-use self::recipe::*;
-use self::util::*;
-use self::worker::*;
-use chrono::prelude::Local;
-use failure::Error;
-use futures::future::join_all;
-use hyper::{Body, Uri};
-use log::*;
-use rpm;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs::{self, DirBuilder, DirEntry, File};
-use std::io::Cursor;
-use std::path::{Path, PathBuf};
-use std::str;
-use std::sync::{Arc, Mutex};
-use std::time::{Instant, SystemTime};
-use tar::Archive;
-use wharf::api::Container;
-use wharf::opts::{
-    ContainerBuilderOpts, ExecOpts, ImageBuilderOpts, RmContainerOpts, UploadArchiveOpts,
-};
-use wharf::result::CmdOut;
-use wharf::Docker;
+pub mod recipe;
+pub mod util;
 
+use crate::image::{Images, ImagesState};
+use crate::job::{BuildCtx, JobRunner};
+use crate::opts::Opts;
+use crate::recipe::Recipes;
+pub use anyhow::Error;
+use log::{error, trace};
+use moby::Docker;
+use serde::Deserialize;
+use std::cell::RefCell;
+use std::convert::TryFrom;
+use std::env;
+use std::fs;
+use std::path::Path;
+use toml;
+use tracing_subscriber;
+
+pub const DEFAULT_CONF_FILE: &str = "conf.toml";
 const DEFAULT_STATE_FILE: &str = ".pkger.state";
-const TEMPORARY_BUILD_DIR: &str = "/tmp";
-
-pub type State = Arc<Mutex<ImageState>>;
 
 #[macro_export]
 macro_rules! map_return {
     ($f:expr, $e:expr) => {
         match $f {
             Ok(d) => d,
-            Err(e) => return Err(format_err!("{} - {}", $e, e)),
+            Err(e) => return Err(anyhow!("{} - {}", $e, e)),
         }
     };
 }
@@ -53,163 +44,108 @@ pub struct Config {
     recipes_dir: String,
     output_dir: String,
 }
+impl Config {
+    fn from_path<P: AsRef<Path>>(val: P) -> Result<Self, Error> {
+        Ok(toml::from_slice(&fs::read(val.as_ref())?)?)
+    }
+}
 
-#[derive(Debug)]
 pub struct Pkger {
-    docker: Docker,
     pub config: Config,
     images: Images,
     recipes: Recipes,
+    docker: Docker,
+    verbose: bool,
+    images_state: RefCell<ImagesState>,
 }
-impl Pkger {
-    pub fn new(docker_addr: &str, conf_file: &str) -> Result<Self, Error> {
-        let content = map_return!(
-            fs::read(&conf_file),
-            format!("failed to read config file from {}", conf_file)
-        );
-        let config: Config = map_return!(toml::from_slice(&content), "failed to parse config file");
-        trace!("{:?}", config);
-        let images = Pkger::parse_images_dir(&config.images_dir)?;
-        let recipes = Pkger::parse_recipes_dir(&config.recipes_dir)?;
+
+impl TryFrom<Config> for Pkger {
+    type Error = Error;
+    fn try_from(config: Config) -> Result<Self, Self::Error> {
+        let images = Images::new(config.images_dir.clone())?;
+        let recipes = Recipes::new(config.recipes_dir.clone())?;
         Ok(Pkger {
-            docker: Docker::new(docker_addr)?,
             config,
             images,
             recipes,
+            docker: Docker::tcp("127.0.0.1:80"),
+            verbose: true,
+            images_state: RefCell::new(
+                ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
+            ),
         })
     }
+}
 
-    fn parse_images_dir(p: &str) -> Result<Images, Error> {
-        trace!("parsing images dir - {}", p);
-        let mut images = HashMap::new();
-        if Path::new(&p).exists() {
-            for _entry in map_return!(fs::read_dir(p), format!("failed to read images_dir {}", p)) {
-                if let Ok(entry) = _entry {
-                    if let Ok(ftype) = entry.file_type() {
-                        if ftype.is_dir() {
-                            let image = Image::new(entry);
-                            trace!("{:?}", image);
-                            if image.has_dockerfile {
-                                images.insert(image.name.clone(), image);
-                            } else {
-                                error!(
-                                    "image {} doesn't have Dockerfile in it's root directory",
-                                    image.name
-                                );
-                            }
-                        }
-                    }
+impl Pkger {
+    async fn build_recipes(&self) {
+        let mut tasks = Vec::new();
+        for (_, recipe) in self.recipes.recipes() {
+            for image in &recipe.metadata.images {
+                if let Some(image) = self.images.images().get(image) {
+                    tasks.push(
+                        JobRunner::new(BuildCtx::new(
+                            &self.config,
+                            &image,
+                            &recipe,
+                            &self.docker,
+                            &self.images_state,
+                            self.verbose,
+                        ))
+                        .run(),
+                    );
                 }
             }
-        } else {
-            warn!("images directory in {} doesn't exist", &p);
-            info!("creating directory {}", &p);
-            map_return!(
-                fs::create_dir_all(&p),
-                format!("failed to create directory for images in {}", &p)
-            );
         }
-        trace!("{:?}", images);
-        Ok(images)
+
+        for task in tasks {
+            if let Err(e) = task.await {
+                let reason = match e.downcast::<moby::Error>() {
+                    Ok(err) => match err {
+                        moby::Error::Fault { code: _, message } => message,
+                        e => e.to_string(),
+                    },
+                    Err(e) => e.to_string(),
+                };
+                error!("job failed - {}", reason);
+            }
+        }
+        if let Err(e) = self.images_state.borrow().save() {
+            error!("failed to save image state - {}", e);
+        }
     }
-
-    fn parse_recipes_dir(p: &str) -> Result<Recipes, Error> {
-        trace!("parsing recipes dir - {}", p);
-        let mut recipes = HashMap::new();
-        if Path::new(&p).exists() {
-            for _entry in map_return!(fs::read_dir(p), "failed to read recipes_dir") {
-                if let Ok(entry) = _entry {
-                    if let Ok(ftype) = entry.file_type() {
-                        if ftype.is_dir() {
-                            let path = entry.path();
-                            match Recipe::new(entry) {
-                                Ok(recipe) => {
-                                    trace!("{:?}", recipe);
-                                    recipes.insert(recipe.info.name.clone(), recipe);
-                                }
-                                Err(e) => error!(
-                                    "directory {} doesn't have a recipe.toml or the recipe is wrong - {}",
-                                    path.as_path().display(),
-                                    e
-                                ),
-                            }
-                        }
-                    }
-                }
+    pub async fn main() -> Result<(), Error> {
+        let opts = Opts::from_args();
+        if !opts.quiet {
+            if env::var_os("RUST_LOG").is_none() {
+                env::set_var("RUST_LOG", "pkger=info");
             }
-        } else {
-            warn!("recipes directory in {} doesn't exist", &p);
-            info!("creating directory {}", &p);
-            map_return!(
-                fs::create_dir_all(&p),
-                format!("failed to create directory for recipes in {}", &p)
-            );
+            tracing_subscriber::fmt::init();
         }
-        trace!("{:?}", recipes);
-        Ok(recipes)
-    }
+        trace!("{:?}", opts);
 
-    pub async fn build_recipe<S: AsRef<str>>(&self, recipe: S) -> Result<(), Error> {
-        let start = Instant::now();
-        let mut names = Vec::new();
-        let mut futures = Vec::new();
-        match self.recipes.get(recipe.as_ref()) {
-            Some(r) => {
-                trace!("building recipe {:#?}", &r);
-                let state = Arc::new(Mutex::new(
-                    ImageState::load(DEFAULT_STATE_FILE).unwrap_or_default(),
-                ));
-                for image_name in r.info.images.iter() {
-                    let image = match self.images.get(image_name) {
-                        Some(i) => i,
-                        None => {
-                            error!(
-                                "image {} not found in {}",
-                                image_name, &self.config.images_dir
-                            );
-                            continue;
-                        }
-                    };
-                    trace!("using image - {}", image_name);
-                    names.push(image_name);
-                    futures.push(Worker::spawn_working(
-                        &self.config,
-                        &self.docker,
-                        &image,
-                        &r,
-                        Arc::clone(&state),
-                    ));
-                }
-            }
-            None => error!(
-                "no recipe named {} found in recipes directory {}",
-                recipe.as_ref(),
-                self.config.recipes_dir
-            ),
-        }
+        let config_path = opts.config.unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
 
-        let f = join_all(futures).await;
-        info!("Finished bulding recipe {}", recipe.as_ref());
-        info!("Total build time: {} seconds", start.elapsed().as_secs());
+        dbg!(&config_path);
 
-        let results = names.iter().zip(f);
-        let mut ok = Vec::new();
-        let mut err = Vec::new();
-        // `r.0` is a name of the image for which this result (`r.1`) is matched
-        results.for_each(|r| match r.1 {
-            Ok(_) => ok.push(r.0),
-            Err(e) => err.push((r.0, e)),
-        });
+        let config = Config::from_path(&config_path)
+            .map_err(|e| anyhow!("Failed to read config file from {} - {}", config_path, e))?;
+        let mut pkger = Pkger::try_from(config)
+            .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
 
-        info!("Succesful builds:");
-        ok.iter().for_each(|name| info!(" - {}", name));
+        pkger.docker = docker_from_uri(opts.docker)
+            .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?;
+        pkger.verbose = !opts.quiet;
 
-        info!("Failed builds:");
-        err.iter().for_each(|(name, e)| {
-            error!(" - {}", name);
-            error!("   - Error message: {}", e);
-        });
+        pkger.build_recipes().await;
 
         Ok(())
+    }
+}
+
+fn docker_from_uri<U: AsRef<str>>(uri: Option<U>) -> Result<Docker, Error> {
+    match uri {
+        Some(uri) => Docker::new(uri).map_err(|e| anyhow!("{}", e)),
+        None => Ok(Docker::tcp("127.0.0.1:80")),
     }
 }
