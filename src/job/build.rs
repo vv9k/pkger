@@ -106,6 +106,7 @@ impl<'j> BuildCtx<'j> {
                     .cmd(vec!["sleep infinity"])
                     .entrypoint(vec!["/bin/sh", "-c"])
                     .env(env)
+                    .working_dir(self.bld_dir.to_string_lossy().to_string().as_str())
                     .build(),
             )
             .await
