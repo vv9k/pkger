@@ -122,6 +122,19 @@ impl<'j> BuildCtx<'j> {
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
+        if !self.image.should_be_rebuilt(&self.image_state)? {
+            if let Some(image) = self
+                .image_state
+                .borrow()
+                .images
+                .get(&self.image.name)
+                .cloned()
+            {
+                debug!("not rebuilding image, cache: {:#?}", image);
+                return Ok(image);
+            }
+        }
+
         debug!("building image {}", &self.image.name);
         let images = self.docker.images();
         let opts = BuildOptions::builder(self.image.path.to_string_lossy().to_string())
