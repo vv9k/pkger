@@ -24,13 +24,3 @@ pub fn should_include<P: AsRef<Path>>(path: P, excludes: &[String]) -> bool {
     }
     true
 }
-
-pub fn parse_env_vars(vars: &Option<toml::value::Table>) -> Vec<String> {
-    let mut env = Vec::new();
-    if let Some(_vars) = vars {
-        for (k, v) in _vars.into_iter() {
-            env.push(format!("{}={}", k, v));
-        }
-    }
-    env
-}
