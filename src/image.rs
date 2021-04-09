@@ -3,9 +3,10 @@ use crate::map_return;
 use crate::os::Os;
 
 use anyhow::Result;
-use log::error;
+use log::{error, trace};
 use moby::{ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::fs::{self, File};
@@ -65,15 +66,19 @@ impl Image {
             path,
         })
     }
-    pub fn should_be_rebuilt(&self, state: &ImagesState) -> Result<bool> {
-        if let Some(state) = state.images.get(&self.name) {
-            let metadata = fs::metadata(self.path.as_path())?;
-            let mod_time = metadata.modified()?;
-            if mod_time > state.timestamp {
-                return Ok(true);
-            } else {
-                return Ok(false);
+    /// Checks whether any of the files located at the path of this Image changed since last build
+    pub fn should_be_rebuilt(&self, state: &RefCell<ImagesState>) -> Result<bool> {
+        trace!("checking if image should be rebuilt");
+        if let Some(state) = state.borrow().images.get(&self.name) {
+            for file in fs::read_dir(self.path.as_path())? {
+                let file = file?;
+                let metadata = fs::metadata(file.path())?;
+                let mod_time = metadata.modified()?;
+                if mod_time > state.timestamp {
+                    return Ok(true);
+                }
             }
+            return Ok(false);
         }
         Ok(true)
     }
