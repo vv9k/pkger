@@ -127,7 +127,7 @@ impl ImageState {
 
         if let Err(e) = handle
             .remove(
-                RmContainerOptions::builder()
+                &RmContainerOptions::builder()
                     .force(true)
                     .volumes(true)
                     .build(),

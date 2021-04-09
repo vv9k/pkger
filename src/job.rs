@@ -225,7 +225,7 @@ impl<'j> JobRunner<'j> {
 
                 if let Err(e) = container
                     .remove(
-                        RmContainerOptions::builder()
+                        &RmContainerOptions::builder()
                             .force(true)
                             .volumes(true)
                             .build(),
