@@ -147,6 +147,8 @@ impl ImageState {
         .await
         .map_err(|e| anyhow!("failed to check image os - {}", e))?;
 
+        let out = String::from_utf8_lossy(&out.stdout);
+
         let os_name = extract_key(&out, "ID");
         let version = extract_key(&out, "VERSION_ID");
 
