@@ -2,6 +2,16 @@
 
 use std::path::{Path, PathBuf};
 
+#[macro_export]
+macro_rules! map_return {
+    ($f:expr, $e:expr) => {
+        match $f {
+            Ok(d) => d,
+            Err(e) => return Err(anyhow!("{} - {}", $e, e)),
+        }
+    };
+}
+
 pub fn find_penultimate_ancestor<P: AsRef<Path>>(path: P) -> PathBuf {
     let mut ancestors = path.as_ref().ancestors();
     loop {

@@ -12,13 +12,6 @@ description = "Building tool inspired by fpm-builder"
 categories = ["command-line-utilities"]
 
 
-[[bin]]
-name = "pkger"
-path = "src/main.rs"
-
-[lib]
-name = "pkger"
-
 [dependencies]
 log = "0.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
