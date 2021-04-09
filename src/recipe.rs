@@ -52,10 +52,8 @@ impl Recipes {
 #[derive(Deserialize, Debug)]
 pub struct Recipe {
     pub metadata: Metadata,
-    pub env: Option<toml::value::Table>,
     pub build: Build,
-    pub install: Install,
-    pub finish: Final,
+    pub env: Option<toml::value::Table>,
 }
 
 impl Recipe {
@@ -84,7 +82,7 @@ pub struct Metadata {
     pub description: String,
     pub license: String,
     pub source: String,
-    pub images: Vec<String>,
+    pub images: Vec<toml::Value>,
 
     // Git repository as source
     pub git: Option<String>,
@@ -94,12 +92,6 @@ pub struct Metadata {
     pub obsoletes: Option<Vec<String>>,
     pub conflicts: Option<Vec<String>>,
     pub provides: Option<Vec<String>>,
-
-    // RedHat based specific packages
-    pub depends_rh: Option<Vec<String>>,
-    pub obsoletes_rh: Option<Vec<String>>,
-    pub conflicts_rh: Option<Vec<String>>,
-    pub provides_rh: Option<Vec<String>>,
 
     // Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
@@ -113,17 +105,4 @@ pub struct Metadata {
 #[derive(Deserialize, Debug)]
 pub struct Build {
     pub steps: Vec<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Install {
-    pub steps: Vec<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Final {
-    // Final directory where all installed files are
-    pub files: String,
-    // Path to prepend to all installed files
-    pub install_dir: String,
 }

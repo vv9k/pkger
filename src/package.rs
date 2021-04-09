@@ -9,27 +9,27 @@ pub mod _rpm {
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
 
-    fn handle_dependencies(info: &Metadata, mut builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
-        if let Some(dependencies) = &info.depends_rh {
-            for d in dependencies {
-                builder = builder.requires(rpm::Dependency::any(d));
-            }
-        }
-        if let Some(conflicts) = &info.conflicts_rh {
-            for c in conflicts {
-                builder = builder.conflicts(rpm::Dependency::any(c));
-            }
-        }
-        if let Some(obsoletes) = &info.obsoletes_rh {
-            for o in obsoletes {
-                builder = builder.obsoletes(rpm::Dependency::any(o));
-            }
-        }
-        if let Some(provides) = &info.provides_rh {
-            for p in provides {
-                builder = builder.provides(rpm::Dependency::any(p));
-            }
-        }
+    fn handle_dependencies(_info: &Metadata, builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
+        //if let Some(dependencies) = &info {
+        //for d in dependencies {
+        //builder = builder.requires(rpm::Dependency::any(d));
+        //}
+        //}
+        //if let Some(conflicts) = &info {
+        //for c in conflicts {
+        //builder = builder.conflicts(rpm::Dependency::any(c));
+        //}
+        //}
+        //if let Some(obsoletes) = &info {
+        //for o in obsoletes {
+        //builder = builder.obsoletes(rpm::Dependency::any(o));
+        //}
+        //}
+        //if let Some(provides) = &info {
+        //for p in provides {
+        //builder = builder.provides(rpm::Dependency::any(p));
+        //}
+        //}
         builder
     }
 
