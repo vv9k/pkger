@@ -42,6 +42,7 @@ impl Os {
             Os::Unknown
         }
     }
+
     pub fn os_ver(&self) -> &str {
         match self {
             Os::Arch(v) => v.as_str(),
@@ -53,6 +54,7 @@ impl Os {
             Os::Unknown => "",
         }
     }
+
     #[allow(dead_code)]
     pub fn package_manager(&self) -> &str {
         match self {

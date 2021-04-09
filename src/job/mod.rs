@@ -19,6 +19,7 @@ impl<'j> JobRunner<'j> {
     pub fn new<J: Into<JobCtx<'j>>>(ctx: J) -> JobRunner<'j> {
         JobRunner { ctx: ctx.into() }
     }
+
     pub async fn run(mut self) -> Result<()> {
         match &mut self.ctx {
             JobCtx::Build(ctx) => {

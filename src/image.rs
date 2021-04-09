@@ -1,8 +1,8 @@
 use crate::job::OneShotCtx;
 use crate::map_return;
 use crate::os::Os;
+use crate::Result;
 
-use anyhow::Result;
 use log::{error, trace, warn};
 use moby::{ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
@@ -176,8 +176,8 @@ fn extract_key(out: &str, key: &str) -> Option<String> {
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct ImagesState {
-    /// Contains historical build data of images. Keys are image names and corresponding values are
-    /// tag with a timestamp -> images[IMAGE] = (TAG, TIMESTAMP)
+    /// Contains historical build data of images. Each key-value pair contains an image name and
+    /// [ImageState](ImageState) struct representing the state of the image.
     pub images: HashMap<String, ImageState>,
     /// Path to a file containing image state
     pub state_file: PathBuf,
@@ -191,6 +191,7 @@ impl Default for ImagesState {
         }
     }
 }
+
 impl ImagesState {
     pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
         if !state_file.as_ref().exists() {
@@ -204,9 +205,11 @@ impl ImagesState {
         let contents = fs::read(state_file.as_ref())?;
         Ok(serde_json::from_slice(&contents)?)
     }
+
     pub fn update(&mut self, image: &str, state: &ImageState) {
         self.images.insert(image.to_string(), state.clone());
     }
+
     pub fn save(&self) -> Result<()> {
         if !Path::new(&self.state_file).exists() {
             map_return!(

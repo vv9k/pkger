@@ -25,6 +25,7 @@ impl<'j> OneShotCtx<'j> {
             stderr,
         }
     }
+
     pub async fn run(&mut self) -> Result<Output> {
         let handle = self
             .docker
