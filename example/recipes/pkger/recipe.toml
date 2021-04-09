@@ -7,12 +7,12 @@ version = "0.0.5"
 revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-depends = ["curl", "gcc", "pkg-config", "libssl-dev"]
-depends_rh = ["curl", "gcc", "pkg-config", "openssl-devel"]
+depends = ["curl", "gcc", "pkg-config", "centos8{libssl-dev},debian10{openssl-devel}"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
-	"centos8",
+	{ name = "centos8", target = "rpm" },
+    { name = "debian10", target = "deb" }
 ]
 
 [build]
@@ -20,15 +20,5 @@ steps = [
 	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
 	"sh /tmp/install_rust.sh -y --default-toolchain stable",
 	"mkdir -p /opt/pkger/bin",
-	"/root/.cargo/bin/cargo build --target-dir /tmp",
+	"/root/.cargo/bin/cargo build --target-dir $PKGER_BLD_DIR",
 ]
-
-[install]
-steps = [
-	"mv /tmp/debug/pkger /opt/pkger/bin"
-]
-destdir = "/opt/pkger"
-
-[finish]
-files = "/opt/pkger"
-install_dir = "/"
