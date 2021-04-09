@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate anyhow;
 
-pub mod cmd;
-pub mod image;
-pub mod job;
+mod cmd;
+mod image;
+mod job;
 mod opts;
+mod os;
 mod package;
-pub mod recipe;
-pub mod util;
+mod recipe;
+mod util;
 
 use crate::image::{Images, ImagesState};
 use crate::job::{BuildCtx, JobRunner};
