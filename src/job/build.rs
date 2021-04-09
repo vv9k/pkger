@@ -205,8 +205,8 @@ impl<'j> BuildCtx<'j> {
 
         for step in &self.recipe.build.steps {
             let cmd = Cmd::new(&step)?;
-            if let Some(images) = cmd.images {
-                if !images.contains(&self.image.name.as_str()) {
+            if !cmd.images.is_empty() {
+                if !cmd.images.contains(&self.image.name.as_str()) {
                     continue;
                 }
             }
