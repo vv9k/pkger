@@ -32,6 +32,7 @@ pub mod _rpm {
         }
         builder
     }
+
     fn add_files<P: AsRef<Path>>(
         info: &Metadata,
         files: &[PathBuf],
@@ -75,6 +76,7 @@ pub mod _rpm {
         }
         builder
     }
+
     fn write_rpm(
         info: &Metadata,
         out_dir: &str,
@@ -178,6 +180,7 @@ pub mod deb {
         ar.finish().unwrap();
         Ok(tmp_file)
     }
+
     // # TODO
     // Find a nicer way to generate this
     pub fn generate_deb_control(info: &Metadata) -> String {

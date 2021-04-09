@@ -57,13 +57,16 @@ pub struct Recipe {
     pub install: Install,
     pub finish: Final,
 }
+
 impl Recipe {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(toml::from_slice::<Recipe>(&fs::read(&path)?)?)
     }
 }
+
 impl TryFrom<DirEntry> for Recipe {
     type Error = Error;
+
     fn try_from(entry: DirEntry) -> Result<Self> {
         let mut path = entry.path();
         path.push(DEFAULT_RECIPE_FILE);

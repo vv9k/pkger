@@ -228,6 +228,7 @@ impl<'j> BuildCtx<'j> {
         Ok(())
     }
 }
+
 impl<'j> From<BuildCtx<'j>> for JobCtx<'j> {
     fn from(ctx: BuildCtx<'j>) -> Self {
         JobCtx::Build(ctx)
