@@ -11,6 +11,11 @@ pub struct OneShotCtx<'j> {
     stderr: bool,
 }
 
+pub struct Output {
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+
 impl<'j> OneShotCtx<'j> {
     pub fn new(docker: &'j Docker, opts: &'j ContainerOptions, stdout: bool, stderr: bool) -> Self {
         Self {
@@ -20,7 +25,7 @@ impl<'j> OneShotCtx<'j> {
             stderr,
         }
     }
-    pub async fn run(&mut self) -> Result<String> {
+    pub async fn run(&mut self) -> Result<Output> {
         let handle = self
             .docker
             .containers()
@@ -37,15 +42,17 @@ impl<'j> OneShotCtx<'j> {
                 .stderr(self.stderr)
                 .build(),
         );
-        let mut out = String::new();
+        let mut stdout = vec![];
+        let mut stderr = vec![];
         while let Some(chunk) = logs_stream.next().await {
             match chunk? {
-                TtyChunk::StdOut(_chunk) => out.push_str(&String::from_utf8_lossy(&_chunk)),
+                TtyChunk::StdOut(mut _chunk) => stdout.append(&mut _chunk),
+                TtyChunk::StdErr(mut _chunk) => stderr.append(&mut _chunk),
                 _ => {}
             }
         }
 
-        Ok(out)
+        Ok(Output { stdout, stderr })
     }
 }
 impl<'j> From<OneShotCtx<'j>> for JobCtx<'j> {
