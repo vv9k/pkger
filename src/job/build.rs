@@ -16,15 +16,31 @@ use std::path::PathBuf;
 use std::str;
 use std::time::SystemTime;
 
-#[allow(dead_code)]
+pub enum BuildTarget {
+    Rpm,
+    Deb,
+    Gzip,
+}
+
+impl From<Option<String>> for BuildTarget {
+    fn from(s: Option<String>) -> Self {
+        match s.map(|inner| inner.to_lowercase()) {
+            Some(s) if &s == "rpm" => Self::Rpm,
+            Some(s) if &s == "deb" => Self::Deb,
+            _ => Self::Gzip,
+        }
+    }
+}
+
 pub struct BuildCtx<'j> {
     id: String,
-    config: &'j Config,
+    _config: &'j Config,
     image: &'j Image,
     recipe: &'j Recipe,
     docker: &'j Docker,
     image_state: &'j RefCell<ImagesState>,
     bld_dir: PathBuf,
+    _target: BuildTarget,
     verbose: bool,
 }
 impl<'j> BuildCtx<'j> {
@@ -34,6 +50,7 @@ impl<'j> BuildCtx<'j> {
         recipe: &'j Recipe,
         docker: &'j Docker,
         image_state: &'j RefCell<ImagesState>,
+        target: Option<String>,
         verbose: bool,
     ) -> Self {
         let id = format!(
@@ -57,12 +74,13 @@ impl<'j> BuildCtx<'j> {
 
         BuildCtx {
             id,
-            config,
+            _config: config,
             image,
             recipe,
             docker,
             image_state,
             bld_dir,
+            _target: BuildTarget::from(target),
             verbose,
         }
     }

@@ -16,7 +16,7 @@ use crate::opts::Opts;
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use log::{error, trace};
+use log::{error, trace, warn};
 use moby::Docker;
 use serde::Deserialize;
 use std::cell::RefCell;
@@ -97,19 +97,24 @@ impl Pkger {
     async fn build_recipes(&self) {
         let mut tasks = Vec::new();
         for (_, recipe) in self.recipes.as_ref() {
-            for image in &recipe.metadata.images {
-                if let Some(image) = self.images.images().get(image) {
-                    tasks.push(
-                        JobRunner::new(BuildCtx::new(
-                            &self.config,
-                            &image,
-                            &recipe,
-                            &self.docker,
-                            &self.images_state,
-                            self.verbose,
-                        ))
-                        .run(),
-                    );
+            for image_info in &recipe.metadata.images {
+                if let Some(name) = image_info.get("name") {
+                    if let Some(image) = self.images.images().get(&name.to_string()) {
+                        tasks.push(
+                            JobRunner::new(BuildCtx::new(
+                                &self.config,
+                                &image,
+                                &recipe,
+                                &self.docker,
+                                &self.images_state,
+                                image_info.get("target").map(toml::Value::to_string),
+                                self.verbose,
+                            ))
+                            .run(),
+                        );
+                    }
+                } else {
+                    warn!("image missing name `{:?}`", image_info);
                 }
             }
         }
