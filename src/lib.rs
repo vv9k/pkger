@@ -15,7 +15,7 @@ use crate::job::{BuildCtx, JobRunner};
 use crate::opts::Opts;
 use crate::recipe::Recipes;
 
-pub use anyhow::Error;
+pub use anyhow::{Error, Result};
 use log::{error, trace};
 use moby::Docker;
 use serde::Deserialize;
@@ -47,7 +47,7 @@ pub struct Config {
     output_dir: String,
 }
 impl Config {
-    fn from_path<P: AsRef<Path>>(val: P) -> Result<Self, Error> {
+    fn from_path<P: AsRef<Path>>(val: P) -> Result<Self> {
         Ok(toml::from_slice(&fs::read(val.as_ref())?)?)
     }
 }
@@ -63,7 +63,7 @@ pub struct Pkger {
 
 impl TryFrom<Config> for Pkger {
     type Error = Error;
-    fn try_from(config: Config) -> Result<Self, Self::Error> {
+    fn try_from(config: Config) -> Result<Self> {
         let images = Images::new(config.images_dir.clone())?;
         let recipes = Recipes::new(config.recipes_dir.clone())?;
         Ok(Pkger {
@@ -116,7 +116,7 @@ impl Pkger {
             error!("failed to save image state - {}", e);
         }
     }
-    pub async fn main() -> Result<(), Error> {
+    pub async fn main() -> Result<()> {
         let opts = Opts::from_args();
         if !opts.quiet {
             if env::var_os("RUST_LOG").is_none() {
@@ -163,7 +163,7 @@ impl Pkger {
     }
 }
 
-fn docker_from_uri<U: AsRef<str>>(uri: Option<U>) -> Result<Docker, Error> {
+fn docker_from_uri<U: AsRef<str>>(uri: Option<U>) -> Result<Docker> {
     match uri {
         Some(uri) => Docker::new(uri).map_err(|e| anyhow!("{}", e)),
         None => Ok(Docker::tcp("127.0.0.1:80")),

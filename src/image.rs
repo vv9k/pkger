@@ -1,6 +1,6 @@
 use crate::job::OneShotCtx;
+use crate::map_return;
 use crate::os::Os;
-use crate::{map_return, Error};
 
 use anyhow::Result;
 use log::error;
@@ -16,7 +16,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct Images(HashMap<String, Image>);
 
 impl Images {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut images = Images::default();
         let path = path.as_ref();
 
@@ -54,7 +54,7 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Image, Error> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Image> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
             return Err(anyhow!("Dockerfile missing from image"));
@@ -65,7 +65,7 @@ impl Image {
             path,
         })
     }
-    pub fn should_be_rebuilt(&self, state: &ImagesState) -> Result<bool, Error> {
+    pub fn should_be_rebuilt(&self, state: &ImagesState) -> Result<bool> {
         if let Some(state) = state.images.get(&self.name) {
             let metadata = fs::metadata(self.path.as_path())?;
             let mod_time = metadata.modified()?;
@@ -157,7 +157,7 @@ impl Default for ImagesState {
     }
 }
 impl ImagesState {
-    pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self, Error> {
+    pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
         if !state_file.as_ref().exists() {
             File::create(state_file.as_ref())?;
 
@@ -172,7 +172,7 @@ impl ImagesState {
     pub fn update(&mut self, image: &str, state: &ImageState) {
         self.images.insert(image.to_string(), state.clone());
     }
-    pub fn save(&self) -> Result<(), Error> {
+    pub fn save(&self) -> Result<()> {
         if !Path::new(&self.state_file).exists() {
             map_return!(
                 fs::File::create(&self.state_file),

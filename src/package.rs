@@ -2,7 +2,8 @@
 pub mod _rpm {
     use crate::recipe::Metadata;
     use crate::util::*;
-    use crate::{map_return, Error};
+    use crate::{map_return, Result};
+
     use rpm;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -80,7 +81,7 @@ pub mod _rpm {
         os: &str,
         ver: &str,
         pkg: rpm::RPMPackage,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut out_path = PathBuf::from(&out_dir);
         out_path.push(os);
         out_path.push(ver);
@@ -121,7 +122,7 @@ pub mod _rpm {
         build_dir: P,
         os: &str,
         ver: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut builder = rpm::RPMBuilder::new(
             &info.name,
             &info.version,
@@ -150,14 +151,15 @@ pub mod _rpm {
 
 pub mod deb {
     use crate::recipe::Metadata;
-    use crate::Error;
+    use crate::Result;
+
     use chrono::Local;
     use std::fs;
     use std::path::{Path, PathBuf};
 
     const TEMPORARY_BUILD_DIR: &str = "/tmp";
 
-    pub fn prepare_archive(info: &Metadata, os: &str) -> Result<PathBuf, Error> {
+    pub fn prepare_archive(info: &Metadata, os: &str) -> Result<PathBuf> {
         // generate and upload control file
         let control_file = generate_deb_control(&info);
         let mut tmp_file = PathBuf::from(TEMPORARY_BUILD_DIR);
