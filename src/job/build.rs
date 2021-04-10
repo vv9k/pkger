@@ -251,7 +251,7 @@ impl BuildCtx {
             .instrument(span.clone())
             .await?;
 
-        for cmd in &self.recipe.build.steps {
+        for cmd in &self.recipe.build_script.steps {
             if !cmd.images.is_empty() {
                 if !cmd.images.contains(&self.image.name) {
                     continue;

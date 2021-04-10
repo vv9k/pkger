@@ -59,8 +59,10 @@ impl Recipes {
 #[derive(Clone, Debug)]
 pub struct Recipe {
     pub metadata: Metadata,
-    pub build: Build,
     pub env: Env,
+    pub configure_script: Option<ConfigureScript>,
+    pub build_script: BuildScript,
+    pub install_script: Option<InstallScript>,
 }
 
 impl TryFrom<RecipeRep> for Recipe {
@@ -69,8 +71,18 @@ impl TryFrom<RecipeRep> for Recipe {
     fn try_from(rep: RecipeRep) -> Result<Self> {
         Ok(Self {
             metadata: Metadata::try_from(rep.metadata)?,
-            build: Build::try_from(rep.build)?,
             env: Env::from(rep.env),
+            configure_script: if let Some(script) = rep.configure {
+                Some(ConfigureScript::try_from(script)?)
+            } else {
+                None
+            },
+            build_script: BuildScript::try_from(rep.build)?,
+            install_script: if let Some(script) = rep.install {
+                Some(InstallScript::try_from(script)?)
+            } else {
+                None
+            },
         })
     }
 }
@@ -78,8 +90,10 @@ impl TryFrom<RecipeRep> for Recipe {
 #[derive(Deserialize, Debug)]
 pub struct RecipeRep {
     pub metadata: MetadataRep,
-    pub build: BuildRep,
     pub env: Option<toml::value::Table>,
+    pub configure: Option<ConfigureRep>,
+    pub build: BuildRep,
+    pub install: Option<InstallRep>,
 }
 
 impl RecipeRep {
@@ -97,26 +111,35 @@ impl TryFrom<DirEntry> for RecipeRep {
         RecipeRep::new(path)
     }
 }
-#[derive(Clone, Debug)]
-pub struct Build {
-    pub steps: Vec<Cmd>,
-}
 
-impl TryFrom<BuildRep> for Build {
-    type Error = Error;
-
-    fn try_from(rep: BuildRep) -> Result<Self> {
-        let mut steps = Vec::with_capacity(rep.steps.len());
-
-        for result in rep.steps.into_iter().map(|it| Cmd::new(it.as_str())) {
-            steps.push(result?);
+macro_rules! impl_step_rep {
+    ($ty:ident, $ty_rep:ident) => {
+        #[derive(Clone, Debug)]
+        pub struct $ty {
+            pub steps: Vec<Cmd>,
         }
 
-        Ok(Self { steps })
-    }
+        impl TryFrom<$ty_rep> for $ty {
+            type Error = Error;
+
+            fn try_from(rep: $ty_rep) -> Result<Self> {
+                let mut steps = Vec::with_capacity(rep.steps.len());
+
+                for result in rep.steps.into_iter().map(|it| Cmd::new(it.as_str())) {
+                    steps.push(result?);
+                }
+
+                Ok(Self { steps })
+            }
+        }
+
+        #[derive(Deserialize, Debug)]
+        pub struct $ty_rep {
+            pub steps: Vec<String>,
+        }
+    };
 }
 
-#[derive(Deserialize, Debug)]
-pub struct BuildRep {
-    pub steps: Vec<String>,
-}
+impl_step_rep!(BuildScript, BuildRep);
+impl_step_rep!(InstallScript, InstallRep);
+impl_step_rep!(ConfigureScript, ConfigureRep);
