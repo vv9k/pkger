@@ -60,6 +60,7 @@ pub struct Metadata {
     // Git repository as source
     pub git: Option<String>,
 
+    pub build_depends: Option<Dependencies>,
     pub depends: Option<Dependencies>,
     pub obsoletes: Option<Dependencies>,
     pub conflicts: Option<Dependencies>,
@@ -78,6 +79,11 @@ impl TryFrom<MetadataRep> for Metadata {
     type Error = Error;
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
+        let build_depends = if let Some(deps) = rep.build_depends {
+            Some(Dependencies::new(deps)?)
+        } else {
+            None
+        };
         let depends = if let Some(deps) = rep.depends {
             Some(Dependencies::new(deps)?)
         } else {
@@ -115,6 +121,7 @@ impl TryFrom<MetadataRep> for Metadata {
             images,
             git: rep.git,
             depends,
+            build_depends,
             obsoletes,
             conflicts,
             provides,
@@ -141,6 +148,7 @@ pub struct MetadataRep {
     // Git repository as source
     pub git: Option<String>,
 
+    pub build_depends: Option<Vec<String>>,
     pub depends: Option<Vec<String>>,
     pub obsoletes: Option<Vec<String>>,
     pub conflicts: Option<Vec<String>>,
