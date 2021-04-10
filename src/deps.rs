@@ -4,7 +4,7 @@ use anyhow::anyhow;
 
 use std::iter::IntoIterator;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 /// Represents a dependency in distribution agnostic way, used for a recipe.
 pub struct Dependency {
     /// fallback global name
@@ -70,7 +70,7 @@ impl Dependency {
     }
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct Dependencies {
     inner: Vec<Dependency>,
 }

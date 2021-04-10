@@ -170,6 +170,26 @@ impl<'j> BuildCtx<'j> {
         Err(anyhow!("stream ended before image id was received"))
     }
 
+    async fn install_deps(&mut self, container: &Container<'_>, state: &ImageState) -> Result<()> {
+        info!("installing depndencies");
+        let pkg_mngr = state.os.package_manager();
+        let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
+            deps.resolve_names(&state.image)
+        } else {
+            vec![]
+        };
+
+        let cmd = format!(
+            "{} {} {}",
+            pkg_mngr.as_ref(),
+            pkg_mngr.install_args().join(" "),
+            deps.join(" "),
+        );
+        debug!("using command: `{}`", cmd);
+
+        self.container_exec(&container, cmd).await
+    }
+
     pub async fn run(&mut self) -> Result<()> {
         if self.verbose {
             info!("running job {}", &self.id);
@@ -192,6 +212,8 @@ impl<'j> BuildCtx<'j> {
 
         info!("starting container");
         container.start().await?;
+
+        self.install_deps(&container, &image_state).await?;
 
         for cmd in &self.recipe.build.steps {
             if !cmd.images.is_empty() {
