@@ -1,6 +1,6 @@
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::JobCtx;
-use crate::recipe::Recipe;
+use crate::recipe::{BuildTarget, Recipe};
 use crate::Config;
 use crate::Result;
 
@@ -14,22 +14,6 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::str;
 use std::time::SystemTime;
-
-pub enum BuildTarget {
-    Rpm,
-    Deb,
-    Gzip,
-}
-
-impl From<Option<String>> for BuildTarget {
-    fn from(s: Option<String>) -> Self {
-        match s.map(|inner| inner.to_lowercase()) {
-            Some(s) if &s == "rpm" => Self::Rpm,
-            Some(s) if &s == "deb" => Self::Deb,
-            _ => Self::Gzip,
-        }
-    }
-}
 
 pub struct BuildCtx<'j> {
     id: String,
@@ -49,7 +33,7 @@ impl<'j> BuildCtx<'j> {
         recipe: &'j Recipe,
         docker: &'j Docker,
         image_state: &'j RefCell<ImagesState>,
-        target: Option<String>,
+        _target: BuildTarget,
         verbose: bool,
     ) -> Self {
         let timestamp = SystemTime::now()
@@ -71,7 +55,7 @@ impl<'j> BuildCtx<'j> {
             docker,
             image_state,
             bld_dir,
-            _target: BuildTarget::from(target),
+            _target,
             verbose,
         }
     }

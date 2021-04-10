@@ -4,6 +4,47 @@ use crate::{Error, Result};
 use serde::Deserialize;
 use std::convert::TryFrom;
 
+#[derive(Clone, Debug)]
+pub enum BuildTarget {
+    Rpm,
+    Deb,
+    Gzip,
+}
+
+impl From<Option<String>> for BuildTarget {
+    fn from(s: Option<String>) -> Self {
+        match s.map(|inner| inner.to_lowercase()) {
+            Some(s) if &s == "rpm" => Self::Rpm,
+            Some(s) if &s == "deb" => Self::Deb,
+            _ => Self::Gzip,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ImageTarget {
+    pub image: String,
+    pub target: BuildTarget,
+}
+
+impl TryFrom<toml::Value> for ImageTarget {
+    type Error = Error;
+    fn try_from(value: toml::Value) -> Result<Self> {
+        if let Some(image) = value.get("name") {
+            Ok(Self {
+                image: image.to_string().trim_matches('"').to_string(),
+                target: BuildTarget::from(
+                    value
+                        .get("target")
+                        .map(|v| v.to_string().trim_matches('"').to_string()),
+                ),
+            })
+        } else {
+            Err(anyhow!("image entry missing name `{}`", value.to_string()))
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Metadata {
     // General
@@ -14,7 +55,7 @@ pub struct Metadata {
     pub description: String,
     pub license: String,
     pub source: String,
-    pub images: Vec<toml::Value>,
+    pub images: Vec<ImageTarget>,
 
     // Git repository as source
     pub git: Option<String>,
@@ -58,6 +99,11 @@ impl TryFrom<MetadataRep> for Metadata {
             None
         };
 
+        let mut images = vec![];
+        for image in rep.images.into_iter().map(ImageTarget::try_from) {
+            images.push(image?);
+        }
+
         Ok(Self {
             name: rep.name,
             version: rep.version,
@@ -66,7 +112,7 @@ impl TryFrom<MetadataRep> for Metadata {
             description: rep.description,
             license: rep.license,
             source: rep.source,
-            images: rep.images,
+            images,
             git: rep.git,
             depends,
             obsoletes,
