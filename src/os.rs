@@ -1,4 +1,56 @@
 use serde::{Deserialize, Serialize};
+use std::convert::AsRef;
+
+#[derive(Debug, Clone)]
+pub enum PackageManager {
+    Apt,
+    Dnf,
+    Pacman,
+    Yum,
+    Unknown,
+}
+
+impl AsRef<str> for PackageManager {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Apt => "apt-get",
+            Self::Dnf => "dnf",
+            Self::Pacman => "pacman",
+            Self::Yum => "yum",
+            Self::Unknown => "",
+        }
+    }
+}
+
+impl PackageManager {
+    pub fn install_args(&self) -> Vec<&'static str> {
+        match self {
+            Self::Apt => vec!["install", "-y"],
+            Self::Dnf => vec!["install", "-y"],
+            Self::Pacman => vec!["-S"],
+            Self::Yum => vec!["install", "-y"],
+            Self::Unknown => vec![],
+        }
+    }
+
+    pub fn update_repos_args(&self) -> Vec<&'static str> {
+        match self {
+            Self::Apt => vec!["update", "-y"],
+            Self::Dnf | Self::Yum => vec!["clean", "metadata"],
+            Self::Pacman => vec!["-Sy"],
+            Self::Unknown => vec![],
+        }
+    }
+
+    pub fn upgrade_packages_args(&self) -> Vec<&'static str> {
+        match self {
+            Self::Apt => vec!["dist-upgrade", "-y"],
+            Self::Dnf | Self::Yum => vec!["update", "-y"],
+            Self::Pacman => vec!["-Syu"],
+            Self::Unknown => vec![],
+        }
+    }
+}
 
 // enum holding version of os
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -56,13 +108,13 @@ impl Os {
     }
 
     #[allow(dead_code)]
-    pub fn package_manager(&self) -> &str {
+    pub fn package_manager(&self) -> PackageManager {
         match self {
-            Os::Arch(_) => "pacman",
-            Os::Debian(_) | Os::Ubuntu(_) => "apt-get",
-            Os::Redhat(v) | Os::Centos(v) | Os::Fedora(v) if v == "8" => "dnf",
-            Os::Redhat(_) | Os::Centos(_) | Os::Fedora(_) => "yum",
-            Os::Unknown => "",
+            Os::Arch(_) => PackageManager::Pacman,
+            Os::Debian(_) | Os::Ubuntu(_) => PackageManager::Apt,
+            Os::Redhat(v) | Os::Centos(v) | Os::Fedora(v) if v == "8" => PackageManager::Dnf,
+            Os::Redhat(_) | Os::Centos(_) | Os::Fedora(_) => PackageManager::Yum,
+            Os::Unknown => PackageManager::Unknown,
         }
     }
 }
