@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::str;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use tracing::{debug, error, event, info, span, Instrument, Level};
+use tracing::{error, event, info, span, Instrument, Level};
 
 #[derive(Debug)]
 pub struct BuildCtx {
@@ -52,8 +52,8 @@ impl BuildCtx {
             "pkger-{}-{}-{}",
             &recipe.metadata.name, &image.name, &timestamp,
         );
-        debug!("{}", id);
         let bld_dir = PathBuf::from(format!("/tmp/{}-{}", &recipe.metadata.name, &timestamp,));
+        event!(Level::TRACE, id = %id, "creating new build context");
 
         BuildCtx {
             id,
