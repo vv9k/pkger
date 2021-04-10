@@ -5,12 +5,12 @@ use anyhow::anyhow;
 const CMD_PREFIX: &str = "pkger%:";
 
 #[derive(Debug)]
-pub struct Cmd<'cmd> {
+pub struct Cmd {
     pub cmd: String,
-    pub images: Vec<&'cmd str>,
+    pub images: Vec<String>,
 }
-impl<'cmd> Cmd<'cmd> {
-    pub fn new(cmd: &'cmd str) -> Result<Self> {
+impl Cmd {
+    pub fn new(cmd: &str) -> Result<Self> {
         if let Some(cmd) = cmd.strip_prefix(CMD_PREFIX) {
             Self::parse_prefixed_command(cmd)
         } else {
@@ -18,14 +18,14 @@ impl<'cmd> Cmd<'cmd> {
         }
     }
 
-    fn parse_simple_command(cmd: &'cmd str) -> Result<Self> {
+    fn parse_simple_command(cmd: &str) -> Result<Self> {
         Ok(Cmd {
             cmd: cmd.to_string(),
             images: vec![],
         })
     }
 
-    fn parse_prefixed_command(cmd: &'cmd str) -> Result<Self> {
+    fn parse_prefixed_command(cmd: &str) -> Result<Self> {
         if let Some(cmd) = cmd.strip_prefix('{') {
             Self::parse_multiple_images(cmd)
         } else {
@@ -33,14 +33,14 @@ impl<'cmd> Cmd<'cmd> {
         }
     }
 
-    fn parse_multiple_images(cmd: &'cmd str) -> Result<Self> {
+    fn parse_multiple_images(cmd: &str) -> Result<Self> {
         if let Some(end) = cmd.find('}') {
             Ok(Cmd {
                 cmd: cmd[end + 1..].trim_start().to_string(),
                 images: cmd[..end]
                     .split(',')
                     .into_iter()
-                    .map(|image| image.trim())
+                    .map(|image| image.trim().to_string())
                     .collect::<Vec<_>>(),
             })
         } else {
@@ -48,7 +48,7 @@ impl<'cmd> Cmd<'cmd> {
         }
     }
 
-    fn parse_single_image(cmd: &'cmd str) -> Result<Self> {
+    fn parse_single_image(cmd: &str) -> Result<Self> {
         if let Some(end) = cmd.find(' ') {
             let image = &cmd[..end];
             for ch in image.chars() {
@@ -58,7 +58,7 @@ impl<'cmd> Cmd<'cmd> {
             }
             Ok(Cmd {
                 cmd: cmd[end..].trim_start().to_string(),
-                images: vec![&cmd[..end]],
+                images: vec![cmd[..end].to_string()],
             })
         } else {
             Err(anyhow!("missing whitespace after image name in `{}`", cmd))
