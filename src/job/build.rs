@@ -1,4 +1,3 @@
-use crate::cmd::Cmd;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::JobCtx;
 use crate::recipe::Recipe;
@@ -214,10 +213,9 @@ impl<'j> BuildCtx<'j> {
         info!("starting container");
         container.start().await?;
 
-        for step in &self.recipe.build.steps {
-            let cmd = Cmd::new(&step)?;
+        for cmd in &self.recipe.build.steps {
             if !cmd.images.is_empty() {
-                if !cmd.images.contains(&self.image.name.as_str()) {
+                if !cmd.images.contains(&self.image.name) {
                     continue;
                 }
             }
