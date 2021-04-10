@@ -12,7 +12,7 @@ pkger has 2 concepts - images and recipes. Each recipe is a sort of build mainfe
 The recipe is divided into 2 parts:
  - ### metadata
    - All the metadata and information needed for the build
-   - `pkger` will install all dependencies listed in `depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution.
+   - `pkger` will install all dependencies listed in `build_depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution.
    - Below example recipe will be built for 2 images `centos8` and `debian10`. Each image also specifies the target that should be built using it. Currently available targets are: *rpm*, *deb*, *gzip*.
    - Special syntax for unique dependencies across OSes is used to correctly install `openssl-devel` on *CentOS 8* and `libssl-dev` on *Debian 10*
 ```
@@ -25,7 +25,8 @@ version = "0.0.5"
 revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-depends = ["curl", "gcc", "pkg-config", "debian10:{libssl-dev},centos8:{openssl-devel}"]
+build_depends = ["curl", "gcc", "pkg-config", "debian10:{libssl-dev},centos8:{openssl-devel}"]
+depends = []
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
