@@ -22,7 +22,6 @@ chrono = "0.4"
 tar = "0.4"
 structopt = "0.3.21"
 clap = "2"
-rpm-rs = "0.6"
 bytes = "1"
 git2 = "0.13.0"
 futures = "0.3"
@@ -31,3 +30,4 @@ tracing = "0.1"
 tracing-futures = "0.1"
 tracing-subscriber = { version = "0.2", features = ["fmt", "chrono"] }
 moby = { git = "https://github.com/wojciechkepka/moby", branch = "master" }
+rpmspec = { git = "https://github.com/wojciechkepka/rpmspec-rs", branch = "master" }
