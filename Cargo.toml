@@ -13,7 +13,6 @@ categories = ["command-line-utilities"]
 
 
 [dependencies]
-log = "0.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 anyhow = "1"
 toml = "0.5"
@@ -28,5 +27,7 @@ bytes = "1"
 git2 = "0.13.0"
 futures = "0.3"
 byteorder = "1.4"
-tracing-subscriber = "0.2"
+tracing = "0.1"
+tracing-futures = "0.1"
+tracing-subscriber = { version = "0.2", features = ["fmt", "chrono"] }
 moby = { git = "https://github.com/wojciechkepka/moby", branch = "master" }
