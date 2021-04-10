@@ -12,7 +12,7 @@ mod recipe;
 mod util;
 
 use crate::image::{Images, ImagesState};
-use crate::job::{BuildCtx, JobRunner};
+use crate::job::{BuildCtx, JobResult, JobRunner};
 use crate::opts::Opts;
 use crate::recipe::Recipes;
 
@@ -26,7 +26,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use tokio::task;
 use toml;
-use tracing::{error, trace, warn, Level};
+use tracing::{error, event, Level};
 use tracing_subscriber;
 use tracing_subscriber::fmt::format;
 use tracing_subscriber::prelude::*;
@@ -138,23 +138,28 @@ async fn main() -> Result<()> {
             .event_format(format)
             .init();
     }
-    trace!("{:?}", opts);
+    event!( Level::TRACE, opts = ?opts);
 
     let config_path = opts
         .config
         .clone()
         .unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
+    event!( Level::TRACE, config_path = %config_path);
+
     let config = Config::from_path(&config_path)
         .map_err(|e| anyhow!("Failed to read config file from {} - {}", config_path, e))?;
+    event!( Level::TRACE, config = ?config);
 
     let mut pkger = Pkger::try_from(config)
         .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
-    pkger.process_opts(opts)?;
-    let mut tasks = Vec::new();
 
+    pkger.process_opts(opts)?;
+
+    let mut tasks = Vec::new();
     for (_, recipe) in pkger.recipes.inner_ref() {
         for image_info in &recipe.metadata.images {
             if let Some(image) = pkger.images.images().get(&image_info.image) {
+                event!( Level::DEBUG, image = %image.name, recipe = %recipe.metadata.name, "spawning task");
                 tasks.push(task::spawn(
                     JobRunner::new(BuildCtx::new(
                         recipe.clone(),
@@ -168,10 +173,12 @@ async fn main() -> Result<()> {
                     .run(),
                 ));
             } else {
-                warn!("image `{}` not found", &image_info.image);
+                event!(Level::WARN, image = %image_info.image, "not found");
             }
         }
     }
+
+    let mut errors = vec![];
 
     for task in tasks {
         let handle = task.await;
@@ -180,18 +187,18 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        // it's ok to unwrap, we check the error above
-        if let Err(e) = handle.unwrap() {
-            let reason = match e.downcast::<moby::Error>() {
-                Ok(err) => match err {
-                    moby::Error::Fault { code: _, message } => message,
-                    e => e.to_string(),
-                },
-                Err(e) => e.to_string(),
-            };
-            error!("job failed - {}", reason);
-        }
+        errors.push(handle.unwrap());
     }
+
+    errors.iter().for_each(|err| match err {
+        JobResult::Failure { id, reason } => {
+            event!(Level::ERROR, id = %id, reason = %reason, "job failed");
+        }
+        JobResult::Success { id } => {
+            event!(Level::INFO, id = %id, "job succeded");
+        }
+    });
+
     let result = pkger.images_state.read();
 
     if let Err(e) = result {
