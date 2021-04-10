@@ -5,10 +5,11 @@ use anyhow::anyhow;
 use std::iter::IntoIterator;
 
 #[derive(Debug, PartialEq)]
+/// Represents a dependency in distribution agnostic way, used for a recipe.
 pub struct Dependency {
-    // fallback global name
+    /// fallback global name
     name: Option<String>,
-    // each value corresponds to (image name, dependency name)
+    /// each value corresponds to (image name, dependency name)
     names: Vec<(String, String)>,
 }
 
@@ -20,6 +21,17 @@ impl Dependency {
         }
     }
 
+    /// Returns this dependency name for the corresponding `image` if it is available
+    pub fn get_name<'d>(&'d self, image: &str) -> Option<&'d str> {
+        self.names
+            .iter()
+            .find(|it| &it.0 == image)
+            .map(|it| it.1.as_str())
+    }
+
+    /// Parses a `Dependency` from a string like `image1{libexmpl-dev},exmpl-devel' where
+    /// `exmpl-devel` will become the fallback global `name` field of the dependency and
+    /// `names` field will contain an entry ("image1", "libexmpl-dev").
     pub fn parse(dep: &str) -> Result<Self> {
         let mut names = vec![];
         let mut name = None;
@@ -58,18 +70,18 @@ impl Dependency {
     }
 }
 
+#[derive(Default, Debug, PartialEq)]
 pub struct Dependencies {
     inner: Vec<Dependency>,
 }
 
 impl Dependencies {
-    pub fn new<I, S>(deps: I) -> Result<Self>
+    pub fn new<I>(deps: I) -> Result<Self>
     where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
+        I: IntoIterator<Item = String>,
     {
         let mut inner = vec![];
-        for dependency in deps.into_iter().map(|s| Dependency::parse(&s.into())) {
+        for dependency in deps.into_iter().map(|s| Dependency::parse(&s.as_ref())) {
             inner.push(dependency?);
         }
 
@@ -79,6 +91,21 @@ impl Dependencies {
     pub fn as_ref(&self) -> &[Dependency] {
         &self.inner
     }
+
+    /// Renders a list of names appropriate for specified image
+    pub fn resolve_names(&self, image: &str) -> Vec<String> {
+        let mut deps = Vec::with_capacity(self.inner.len());
+
+        for dep in self.inner.iter() {
+            if let Some(special_name) = dep.get_name(image) {
+                deps.push(special_name.to_string());
+            } else if let Some(name) = &dep.name {
+                deps.push(name.to_string());
+            }
+        }
+
+        deps
+    }
 }
 
 #[cfg(test)]
@@ -86,16 +113,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_dependencies() {
+    fn parses_dependency() {
         let expect = Dependency::new(
             "openssl-devel",
             vec![
-                ("centos8".to_string(), "libssl-dev".to_string()),
-                ("debian10".to_string(), "openssl-devel".to_string()),
+                ("cent8".to_string(), "libssl-dev".to_string()),
+                ("deb10".to_string(), "openssl-devel".to_string()),
             ],
         );
-        let out = Dependency::parse("centos8{libssl-dev},openssl-devel, debian10{openssl-devel}")
-            .unwrap();
+        let out =
+            Dependency::parse("cent8{libssl-dev},openssl-devel, deb10{openssl-devel}").unwrap();
         assert_eq!(expect, out);
+    }
+
+    #[test]
+    fn parses_depencies() {
+        let expect = Dependencies {
+            inner: vec![
+                Dependency::new(
+                    "openssl-devel",
+                    vec![("cent8".to_string(), "libssl-dev".to_string())],
+                ),
+                Dependency::new("gcc", vec![]),
+                Dependency::new(
+                    "libcurl4-openssl-dev",
+                    vec![("cent8".to_string(), "libcurl-devel".to_string())],
+                ),
+            ],
+        };
+        let input = vec![
+            "openssl-devel, cent8{libssl-dev}".to_string(),
+            "gcc".to_string(),
+            "libcurl4-openssl-dev, cent8{libcurl-devel}".to_string(),
+        ];
+        let got = Dependencies::new(input).unwrap();
+        assert_eq!(expect, got);
+    }
+
+    #[test]
+    fn resolves_names() {
+        let expect = vec![
+            "libssl-dev".to_string(),
+            "gcc".to_string(),
+            "libcurl-devel".to_string(),
+        ];
+        let input = vec![
+            "openssl-devel, cent8{libssl-dev}".to_string(),
+            "gcc".to_string(),
+            "libcurl4-openssl-dev, cent8{libcurl-devel}".to_string(),
+        ];
+
+        let deps = Dependencies::new(input).unwrap();
+        let got = deps.resolve_names("cent8");
+
+        assert_eq!(expect, got);
     }
 }
