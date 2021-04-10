@@ -4,7 +4,7 @@ use anyhow::anyhow;
 
 const CMD_PREFIX: &str = "pkger%:";
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Cmd {
     pub cmd: String,
     pub images: Vec<String>,

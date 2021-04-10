@@ -21,7 +21,7 @@ impl From<Option<String>> for BuildTarget {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ImageTarget {
     pub image: String,
     pub target: BuildTarget,
@@ -45,7 +45,7 @@ impl TryFrom<toml::Value> for ImageTarget {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Metadata {
     // General
     pub name: String,

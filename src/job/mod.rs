@@ -7,7 +7,7 @@ pub use oneshot::OneShotCtx;
 use crate::Result;
 
 pub enum JobCtx<'j> {
-    Build(BuildCtx<'j>),
+    Build(BuildCtx),
     OneShot(OneShotCtx<'j>),
 }
 

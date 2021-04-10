@@ -6,11 +6,11 @@ use crate::Result;
 use log::{error, trace, warn};
 use moby::{ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Default)]
@@ -48,7 +48,7 @@ impl Images {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Image {
     pub name: String,
     pub path: PathBuf,
@@ -70,45 +70,48 @@ impl Image {
         })
     }
 
-    /// Checks whether any of the files located at the path of this Image changed since last build
-    pub fn should_be_rebuilt(&self, state: &RefCell<ImagesState>) -> bool {
+    /// Checks whether any of the files located at the path of this Image changed since last build.
+    /// If shouldn't be rebuilt returns previous `ImageState`.
+    pub fn find_cached_state(&self, state: &Arc<RwLock<ImagesState>>) -> Option<ImageState> {
         trace!("checking if image should be rebuilt");
-        if let Some(state) = state.borrow().images.get(&self.name) {
-            if let Ok(entries) = fs::read_dir(self.path.as_path()) {
-                for file in entries {
-                    if let Err(e) = file {
-                        warn!("error while loading file - {} ", e);
-                        continue;
-                    }
-                    let file = file.unwrap();
-                    let path = file.path();
-                    let metadata = fs::metadata(path.as_path());
-                    if let Err(e) = metadata {
-                        warn!(
-                            "error while reading metadata of `{}` - {}",
-                            path.display(),
-                            e
-                        );
-                        continue;
-                    }
-                    let metadata = metadata.unwrap();
-                    let mod_time = metadata.modified();
-                    if let Err(e) = &mod_time {
-                        warn!(
-                            "error while checking modification time of `{}` - {}",
-                            path.display(),
-                            e
-                        );
-                    }
-                    let mod_time = mod_time.unwrap();
-                    if mod_time > state.timestamp {
-                        return true;
+        if let Ok(states) = state.read() {
+            if let Some(state) = (*states).images.get(&self.name) {
+                if let Ok(entries) = fs::read_dir(self.path.as_path()) {
+                    for file in entries {
+                        if let Err(e) = file {
+                            warn!("error while loading file - {} ", e);
+                            continue;
+                        }
+                        let file = file.unwrap();
+                        let path = file.path();
+                        let metadata = fs::metadata(path.as_path());
+                        if let Err(e) = metadata {
+                            warn!(
+                                "error while reading metadata of `{}` - {}",
+                                path.display(),
+                                e
+                            );
+                            continue;
+                        }
+                        let metadata = metadata.unwrap();
+                        let mod_time = metadata.modified();
+                        if let Err(e) = &mod_time {
+                            warn!(
+                                "error while checking modification time of `{}` - {}",
+                                path.display(),
+                                e
+                            );
+                        }
+                        let mod_time = mod_time.unwrap();
+                        if mod_time > state.timestamp {
+                            return None;
+                        }
                     }
                 }
+                return Some(state.to_owned());
             }
-            return false;
         }
-        true
+        None
     }
 }
 

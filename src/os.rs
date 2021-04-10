@@ -22,6 +22,7 @@ impl AsRef<str> for PackageManager {
     }
 }
 
+#[allow(dead_code)]
 impl PackageManager {
     pub fn install_args(&self) -> Vec<&'static str> {
         match self {
