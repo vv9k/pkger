@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 pub mod _rpm {
-    use crate::recipe::Metadata;
+    use crate::recipe::MetadataRep;
     use crate::util::*;
     use crate::{map_return, Result};
 
@@ -9,7 +9,7 @@ pub mod _rpm {
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
 
-    fn handle_dependencies(_info: &Metadata, builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
+    fn handle_dependencies(_info: &MetadataRep, builder: rpm::RPMBuilder) -> rpm::RPMBuilder {
         //if let Some(dependencies) = &info {
         //for d in dependencies {
         //builder = builder.requires(rpm::Dependency::any(d));
@@ -34,7 +34,7 @@ pub mod _rpm {
     }
 
     fn add_files<P: AsRef<Path>>(
-        info: &Metadata,
+        info: &MetadataRep,
         files: &[PathBuf],
         mut builder: rpm::RPMBuilder,
         build_dir: P,
@@ -78,7 +78,7 @@ pub mod _rpm {
     }
 
     fn write_rpm(
-        info: &Metadata,
+        info: &MetadataRep,
         out_dir: &str,
         os: &str,
         ver: &str,
@@ -119,7 +119,7 @@ pub mod _rpm {
     pub fn build_rpm<P: AsRef<Path>>(
         out_dir: &str,
         files: &[PathBuf],
-        info: &Metadata,
+        info: &MetadataRep,
         dest: &str,
         build_dir: P,
         os: &str,
@@ -152,7 +152,7 @@ pub mod _rpm {
 }
 
 pub mod deb {
-    use crate::recipe::Metadata;
+    use crate::recipe::MetadataRep;
     use crate::Result;
 
     use chrono::Local;
@@ -161,7 +161,7 @@ pub mod deb {
 
     const TEMPORARY_BUILD_DIR: &str = "/tmp";
 
-    pub fn prepare_archive(info: &Metadata, os: &str) -> Result<PathBuf> {
+    pub fn prepare_archive(info: &MetadataRep, os: &str) -> Result<PathBuf> {
         // generate and upload control file
         let control_file = generate_deb_control(&info);
         let mut tmp_file = PathBuf::from(TEMPORARY_BUILD_DIR);
@@ -183,7 +183,7 @@ pub mod deb {
 
     // # TODO
     // Find a nicer way to generate this
-    pub fn generate_deb_control(info: &Metadata) -> String {
+    pub fn generate_deb_control(info: &MetadataRep) -> String {
         let arch = match &info.arch[..] {
             "x86_64" => "amd64",
             // #TODO
