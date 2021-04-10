@@ -118,9 +118,9 @@ async fn main() -> Result<()> {
             // Construct a custom formatter for `Debug` fields
             format::debug_fn(|writer, field, value| {
                 if field.name() == "message" {
-                    write!(writer, "\n{:?}", value)
+                    write!(writer, "{:?}",value)
                 } else {
-                    write!(writer, "{}={:?}", field, value)
+                    write!(writer, "{} = {:?}", field, value)
                 }
             }).delimited(", ");
 
