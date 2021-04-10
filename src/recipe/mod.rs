@@ -2,7 +2,7 @@ mod envs;
 mod metadata;
 
 pub use envs::Env;
-pub use metadata::{Metadata, MetadataRep};
+pub use metadata::{BuildTarget, Metadata, MetadataRep};
 
 use crate::cmd::Cmd;
 use crate::{Error, Result};
