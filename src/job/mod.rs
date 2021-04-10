@@ -6,6 +6,10 @@ pub use oneshot::OneShotCtx;
 
 use crate::Result;
 
+pub trait Ctx {
+    fn id(&self) -> &str;
+}
+
 pub enum JobCtx<'j> {
     Build(BuildCtx),
     OneShot(OneShotCtx<'j>),

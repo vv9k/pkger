@@ -17,7 +17,6 @@ use crate::opts::Opts;
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use log::{error, trace, warn};
 use moby::Docker;
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -27,7 +26,10 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use tokio::task;
 use toml;
+use tracing::{error, trace, warn, Level};
 use tracing_subscriber;
+use tracing_subscriber::fmt::format;
+use tracing_subscriber::prelude::*;
 
 const DEFAULT_CONF_FILE: &str = "conf.toml";
 const DEFAULT_STATE_FILE: &str = ".pkger.state";
@@ -106,10 +108,30 @@ impl Pkger {
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
     if !opts.quiet {
-        if env::var_os("RUST_LOG").is_none() {
-            env::set_var("RUST_LOG", "pkger=info");
-        }
-        tracing_subscriber::fmt::init();
+        let filter = if let Some(filter) = env::var_os("RUST_LOG") {
+            filter.to_string_lossy().to_string()
+        } else {
+            "pkger=info".to_string()
+        };
+
+        let formatter =
+            // Construct a custom formatter for `Debug` fields
+            format::debug_fn(|writer, field, value| {
+                if field.name() == "message" {
+                    write!(writer, "\n{:?}", value)
+                } else {
+                    write!(writer, "{}={:?}", field, value)
+                }
+            }).delimited(", ");
+
+        tracing_subscriber::fmt::fmt()
+            .with_target(false)
+            .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
+            .with_level(true)
+            .with_max_level(Level::TRACE)
+            .with_env_filter(filter)
+            .fmt_fields(formatter)
+            .init();
     }
     trace!("{:?}", opts);
 

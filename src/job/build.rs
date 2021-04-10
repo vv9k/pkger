@@ -1,11 +1,10 @@
 use crate::image::{Image, ImageState, ImagesState};
-use crate::job::JobCtx;
+use crate::job::{Ctx, JobCtx};
 use crate::recipe::{BuildTarget, Recipe};
 use crate::Config;
 use crate::Result;
 
 use futures::StreamExt;
-use log::{debug, error, info};
 use moby::{
     image::ImageBuildChunk, tty::TtyChunk, BuildOptions, Container, ContainerOptions, Docker,
     ExecContainerOptions, RmContainerOptions,
@@ -14,7 +13,9 @@ use std::path::PathBuf;
 use std::str;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
+use tracing::{debug, error, info, span, Instrument, Level};
 
+#[derive(Debug)]
 pub struct BuildCtx {
     id: String,
     recipe: Recipe,
@@ -26,6 +27,13 @@ pub struct BuildCtx {
     _target: BuildTarget,
     verbose: bool,
 }
+
+impl Ctx for BuildCtx {
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
 impl BuildCtx {
     pub fn new(
         recipe: Recipe,
@@ -187,11 +195,15 @@ impl BuildCtx {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        let span = span!(Level::INFO, "build", recipe = %self.recipe.metadata.name, image = %self.image.name);
+        let _enter = span.enter();
+
         if self.verbose {
             info!("running job {}", &self.id);
         }
         let image_state = self
             .image_build()
+            .instrument(span.clone())
             .await
             .map_err(|e| anyhow!("failed to build image - {}", e))?;
 
@@ -199,7 +211,10 @@ impl BuildCtx {
             info!("image: {}", image_state.image);
         }
 
-        let id = self.container_spawn(&image_state).await?;
+        let id = self
+            .container_spawn(&image_state)
+            .instrument(span.clone())
+            .await?;
         let containers = self.docker.containers();
         let container = containers.get(&id);
         if self.verbose {
@@ -207,9 +222,11 @@ impl BuildCtx {
         }
 
         info!("starting container");
-        container.start().await?;
+        container.start().instrument(span.clone()).await?;
 
-        self.install_deps(&container, &image_state).await?;
+        self.install_deps(&container, &image_state)
+            .instrument(span.clone())
+            .await?;
 
         for cmd in &self.recipe.build.steps {
             if !cmd.images.is_empty() {
@@ -217,7 +234,9 @@ impl BuildCtx {
                     continue;
                 }
             }
-            self.container_exec(&container, &cmd.cmd).await?;
+            self.container_exec(&container, &cmd.cmd)
+                .instrument(span.clone())
+                .await?;
         }
 
         if let Err(e) = container
@@ -227,6 +246,7 @@ impl BuildCtx {
                     .volumes(true)
                     .build(),
             )
+            .instrument(span.clone())
             .await
         {
             error!("failed to delete container - {}", e);

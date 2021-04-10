@@ -3,7 +3,6 @@ use crate::map_return;
 use crate::os::Os;
 use crate::Result;
 
-use log::{error, trace, warn};
 use moby::{ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -12,6 +11,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tracing::{error, trace, warn};
 
 #[derive(Debug, Default)]
 pub struct Images(HashMap<String, Image>);

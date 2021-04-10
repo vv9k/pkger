@@ -7,13 +7,13 @@ pub use metadata::{BuildTarget, Metadata, MetadataRep};
 use crate::cmd::Cmd;
 use crate::{Error, Result};
 
-use log::error;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::fs::{self, DirEntry};
 use std::path::Path;
+use tracing::error;
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
 

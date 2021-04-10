@@ -1,24 +1,41 @@
-use crate::job::JobCtx;
+use crate::job::{Ctx, JobCtx};
 use crate::Result;
 
 use futures::StreamExt;
 use moby::{tty::TtyChunk, ContainerOptions, Docker, LogsOptions};
-
-pub struct OneShotCtx<'j> {
-    docker: &'j Docker,
-    opts: &'j ContainerOptions,
-    stdout: bool,
-    stderr: bool,
-}
+use std::time::SystemTime;
 
 pub struct Output {
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
 }
 
+pub struct OneShotCtx<'j> {
+    id: String,
+    docker: &'j Docker,
+    opts: &'j ContainerOptions,
+    stdout: bool,
+    stderr: bool,
+}
+
+impl<'j> Ctx for OneShotCtx<'j> {
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
 impl<'j> OneShotCtx<'j> {
     pub fn new(docker: &'j Docker, opts: &'j ContainerOptions, stdout: bool, stderr: bool) -> Self {
+        let id = format!(
+            "pkger-oneshot-{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
+
         Self {
+            id,
             docker,
             opts,
             stdout,
