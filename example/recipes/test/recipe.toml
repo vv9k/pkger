@@ -7,11 +7,11 @@ version = "0.0.5"
 revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-build_depends = ["libssl-dev"]
+build_depends = ["libssl-dev,centos8{openssl-devel}"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
-	{ name = "debian10" },
+    { name = "debian10" },
 	{ name = "centos8" }
 ]
 [env]
@@ -25,7 +25,7 @@ steps = [
 	"echo 'Testing environment variables'",
 	# test if env variables from recipe work correctly
     "echo ENV_VAR_TEST=$ENV_VAR_TEST",
-	"bash -c \"if [[ ! '$ENV_VAR_TEST' == 'test.com:1010' ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly; exit 1; fi\"",
+	"bash -c \"if [[ ! '$ENV_VAR_TEST' =~ /test[.]com[:]1010/ ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi\"",
 	"echo 'Testing pkger env variables'",
 	# test if pkger env variables work correctly
 	"echo PKGER_OS=$PKGER_OS",
