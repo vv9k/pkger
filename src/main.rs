@@ -124,6 +124,10 @@ async fn main() -> Result<()> {
                 }
             }).delimited(", ");
 
+        let format = tracing_subscriber::fmt::format()
+            .with_target(false)
+            .with_level(true);
+
         tracing_subscriber::fmt::fmt()
             .with_target(false)
             .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
@@ -131,6 +135,7 @@ async fn main() -> Result<()> {
             .with_max_level(Level::TRACE)
             .with_env_filter(filter)
             .fmt_fields(formatter)
+            .event_format(format)
             .init();
     }
     trace!("{:?}", opts);
