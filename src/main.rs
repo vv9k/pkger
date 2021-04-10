@@ -17,14 +17,15 @@ use crate::opts::Opts;
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use log::{error, trace};
+use log::{error, trace, warn};
 use moby::Docker;
 use serde::Deserialize;
-use std::cell::RefCell;
 use std::convert::TryFrom;
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
+use tokio::task;
 use toml;
 use tracing_subscriber;
 
@@ -44,12 +45,12 @@ impl Config {
 }
 
 struct Pkger {
-    config: Config,
-    images: Images,
-    recipes: Recipes,
-    docker: Docker,
+    config: Arc<Config>,
+    images: Arc<Images>,
+    recipes: Arc<Recipes>,
+    docker: Arc<Docker>,
     verbose: bool,
-    images_state: RefCell<ImagesState>,
+    images_state: Arc<RwLock<ImagesState>>,
 }
 
 impl TryFrom<Config> for Pkger {
@@ -58,14 +59,14 @@ impl TryFrom<Config> for Pkger {
         let images = Images::new(config.images_dir.clone())?;
         let recipes = Recipes::new(config.recipes_dir.clone())?;
         Ok(Pkger {
-            config,
-            images,
-            recipes,
-            docker: Docker::tcp("127.0.0.1:80"),
+            config: Arc::new(config),
+            images: Arc::new(images),
+            recipes: Arc::new(recipes),
+            docker: Arc::new(Docker::tcp("127.0.0.1:80")),
             verbose: true,
-            images_state: RefCell::new(
+            images_state: Arc::new(RwLock::new(
                 ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
-            ),
+            )),
         })
     }
 }
@@ -75,62 +76,29 @@ impl Pkger {
         if !opts.recipes.is_empty() {
             let filtered = self
                 .recipes
-                .as_ref()
+                .inner_ref()
                 .iter()
                 .filter(|(recipe, _)| !&opts.recipes.contains(recipe))
                 .map(|(recipe, _)| recipe.clone())
                 .collect::<Vec<_>>();
 
-            let recipes = self.recipes.as_ref_mut();
-            for recipe in filtered {
-                recipes.remove(&recipe);
-            }
-        }
-
-        self.docker = match opts.docker {
-            Some(uri) => Docker::new(uri).map_err(|e| anyhow!("{}", e)),
-            None => Ok(Docker::tcp("127.0.0.1:80")),
-        }
-        .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?;
-        self.verbose = !opts.quiet;
-        Ok(())
-    }
-    async fn build_recipes(&self) {
-        let mut tasks = Vec::new();
-        for (_, recipe) in self.recipes.as_ref() {
-            for image_info in &recipe.metadata.images {
-                if let Some(image) = self.images.images().get(&image_info.image) {
-                    tasks.push(
-                        JobRunner::new(BuildCtx::new(
-                            &self.config,
-                            &image,
-                            &recipe,
-                            &self.docker,
-                            &self.images_state,
-                            image_info.target.clone(),
-                            self.verbose,
-                        ))
-                        .run(),
-                    );
+            if let Some(recipes) = Arc::get_mut(&mut self.recipes) {
+                let recipes = recipes.inner_ref_mut();
+                for recipe in filtered {
+                    recipes.remove(&recipe);
                 }
             }
         }
 
-        for task in tasks {
-            if let Err(e) = task.await {
-                let reason = match e.downcast::<moby::Error>() {
-                    Ok(err) => match err {
-                        moby::Error::Fault { code: _, message } => message,
-                        e => e.to_string(),
-                    },
-                    Err(e) => e.to_string(),
-                };
-                error!("job failed - {}", reason);
+        self.docker = Arc::new(
+            match opts.docker {
+                Some(uri) => Docker::new(uri).map_err(|e| anyhow!("{}", e)),
+                None => Ok(Docker::tcp("127.0.0.1:80")),
             }
-        }
-        if let Err(e) = self.images_state.borrow().save() {
-            error!("failed to save image state - {}", e);
-        }
+            .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?,
+        );
+        self.verbose = !opts.quiet;
+        Ok(())
     }
 }
 
@@ -155,7 +123,59 @@ async fn main() -> Result<()> {
     let mut pkger = Pkger::try_from(config)
         .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
     pkger.process_opts(opts)?;
-    pkger.build_recipes().await;
+    let mut tasks = Vec::new();
+
+    for (_, recipe) in pkger.recipes.inner_ref() {
+        for image_info in &recipe.metadata.images {
+            if let Some(image) = pkger.images.images().get(&image_info.image) {
+                tasks.push(task::spawn(
+                    JobRunner::new(BuildCtx::new(
+                        recipe.clone(),
+                        (*image).clone(),
+                        pkger.config.clone(),
+                        pkger.docker.clone(),
+                        pkger.images_state.clone(),
+                        image_info.target.clone(),
+                        pkger.verbose,
+                    ))
+                    .run(),
+                ));
+            } else {
+                warn!("image `{}` not found", &image_info.image);
+            }
+        }
+    }
+
+    for task in tasks {
+        let handle = task.await;
+        if let Err(e) = handle {
+            error!("failed to join the task - {}", e);
+            continue;
+        }
+
+        // it's ok to unwrap, we check the error above
+        if let Err(e) = handle.unwrap() {
+            let reason = match e.downcast::<moby::Error>() {
+                Ok(err) => match err {
+                    moby::Error::Fault { code: _, message } => message,
+                    e => e.to_string(),
+                },
+                Err(e) => e.to_string(),
+            };
+            error!("job failed - {}", reason);
+        }
+    }
+    let result = pkger.images_state.read();
+
+    if let Err(e) = result {
+        error!("failed to save image state - {}", e);
+        return Ok(());
+    }
+
+    // it's ok to unwrap, we check the error above
+    if let Err(e) = (*result.unwrap()).save() {
+        error!("failed to save image state - {}", e);
+    }
 
     Ok(())
 }

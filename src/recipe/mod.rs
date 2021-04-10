@@ -17,7 +17,7 @@ use std::path::Path;
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Recipes(HashMap<String, Recipe>);
 
 impl Recipes {
@@ -47,16 +47,16 @@ impl Recipes {
         Ok(recipes)
     }
 
-    pub fn as_ref(&self) -> &HashMap<String, Recipe> {
+    pub fn inner_ref(&self) -> &HashMap<String, Recipe> {
         &self.0
     }
 
-    pub fn as_ref_mut(&mut self) -> &mut HashMap<String, Recipe> {
+    pub fn inner_ref_mut(&mut self) -> &mut HashMap<String, Recipe> {
         &mut self.0
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Recipe {
     pub metadata: Metadata,
     pub build: Build,
@@ -97,7 +97,7 @@ impl TryFrom<DirEntry> for RecipeRep {
         RecipeRep::new(path)
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Build {
     pub steps: Vec<Cmd>,
 }

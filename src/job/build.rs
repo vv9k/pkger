@@ -10,29 +10,29 @@ use moby::{
     image::ImageBuildChunk, tty::TtyChunk, BuildOptions, Container, ContainerOptions, Docker,
     ExecContainerOptions, RmContainerOptions,
 };
-use std::cell::RefCell;
 use std::path::PathBuf;
 use std::str;
+use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
-pub struct BuildCtx<'j> {
+pub struct BuildCtx {
     id: String,
-    _config: &'j Config,
-    image: &'j Image,
-    recipe: &'j Recipe,
-    docker: &'j Docker,
-    image_state: &'j RefCell<ImagesState>,
+    recipe: Recipe,
+    image: Image,
+    _config: Arc<Config>,
+    docker: Arc<Docker>,
+    image_state: Arc<RwLock<ImagesState>>,
     bld_dir: PathBuf,
     _target: BuildTarget,
     verbose: bool,
 }
-impl<'j> BuildCtx<'j> {
+impl BuildCtx {
     pub fn new(
-        config: &'j Config,
-        image: &'j Image,
-        recipe: &'j Recipe,
-        docker: &'j Docker,
-        image_state: &'j RefCell<ImagesState>,
+        recipe: Recipe,
+        image: Image,
+        config: Arc<Config>,
+        docker: Arc<Docker>,
+        image_state: Arc<RwLock<ImagesState>>,
         _target: BuildTarget,
         verbose: bool,
     ) -> Self {
@@ -84,7 +84,11 @@ impl<'j> BuildCtx<'j> {
             .map(|info| info.id)?)
     }
 
-    async fn container_exec<S: AsRef<str>>(&self, container: &Container<'j>, cmd: S) -> Result<()> {
+    async fn container_exec<'a, S: AsRef<str>>(
+        &self,
+        container: &Container<'a>,
+        cmd: S,
+    ) -> Result<()> {
         let opts = ExecContainerOptions::builder()
             .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
             .attach_stdout(true)
@@ -112,17 +116,9 @@ impl<'j> BuildCtx<'j> {
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
-        if !self.image.should_be_rebuilt(&self.image_state) {
-            if let Some(image) = self
-                .image_state
-                .borrow()
-                .images
-                .get(&self.image.name)
-                .cloned()
-            {
-                debug!("not rebuilding image, cache: {:#?}", image);
-                return Ok(image);
-            }
+        if let Some(state) = self.image.find_cached_state(&self.image_state) {
+            debug!("not rebuilding image, cache: {:#?}", state);
+            return Ok(state);
         }
 
         debug!("building image {}", &self.image.name);
@@ -157,9 +153,9 @@ impl<'j> BuildCtx<'j> {
                     )
                     .await?;
 
-                    self.image_state
-                        .borrow_mut()
-                        .update(&self.image.name, &state);
+                    if let Ok(mut image_state) = self.image_state.write() {
+                        (*image_state).update(&self.image.name, &state)
+                    }
 
                     return Ok(state);
                 }
@@ -170,7 +166,7 @@ impl<'j> BuildCtx<'j> {
         Err(anyhow!("stream ended before image id was received"))
     }
 
-    async fn install_deps(&mut self, container: &Container<'_>, state: &ImageState) -> Result<()> {
+    async fn install_deps(&self, container: &Container<'_>, state: &ImageState) -> Result<()> {
         info!("installing depndencies");
         let pkg_mngr = state.os.package_manager();
         let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
@@ -240,8 +236,8 @@ impl<'j> BuildCtx<'j> {
     }
 }
 
-impl<'j> From<BuildCtx<'j>> for JobCtx<'j> {
-    fn from(ctx: BuildCtx<'j>) -> Self {
+impl<'j> From<BuildCtx> for JobCtx<'j> {
+    fn from(ctx: BuildCtx) -> Self {
         JobCtx::Build(ctx)
     }
 }
