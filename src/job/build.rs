@@ -78,16 +78,12 @@ impl<'j> BuildCtx<'j> {
 
     // If successful returns id of the container
     async fn container_spawn(&self, image_state: &ImageState) -> Result<String> {
-        let mut env = vec![
-            format!("PKGER_BLD_DIR={}", self.bld_dir.display()),
-            format!("PKGER_OS={}", image_state.os.as_ref()),
-            format!("PKGER_OS_VERSION={}", &image_state.os.os_ver()),
-        ];
-        if let Some(_env) = &self.recipe.env {
-            _env.iter()
-                .for_each(|(k, v)| env.push(format!("{}={}", k, v.to_string())));
-        }
-        debug!("{:?}", env);
+        let mut env = self.recipe.env.clone();
+        env.insert("PKGER_BLD_DIR", self.bld_dir.to_string_lossy());
+        env.insert("PKGER_OS", image_state.os.as_ref());
+        env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
+        debug!("{:?}", &env);
+
         Ok(self
             .docker
             .containers()
@@ -96,7 +92,7 @@ impl<'j> BuildCtx<'j> {
                     .name(&self.id)
                     .cmd(vec!["sleep infinity"])
                     .entrypoint(vec!["/bin/sh", "-c"])
-                    .env(env)
+                    .env(env.to_kv_vec())
                     .working_dir(self.bld_dir.to_string_lossy().to_string().as_str())
                     .build(),
             )
