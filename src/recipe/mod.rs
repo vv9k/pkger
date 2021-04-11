@@ -1,6 +1,7 @@
 mod envs;
 mod metadata;
 
+use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 pub use envs::Env;
 pub use metadata::{BuildTarget, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
@@ -106,6 +107,15 @@ impl From<&Recipe> for RpmSpec {
         }
 
         builder.build()
+    }
+}
+
+impl From<&Recipe> for BinaryDebControl {
+    fn from(recipe: &Recipe) -> Self {
+        DebControlBuilder::binary_package_builder(&recipe.metadata.name)
+            .version(&recipe.metadata.version)
+            .description(&recipe.metadata.description)
+            .build()
     }
 }
 
