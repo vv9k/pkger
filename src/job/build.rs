@@ -251,6 +251,19 @@ impl BuildCtx {
             .instrument(span.clone())
             .await?;
 
+        if let Some(config_script) = &self.recipe.configure_script {
+            for cmd in &config_script.steps {
+                if !cmd.images.is_empty() {
+                    if !cmd.images.contains(&self.image.name) {
+                        continue;
+                    }
+                }
+                self.container_exec(&container, &cmd.cmd)
+                    .instrument(span.clone())
+                    .await?;
+            }
+        }
+
         for cmd in &self.recipe.build_script.steps {
             if !cmd.images.is_empty() {
                 if !cmd.images.contains(&self.image.name) {
@@ -260,6 +273,19 @@ impl BuildCtx {
             self.container_exec(&container, &cmd.cmd)
                 .instrument(span.clone())
                 .await?;
+        }
+
+        if let Some(install_script) = &self.recipe.install_script {
+            for cmd in &install_script.steps {
+                if !cmd.images.is_empty() {
+                    if !cmd.images.contains(&self.image.name) {
+                        continue;
+                    }
+                }
+                self.container_exec(&container, &cmd.cmd)
+                    .instrument(span.clone())
+                    .await?;
+            }
         }
 
         if let Err(e) = container
