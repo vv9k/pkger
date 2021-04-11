@@ -26,7 +26,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use tokio::task;
 use toml;
-use tracing::{error, event, Level};
+use tracing::{debug, error, info, trace, warn, Level};
 use tracing_subscriber;
 use tracing_subscriber::fmt::format;
 use tracing_subscriber::prelude::*;
@@ -102,19 +102,76 @@ impl Pkger {
         self.verbose = !opts.quiet;
         Ok(())
     }
+
+    async fn process_tasks(&self) {
+        let mut tasks = Vec::new();
+        for (_, recipe) in self.recipes.inner_ref() {
+            for image_info in &recipe.metadata.images {
+                if let Some(image) = self.images.images().get(&image_info.image) {
+                    debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
+                    tasks.push(task::spawn(
+                        JobRunner::new(BuildCtx::new(
+                            recipe.clone(),
+                            (*image).clone(),
+                            self.config.clone(),
+                            self.docker.clone(),
+                            self.images_state.clone(),
+                            image_info.target.clone(),
+                            self.verbose,
+                        ))
+                        .run(),
+                    ));
+                } else {
+                    warn!(image = %image_info.image, "not found");
+                }
+            }
+        }
+
+        let mut errors = vec![];
+
+        for task in tasks {
+            let handle = task.await;
+            if let Err(e) = handle {
+                error!("failed to join the task - {}", e);
+                continue;
+            }
+
+            errors.push(handle.unwrap());
+        }
+
+        errors.iter().for_each(|err| match err {
+            JobResult::Failure { id, reason } => {
+                error!(id = %id, reason = %reason, "job failed");
+            }
+            JobResult::Success { id } => {
+                info!(id = %id, "job succeded");
+            }
+        });
+    }
+
+    fn save_images_state(&self) {
+        let result = self.images_state.read();
+
+        if let Err(e) = result {
+            error!("failed to save image state - {}", e);
+            return;
+        }
+
+        // it's ok to unwrap, we check the wrapping error above
+        if let Err(e) = (*result.unwrap()).save() {
+            error!("failed to save image state - {}", e);
+        }
+    }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let opts = Opts::from_args();
-    if !opts.quiet {
-        let filter = if let Some(filter) = env::var_os("RUST_LOG") {
-            filter.to_string_lossy().to_string()
-        } else {
-            "pkger=info".to_string()
-        };
+fn setup_tracing_fmt() {
+    let filter = if let Some(filter) = env::var_os("RUST_LOG") {
+        filter.to_string_lossy().to_string()
+    } else {
+        "pkger=info".to_string()
+    };
 
-        let formatter =
+    let formatter =
             // Construct a custom formatter for `Debug` fields
             format::debug_fn(|writer, field, value| {
                 if field.name() == "message" {
@@ -124,92 +181,45 @@ async fn main() -> Result<()> {
                 }
             }).delimited(", ");
 
-        let format = tracing_subscriber::fmt::format()
-            .with_target(false)
-            .with_level(true);
+    let format = tracing_subscriber::fmt::format()
+        .with_target(false)
+        .with_level(true);
 
-        tracing_subscriber::fmt::fmt()
-            .with_target(false)
-            .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
-            .with_level(true)
-            .with_max_level(Level::TRACE)
-            .with_env_filter(filter)
-            .fmt_fields(formatter)
-            .event_format(format)
-            .init();
+    tracing_subscriber::fmt::fmt()
+        .with_target(false)
+        .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
+        .with_level(true)
+        .with_max_level(Level::TRACE)
+        .with_env_filter(filter)
+        .fmt_fields(formatter)
+        .event_format(format)
+        .init();
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let opts = Opts::from_args();
+    if !opts.quiet {
+        setup_tracing_fmt();
     }
-    event!( Level::TRACE, opts = ?opts);
+    trace!(opts = ?opts);
 
     let config_path = opts
         .config
         .clone()
         .unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
-    event!( Level::TRACE, config_path = %config_path);
+    trace!(config_path = %config_path);
 
     let config = Config::from_path(&config_path)
         .map_err(|e| anyhow!("Failed to read config file from {} - {}", config_path, e))?;
-    event!( Level::TRACE, config = ?config);
+    trace!(config = ?config);
 
     let mut pkger = Pkger::try_from(config)
         .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
 
     pkger.process_opts(opts)?;
-
-    let mut tasks = Vec::new();
-    for (_, recipe) in pkger.recipes.inner_ref() {
-        for image_info in &recipe.metadata.images {
-            if let Some(image) = pkger.images.images().get(&image_info.image) {
-                event!( Level::DEBUG, image = %image.name, recipe = %recipe.metadata.name, "spawning task");
-                tasks.push(task::spawn(
-                    JobRunner::new(BuildCtx::new(
-                        recipe.clone(),
-                        (*image).clone(),
-                        pkger.config.clone(),
-                        pkger.docker.clone(),
-                        pkger.images_state.clone(),
-                        image_info.target.clone(),
-                        pkger.verbose,
-                    ))
-                    .run(),
-                ));
-            } else {
-                event!(Level::WARN, image = %image_info.image, "not found");
-            }
-        }
-    }
-
-    let mut errors = vec![];
-
-    for task in tasks {
-        let handle = task.await;
-        if let Err(e) = handle {
-            error!("failed to join the task - {}", e);
-            continue;
-        }
-
-        errors.push(handle.unwrap());
-    }
-
-    errors.iter().for_each(|err| match err {
-        JobResult::Failure { id, reason } => {
-            event!(Level::ERROR, id = %id, reason = %reason, "job failed");
-        }
-        JobResult::Success { id } => {
-            event!(Level::INFO, id = %id, "job succeded");
-        }
-    });
-
-    let result = pkger.images_state.read();
-
-    if let Err(e) = result {
-        error!("failed to save image state - {}", e);
-        return Ok(());
-    }
-
-    // it's ok to unwrap, we check the error above
-    if let Err(e) = (*result.unwrap()).save() {
-        error!("failed to save image state - {}", e);
-    }
+    pkger.process_tasks().await;
+    pkger.save_images_state();
 
     Ok(())
 }
