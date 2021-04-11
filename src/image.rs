@@ -206,7 +206,7 @@ impl ImagesState {
             });
         }
         let contents = fs::read(state_file.as_ref())?;
-        Ok(toml::from_slice(&contents)?)
+        Ok(serde_cbor::from_slice(&contents)?)
     }
 
     pub fn update(&mut self, image: &str, state: &ImageState) {
@@ -223,7 +223,7 @@ impl ImagesState {
                 )
             );
         }
-        match toml::to_vec(&self) {
+        match serde_cbor::to_vec(&self) {
             Ok(d) => map_return!(
                 fs::write(&self.state_file, d),
                 format!("failed to save state file in {}", self.state_file.display())
