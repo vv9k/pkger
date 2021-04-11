@@ -3,6 +3,7 @@ mod metadata;
 
 pub use envs::Env;
 pub use metadata::{BuildTarget, Metadata, MetadataRep};
+use rpmspec::RpmSpec;
 
 use crate::cmd::Cmd;
 use crate::{Error, Result};
@@ -87,6 +88,27 @@ impl TryFrom<RecipeRep> for Recipe {
     }
 }
 
+impl From<&Recipe> for RpmSpec {
+    fn from(recipe: &Recipe) -> Self {
+        let mut builder = RpmSpec::builder(&recipe.metadata.name)
+            .license(&recipe.metadata.license)
+            .version(&recipe.metadata.version)
+            .release(&recipe.metadata.revision)
+            .description(&recipe.metadata.description)
+            .build_script(&recipe.build_script.steps_as_script());
+
+        if let Some(config) = &recipe.configure_script {
+            builder = builder.prep_script(config.steps_as_script());
+        }
+
+        if let Some(install) = &recipe.install_script {
+            builder = builder.install_script(install.steps_as_script());
+        }
+
+        builder.build()
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct RecipeRep {
     pub metadata: MetadataRep,
@@ -130,6 +152,17 @@ macro_rules! impl_step_rep {
                 }
 
                 Ok(Self { steps })
+            }
+        }
+
+        impl $ty {
+            pub fn steps_as_script(&self) -> String {
+                let mut script = String::new();
+                self.steps.iter().for_each(|step| {
+                    script.push_str(&step.cmd);
+                    script.push('\n');
+                });
+                script
             }
         }
 
