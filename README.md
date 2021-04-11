@@ -9,7 +9,7 @@ pkger has 2 concepts - images and recipes. Each recipe is a sort of build mainfe
 
 ## Recipe
 
-The recipe is divided into 2 parts:
+The recipe is divided into 2 required parts (metadata, build):
  - ### metadata
    - All the metadata and information needed for the build
    - `pkger` will install all dependencies listed in `build_depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution.
@@ -34,6 +34,15 @@ images = [
 	{ name = "debian10", target = "deb"}
 ]
 ```
+ - ### config (Optional)
+ - Optional configuration steps. If provided the steps will be executed before the build phase.
+```
+[config]
+steps = [
+	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
+	"sh /tmp/install_rust.sh -y --default-toolchain stable",
+]
+```
  - ### build
    - All build steps presented as a list of string
    - To execute a command only in a container with specific image/images you can write:
@@ -43,10 +52,16 @@ images = [
 ```
 [build]
 steps = [
-	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
-	"sh /tmp/install_rust.sh -y --default-toolchain stable",
-	"mkdir -p /opt/pkger/bin",
-	"/root/.cargo/bin/cargo build --target-dir /tmp",
+	"mkdir -p $PKGER_BLD_DIR/opt/pkger/bin",
+	"/root/.cargo/bin/cargo build --target-dir /tmp $PKGER_BLD_DIR",
+]
+```
+ - ### install (Optional)
+ - Optional installation steps. If provided the steps will be executed after the build phase.
+```
+[install]
+steps = [
+    "install -m755 pkger /usr/bin/pkger"
 ]
 ```
  - ### Env (Optional)
