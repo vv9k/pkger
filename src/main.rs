@@ -7,7 +7,6 @@ mod image;
 mod job;
 mod opts;
 mod os;
-mod package;
 mod recipe;
 mod util;
 
