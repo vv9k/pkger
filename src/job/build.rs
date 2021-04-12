@@ -11,6 +11,7 @@ use moby::{
 };
 use std::path::PathBuf;
 use std::str;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 use tracing::{debug, error, info, info_span, trace, Instrument};
@@ -24,6 +25,7 @@ pub struct BuildCtx {
     config: Arc<Config>,
     docker: Arc<Docker>,
     image_state: Arc<RwLock<ImagesState>>,
+    is_running: Arc<AtomicBool>,
     bld_dir: PathBuf,
     target: BuildTarget,
     verbose: bool,
@@ -35,6 +37,18 @@ impl Ctx for BuildCtx {
     }
 }
 
+macro_rules! cleanup {
+    ($ctx:ident, $container:ident, $span: ident) => {
+        if $ctx
+            .cleanup_if_exit(&$container)
+            .instrument($span.clone())
+            .await?
+        {
+            return Err(anyhow!("job interrupted by ctrl-c signal"));
+        }
+    };
+}
+
 impl BuildCtx {
     pub fn new(
         recipe: Recipe,
@@ -42,6 +56,7 @@ impl BuildCtx {
         config: Arc<Config>,
         docker: Arc<Docker>,
         image_state: Arc<RwLock<ImagesState>>,
+        is_running: Arc<AtomicBool>,
         target: BuildTarget,
         verbose: bool,
     ) -> Self {
@@ -63,10 +78,34 @@ impl BuildCtx {
             recipe,
             docker,
             image_state,
+            is_running,
             bld_dir,
             target,
             verbose,
         }
+    }
+
+    async fn cleanup_if_exit<'job>(&self, container: &Container<'job>) -> Result<bool> {
+        let span = info_span!("check-is-running");
+        let _enter = span.enter();
+        if !self.is_running.load(Ordering::SeqCst) {
+            trace!(container_id = %container.id(), "not running, cleanup");
+
+            container
+                .stop(None)
+                .instrument(span.clone())
+                .await
+                .map_err(|e| anyhow!("failed to stop container - {}", e))?;
+
+            return container
+                .delete()
+                .instrument(span.clone())
+                .await
+                .map_err(|e| anyhow!("failed to delete container - {}", e))
+                .map(|_| true);
+        }
+
+        Ok(false)
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -92,13 +131,19 @@ impl BuildCtx {
             .instrument(span.clone())
             .await?;
 
+        cleanup!(self, container, span);
+
         self.install_deps(&container, &image_state)
             .instrument(span.clone())
             .await?;
 
+        cleanup!(self, container, span);
+
         self.execute_scripts(&container)
             .instrument(span.clone())
             .await?;
+
+        cleanup!(self, container, span);
 
         if let Err(e) = container
             .remove(
@@ -176,6 +221,7 @@ impl BuildCtx {
         let mut stream = container.exec(&opts);
 
         while let Some(result) = stream.next().instrument(span.clone()).await {
+            cleanup!(self, container, span);
             match result? {
                 TtyChunk::StdOut(chunk) => {
                     if self.verbose {
