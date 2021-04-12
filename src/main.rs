@@ -118,7 +118,8 @@ impl Pkger {
         let mut tasks = Vec::new();
         for (_, recipe) in self.recipes.inner_ref() {
             for image_info in &recipe.metadata.images {
-                if !self.images_filter.contains(&image_info.image) {
+                if !self.images_filter.is_empty() && !self.images_filter.contains(&image_info.image)
+                {
                     trace!(image = %image_info.image, "skipping");
                     continue;
                 }
