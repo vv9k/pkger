@@ -13,7 +13,7 @@ The recipe is divided into 2 required parts (metadata, build):
  - ### metadata
    - All the metadata and information needed for the build
    - `pkger` will install all dependencies listed in `build_depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution.
-   - Below example recipe will be built for 2 images `centos8` and `debian10`. Each image also specifies the target that should be built using it. Currently available targets are: *rpm*, *deb*, *gzip*.
+   - Below example recipe will be built for 2 images `centos8` and `debian10`. Each image also specifies the target that should be built using it.
    - Special syntax for unique dependencies across OSes is used to correctly install `openssl-devel` on *CentOS 8* and `libssl-dev` on *Debian 10*
 ```
 [metadata]
@@ -45,6 +45,7 @@ steps = [
 ```
  - ### build
    - All build steps presented as a list of string
+   - Steps will be executed with a working directory set to `$PKGER_BLD_DIR`
    - To execute a command only in a container with specific image/images you can write:
      - `pkger%:centos8 echo 'test'` for a single image
      - `pkger%:{centos8,debian10} echo 'test'` or `pkger%:{centos8, debian10} echo 'test'` for multiple images
@@ -52,8 +53,8 @@ steps = [
 ```
 [build]
 steps = [
-	"mkdir -p $PKGER_BLD_DIR/opt/pkger/bin",
-	"/root/.cargo/bin/cargo build --target-dir /tmp $PKGER_BLD_DIR",
+	"mkdir -p $PKGER_OUT_DIR/usr/bin",
+	"cargo build .",
 ]
 ```
  - ### install (Optional)
@@ -61,7 +62,7 @@ steps = [
 ```
 [install]
 steps = [
-    "install -m755 pkger /usr/bin/pkger"
+    "install -m755 pkger $PKGER_OUT_DIR/usr/bin/pkger"
 ]
 ```
  - ### Env (Optional)
@@ -69,12 +70,17 @@ steps = [
    - `pkger` also provides some env variables to use for adding logic to the build part
      - `$PKGER_OS` the os of current container
      - `$PKGER_OS_VERSION` version of current os
-     - `$PKGER_BLD_DIR` the build directory with fetched source in a container
+     - `$PKGER_BLD_DIR` the build directory with fetched source in the container
+     - `$PKGER_OUT_DIR` the final directory from which *pkger* will copy files to target package
 ```
 [env]
 HTTPS_PROXY = "http://proxy.domain.com:1234"
 RUST_LOG = "trace"
 ```
+
+## Final package
+
+Currently available targets are: *RPM*, *DEB*, *GZIP*. After executing build script (or install if provided), **pkger** will copy all files from `$PKGER_OUT_DIR` to final package. So for example if this directory contains a file `$PKGER_OUT_DIR/usr/bin/pkger` this file will be added to the package as `/usr/bin/pkger`.
 
 ## Config
 

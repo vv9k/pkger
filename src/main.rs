@@ -237,7 +237,7 @@ async fn main() -> Result<()> {
     let is_running = pkger.is_running.clone();
 
     if let Err(e) = ctrlc::set_handler(move || {
-        trace!("got ctrl-c");
+        warn!("got ctrl-c");
         is_running.store(false, Ordering::SeqCst);
     }) {
         error!("failed to set ctrl-c handler - {}", e);

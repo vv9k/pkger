@@ -27,6 +27,7 @@ pub struct BuildCtx {
     image_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
     bld_dir: PathBuf,
+    out_dir: PathBuf,
     target: BuildTarget,
     verbose: bool,
 }
@@ -68,7 +69,11 @@ impl BuildCtx {
             "pkger-{}-{}-{}",
             &recipe.metadata.name, &image.name, &timestamp,
         );
-        let bld_dir = PathBuf::from(format!("/tmp/{}-{}", &recipe.metadata.name, &timestamp,));
+        let bld_dir = PathBuf::from(format!(
+            "/tmp/{}-build-{}",
+            &recipe.metadata.name, &timestamp,
+        ));
+        let out_dir = PathBuf::from(format!("/tmp/{}-out-{}", &recipe.metadata.name, &timestamp,));
         trace!(id = %id, "creating new build context");
 
         BuildCtx {
@@ -80,6 +85,7 @@ impl BuildCtx {
             image_state,
             is_running,
             bld_dir,
+            out_dir,
             target,
             verbose,
         }
@@ -171,6 +177,7 @@ impl BuildCtx {
 
         let mut env = self.recipe.env.clone();
         env.insert("PKGER_BLD_DIR", self.bld_dir.to_string_lossy());
+        env.insert("PKGER_OUT_DIR", self.out_dir.to_string_lossy());
         env.insert("PKGER_OS", image_state.os.as_ref());
         env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
 
