@@ -22,6 +22,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::task;
 use toml;
@@ -53,6 +54,7 @@ struct Pkger {
     images_filter: Arc<Vec<String>>,
     verbose: bool,
     images_state: Arc<RwLock<ImagesState>>,
+    is_running: Arc<AtomicBool>,
 }
 
 impl TryFrom<Config> for Pkger {
@@ -70,6 +72,7 @@ impl TryFrom<Config> for Pkger {
             images_state: Arc::new(RwLock::new(
                 ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
             )),
+            is_running: Arc::new(AtomicBool::new(true)),
         })
     }
 }
@@ -128,6 +131,7 @@ impl Pkger {
                             self.config.clone(),
                             self.docker.clone(),
                             self.images_state.clone(),
+                            self.is_running.clone(),
                             image_info.target.clone(),
                             self.verbose,
                         ))
@@ -228,6 +232,15 @@ async fn main() -> Result<()> {
 
     let mut pkger = Pkger::try_from(config)
         .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
+
+    let is_running = pkger.is_running.clone();
+
+    if let Err(e) = ctrlc::set_handler(move || {
+        trace!("got ctrl-c");
+        is_running.store(false, Ordering::SeqCst);
+    }) {
+        error!("failed to set ctrl-c handler - {}", e);
+    };
 
     pkger.process_opts(opts)?;
     pkger.process_tasks().await;
