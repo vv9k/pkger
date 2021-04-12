@@ -50,6 +50,7 @@ struct Pkger {
     images: Arc<Images>,
     recipes: Arc<Recipes>,
     docker: Arc<Docker>,
+    images_filter: Arc<Vec<String>>,
     verbose: bool,
     images_state: Arc<RwLock<ImagesState>>,
 }
@@ -62,6 +63,7 @@ impl TryFrom<Config> for Pkger {
         Ok(Pkger {
             config: Arc::new(config),
             images: Arc::new(images),
+            images_filter: Arc::new(vec![]),
             recipes: Arc::new(recipes),
             docker: Arc::new(Docker::tcp("127.0.0.1:80")),
             verbose: true,
@@ -91,6 +93,13 @@ impl Pkger {
             }
         }
 
+        if let Some(images) = opts.images {
+            if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
+                filter.extend(images);
+            }
+            trace!(images = ?self.images_filter, "building only on");
+        }
+
         self.docker = Arc::new(
             match opts.docker {
                 Some(uri) => Docker::new(uri).map_err(|e| anyhow!("{}", e)),
@@ -106,6 +115,10 @@ impl Pkger {
         let mut tasks = Vec::new();
         for (_, recipe) in self.recipes.inner_ref() {
             for image_info in &recipe.metadata.images {
+                if !self.images_filter.contains(&image_info.image) {
+                    trace!(image = %image_info.image, "skipping");
+                    continue;
+                }
                 if let Some(image) = self.images.images().get(&image_info.image) {
                     debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
                     tasks.push(task::spawn(
