@@ -7,7 +7,6 @@ version = "0.0.5"
 revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-build_depends = ["libssl-dev,centos8{openssl-devel}"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
@@ -33,7 +32,9 @@ steps = [
 	"echo PKGER_OS_VERSION=$PKGER_OS_VERSION",
 	"bash -c \"if [[ '$PKGER_OS_VERSION' =~ 10|8 ]]; then exit 0; else echo 'Environment variable PKGER_OS_VERSION is not set properly'; exit 1; fi\"",
 	"echo PKGER_BLD_DIR=$PKGER_BLD_DIR",
-	"bash -c \"if [[ '$PKGER_BLD_DIR' =~ /tmp/test-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi\"",
+	"bash -c \"if [[ '$PKGER_BLD_DIR' =~ /tmp/test-build-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi\"",
+	"echo PKGER_OUT_DIR=$PKGER_OUT_DIR",
+	"bash -c \"if [[ '$PKGER_OUT_DIR' =~ /tmp/test-out-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi\"",
 
 	# SYNTAX
 	"echo 'Testing pkger command syntax'",
