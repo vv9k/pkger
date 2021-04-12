@@ -315,8 +315,14 @@ impl BuildCtx {
             deps.resolve_names(&state.image)
         } else {
             vec![]
+        };
+
+        if deps.is_empty() {
+            trace!("no dependencies to install");
+            return Ok(());
         }
-        .join(" ");
+
+        let deps = deps.join(" ");
         trace!(deps = %deps, "resolved dependency names");
 
         let cmd = format!(
