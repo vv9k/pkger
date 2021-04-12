@@ -1,17 +1,27 @@
 use clap::Clap;
 
 #[derive(Debug, Clap)]
-#[clap(name = "pkger", about = "Creates RPM and DEB packages using docker")]
+#[clap(
+    name = "pkger",
+    version = "0.1.0",
+    author = "Wojciech Kępka <wojciech@wkepka.dev>",
+    about = "Creates RPM, DEB and other packages using Docker"
+)]
 pub struct Opts {
-    /// URL to dockers api
+    /// URL to Docker daemon listening on a unix or tcp socket. An example could be
+    /// `unix:///var/run/docker.socket` or a tcp uri `tcp://127.0.0.1:81`.
     #[clap(short, long)]
     pub docker: Option<String>,
-    /// Recipes to build
+    /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
     pub recipes: Vec<String>,
-    /// Path to config file (default - "./conf.toml")
+    /// Specify the images on which to build the recipes. Only those recipes that have one or more
+    /// of the images provided as this argument are going to get built.
+    #[clap(short, long)]
+    pub images: Option<Vec<String>>,
+    /// Path to the config file (default - "./conf.toml").
     #[clap(short, long)]
     pub config: Option<String>,
-    /// No output printed to stdout
+    /// Surpress all output.
     #[clap(short, long)]
     pub quiet: bool,
 }
