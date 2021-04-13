@@ -19,8 +19,8 @@ pub struct BuildContainerCtx<'job> {
     recipe: &'job Recipe,
     image: &'job Image,
     is_running: Arc<AtomicBool>,
-    _bld_dir: PathBuf,
-    _out_dir: PathBuf,
+    bld_dir: PathBuf,
+    out_dir: PathBuf,
     _target: BuildTarget,
 }
 
@@ -40,8 +40,8 @@ impl<'job> BuildContainerCtx<'job> {
             container,
             is_running,
             _target: target,
-            _bld_dir: bld_dir.to_path_buf(),
-            _out_dir: out_dir.to_path_buf(),
+            bld_dir: bld_dir.to_path_buf(),
+            out_dir: out_dir.to_path_buf(),
         }
     }
 
@@ -193,6 +193,22 @@ impl<'job> BuildContainerCtx<'job> {
         }
 
         Ok(())
+    }
+
+    pub async fn create_dirs(&self) -> Result<()> {
+        let span = info_span!("create-dirs", container = %self.container_id());
+        let _enter = span.enter();
+
+        let dirs = vec![
+            self.out_dir.to_string_lossy().to_string(),
+            self.bld_dir.to_string_lossy().to_string(),
+        ]
+        .join(" ");
+        trace!(directories = %dirs);
+
+        self.container_exec(format!("mkdir -pv {}", dirs))
+            .instrument(span.clone())
+            .await
     }
 
     fn container_id(&self) -> &str {
