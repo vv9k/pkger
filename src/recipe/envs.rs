@@ -35,7 +35,7 @@ impl Env {
         self.0.remove(key.as_ref())
     }
 
-    pub fn to_kv_vec(self) -> Vec<String> {
+    pub fn kv_vec(self) -> Vec<String> {
         self.0
             .into_iter()
             .map(|(k, v)| format!("{}={}", k, v))

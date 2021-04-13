@@ -139,7 +139,7 @@ impl ImageState {
         );
         let out = OneShotCtx::new(
             docker,
-            &ContainerOptions::builder(image.as_ref())
+            &ContainerOptions::builder(image)
                 .name(&name)
                 .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
                 .build(),

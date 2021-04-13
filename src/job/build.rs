@@ -82,6 +82,7 @@ impl Ctx for BuildCtx {
 }
 
 impl BuildCtx {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         recipe: Recipe,
         image: Image,
@@ -109,24 +110,21 @@ impl BuildCtx {
 
         BuildCtx {
             id,
-            config,
+            recipe,
             image,
             docker,
-            recipe,
-            image_state,
-            is_running,
             bld_dir,
             out_dir,
             target,
             verbose,
+            config,
+            image_state,
+            is_running,
         }
     }
 
     /// Creates and starts a container from the given ImageState
-    async fn container_spawn<'job>(
-        &'job self,
-        image_state: &ImageState,
-    ) -> Result<BuildContainerCtx<'job>> {
+    async fn container_spawn(&self, image_state: &ImageState) -> Result<BuildContainerCtx<'_>> {
         let span = info_span!("container-spawn");
         let _enter = span.enter();
 
@@ -141,7 +139,7 @@ impl BuildCtx {
             .name(&self.id)
             .cmd(vec!["sleep infinity"])
             .entrypoint(vec!["/bin/sh", "-c"])
-            .env(env.to_kv_vec())
+            .env(env.kv_vec())
             .working_dir(self.bld_dir.to_string_lossy().to_string().as_str())
             .build();
 
@@ -195,7 +193,7 @@ impl BuildCtx {
                     error,
                     error_detail: _,
                 } => {
-                    return Err(anyhow!(error.to_string()));
+                    return Err(anyhow!(error));
                 }
                 ImageBuildChunk::Update { stream } => {
                     if self.verbose {
