@@ -76,9 +76,16 @@ impl Ctx for BuildCtx {
 
         container.create_dirs().instrument(span.clone()).await?;
 
+        cleanup!(container, span);
+
         container.execute_scripts().instrument(span.clone()).await?;
 
         cleanup!(container, span);
+
+        let _bytes = container
+            .archive_output_dir()
+            .instrument(span.clone())
+            .await?;
 
         container.cleanup().await?;
 
@@ -228,8 +235,6 @@ impl BuildCtx {
 
         Err(anyhow!("stream ended before image id was received"))
     }
-
-    //async fn archive_output_dir<'job>(&self, container: &Container<'job>) -> Result<()> {}
 }
 
 impl<'job> From<BuildCtx> for JobCtx<'job> {
