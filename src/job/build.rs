@@ -1,6 +1,9 @@
 use crate::cleanup;
 use crate::image::{Image, ImageState, ImagesState};
-use crate::job::{container::BuildContainerCtx, Ctx, JobCtx};
+use crate::job::{
+    container::{BuildContainerCtx, CONTAINER_ID_LEN},
+    Ctx, JobCtx,
+};
 use crate::recipe::{BuildTarget, Recipe};
 use crate::Config;
 use crate::Result;
@@ -152,11 +155,11 @@ impl BuildCtx {
             .instrument(span.clone())
             .await
             .map(|info| info.id)?;
-        info!(container_id = %id, "created container");
+        info!(container_id = %id[..CONTAINER_ID_LEN], "created container");
         let container = self.docker.containers().get(&id);
 
         container.start().instrument(span.clone()).await?;
-        info!(container_id = %id, "started container");
+        info!(container_id = %id[..CONTAINER_ID_LEN], "started container");
 
         Ok(BuildContainerCtx::new(
             container,
