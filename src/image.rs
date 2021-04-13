@@ -1,4 +1,4 @@
-use crate::job::OneShotCtx;
+use crate::job::{Ctx, OneShotCtx};
 use crate::map_return;
 use crate::os::Os;
 use crate::Result;

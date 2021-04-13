@@ -3,6 +3,7 @@ extern crate anyhow;
 
 mod cmd;
 mod deps;
+mod docker;
 mod image;
 mod job;
 mod opts;
@@ -10,13 +11,13 @@ mod os;
 mod recipe;
 mod util;
 
+use crate::docker::DockerConnectionPool;
 use crate::image::{Images, ImagesState};
-use crate::job::{BuildCtx, JobResult, JobRunner};
+use crate::job::{BuildCtx, JobCtx, JobResult};
 use crate::opts::Opts;
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use moby::Docker;
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::env;
@@ -50,7 +51,7 @@ struct Pkger {
     config: Arc<Config>,
     images: Arc<Images>,
     recipes: Arc<Recipes>,
-    docker: Arc<Docker>,
+    docker: Arc<DockerConnectionPool>,
     images_filter: Arc<Vec<String>>,
     verbose: bool,
     images_state: Arc<RwLock<ImagesState>>,
@@ -67,7 +68,7 @@ impl TryFrom<Config> for Pkger {
             images: Arc::new(images),
             images_filter: Arc::new(vec![]),
             recipes: Arc::new(recipes),
-            docker: Arc::new(Docker::tcp("127.0.0.1:80")),
+            docker: Arc::new(DockerConnectionPool::default()),
             verbose: true,
             images_state: Arc::new(RwLock::new(
                 ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
@@ -105,8 +106,8 @@ impl Pkger {
 
         self.docker = Arc::new(
             match opts.docker {
-                Some(uri) => Docker::new(uri).map_err(|e| anyhow!("{}", e)),
-                None => Ok(Docker::tcp("127.0.0.1:80")),
+                Some(uri) => DockerConnectionPool::new(uri),
+                None => Ok(DockerConnectionPool::default()),
             }
             .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?,
         );
@@ -126,15 +127,15 @@ impl Pkger {
                 if let Some(image) = self.images.images().get(&image_info.image) {
                     debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
                     tasks.push(task::spawn(
-                        JobRunner::new(BuildCtx::new(
+                        JobCtx::Build(BuildCtx::new(
                             recipe.clone(),
                             (*image).clone(),
-                            self.config.clone(),
-                            self.docker.clone(),
-                            self.images_state.clone(),
-                            self.is_running.clone(),
+                            self.docker.connect(),
                             image_info.target.clone(),
                             self.verbose,
+                            self.config.clone(),
+                            self.images_state.clone(),
+                            self.is_running.clone(),
                         ))
                         .run(),
                     ));

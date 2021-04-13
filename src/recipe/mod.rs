@@ -91,7 +91,8 @@ impl TryFrom<RecipeRep> for Recipe {
 
 impl From<&Recipe> for RpmSpec {
     fn from(recipe: &Recipe) -> Self {
-        let mut builder = RpmSpec::builder(&recipe.metadata.name)
+        let mut builder = RpmSpec::builder()
+            .name(&recipe.metadata.name)
             .license(&recipe.metadata.license)
             .version(&recipe.metadata.version)
             .release(&recipe.metadata.revision)

@@ -1,6 +1,7 @@
 use crate::job::{Ctx, JobCtx};
 use crate::Result;
 
+use async_trait::async_trait;
 use futures::StreamExt;
 use moby::{tty::TtyChunk, ContainerOptions, Docker, LogsOptions};
 use std::time::SystemTime;
@@ -10,40 +11,26 @@ pub struct Output {
     pub stderr: Vec<u8>,
 }
 
-pub struct OneShotCtx<'j> {
+#[derive(Debug)]
+/// Simple job that spawns a container with a command to execute and returns its stdout and/or
+/// stderr.
+pub struct OneShotCtx<'job> {
     id: String,
-    docker: &'j Docker,
-    opts: &'j ContainerOptions,
+    docker: &'job Docker,
+    opts: &'job ContainerOptions,
     stdout: bool,
     stderr: bool,
 }
 
-impl<'j> Ctx for OneShotCtx<'j> {
+#[async_trait]
+impl<'job> Ctx for OneShotCtx<'job> {
+    type JobResult = Result<Output>;
+
     fn id(&self) -> &str {
         &self.id
     }
-}
 
-impl<'j> OneShotCtx<'j> {
-    pub fn new(docker: &'j Docker, opts: &'j ContainerOptions, stdout: bool, stderr: bool) -> Self {
-        let id = format!(
-            "pkger-oneshot-{}",
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-        );
-
-        Self {
-            id,
-            docker,
-            opts,
-            stdout,
-            stderr,
-        }
-    }
-
-    pub async fn run(&mut self) -> Result<Output> {
+    async fn run(&mut self) -> Self::JobResult {
         let handle = self
             .docker
             .containers()
@@ -73,8 +60,33 @@ impl<'j> OneShotCtx<'j> {
         Ok(Output { stdout, stderr })
     }
 }
-impl<'j> From<OneShotCtx<'j>> for JobCtx<'j> {
-    fn from(ctx: OneShotCtx<'j>) -> Self {
+
+impl<'job> OneShotCtx<'job> {
+    pub fn new(
+        docker: &'job Docker,
+        opts: &'job ContainerOptions,
+        stdout: bool,
+        stderr: bool,
+    ) -> Self {
+        let id = format!(
+            "pkger-oneshot-{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
+
+        Self {
+            id,
+            docker,
+            opts,
+            stdout,
+            stderr,
+        }
+    }
+}
+impl<'job> From<OneShotCtx<'job>> for JobCtx<'job> {
+    fn from(ctx: OneShotCtx<'job>) -> Self {
         JobCtx::OneShot(ctx)
     }
 }
