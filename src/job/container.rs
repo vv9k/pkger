@@ -11,6 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{debug, error, info, info_span, trace, Instrument};
 
+/// Length of significant characters of a container ID.
+pub const CONTAINER_ID_LEN: usize = 12;
+
 pub struct BuildContainerCtx<'job> {
     container: Container<'job>,
     recipe: &'job Recipe,
@@ -103,7 +106,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn install_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("install-deps", container = %self.container.id());
+        let span = info_span!("install-deps", container = %self.container_id());
         let _enter = span.enter();
 
         info!("installing dependencies");
@@ -134,7 +137,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn execute_scripts(&self) -> Result<()> {
-        let span = info_span!("exec-scripts", container = %self.container.id());
+        let span = info_span!("exec-scripts", container = %self.container_id());
         let _enter = span.enter();
 
         if let Some(config_script) = &self.recipe.configure_script {
@@ -190,5 +193,9 @@ impl<'job> BuildContainerCtx<'job> {
         }
 
         Ok(())
+    }
+
+    fn container_id(&self) -> &str {
+        &self.container.id()[..CONTAINER_ID_LEN]
     }
 }
