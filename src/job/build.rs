@@ -74,6 +74,8 @@ impl Ctx for BuildCtx {
 
         cleanup!(container, span);
 
+        container.create_dirs().instrument(span.clone()).await?;
+
         container.execute_scripts().instrument(span.clone()).await?;
 
         cleanup!(container, span);
