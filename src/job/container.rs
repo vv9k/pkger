@@ -67,7 +67,7 @@ impl<'job> BuildContainerCtx<'job> {
         if !self.is_running.load(Ordering::SeqCst) {
             trace!("not running");
 
-            return self.cleanup().await.map(|_| true);
+            return self.cleanup().instrument(span.clone()).await.map(|_| true);
         }
 
         Ok(false)
@@ -91,10 +91,10 @@ impl<'job> BuildContainerCtx<'job> {
             cleanup!(self, span);
             match result? {
                 TtyChunk::StdOut(chunk) => {
-                    info!("{}", str::from_utf8(&chunk)?.trim_end_matches("\n"));
+                    info!("{}", str::from_utf8(&chunk)?.trim_end_matches('\n'));
                 }
                 TtyChunk::StdErr(chunk) => {
-                    error!("{}", str::from_utf8(&chunk)?.trim_end_matches("\n"));
+                    error!("{}", str::from_utf8(&chunk)?.trim_end_matches('\n'));
                 }
                 _ => unreachable!(),
             }

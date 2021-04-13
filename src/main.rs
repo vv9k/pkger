@@ -26,9 +26,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::task;
-use toml;
 use tracing::{debug, error, info, trace, warn, Level};
-use tracing_subscriber;
 use tracing_subscriber::fmt::format;
 use tracing_subscriber::prelude::*;
 
@@ -117,7 +115,7 @@ impl Pkger {
 
     async fn process_tasks(&self) {
         let mut tasks = Vec::new();
-        for (_, recipe) in self.recipes.inner_ref() {
+        for recipe in self.recipes.inner_ref().values() {
             for image_info in &recipe.metadata.images {
                 if !self.images_filter.is_empty() && !self.images_filter.contains(&image_info.image)
                 {

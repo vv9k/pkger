@@ -25,7 +25,7 @@ impl Dependency {
     pub fn get_name<'d>(&'d self, image: &str) -> Option<&'d str> {
         self.names
             .iter()
-            .find(|it| &it.0 == image)
+            .find(|it| it.0 == image)
             .map(|it| it.1.as_str())
     }
 
@@ -44,12 +44,10 @@ impl Dependency {
         for elem in elems {
             if let Some(idx) = elem.find('{') {
                 names.push(Self::parse_with_image(elem, idx)?);
+            } else if name.is_none() {
+                name = Some(elem.to_string());
             } else {
-                if name.is_none() {
-                    name = Some(elem.to_string());
-                } else {
-                    return Err(anyhow!("double global name in dependency `{}`", elem));
-                }
+                return Err(anyhow!("double global name in dependency `{}`", elem));
             }
         }
 
