@@ -68,7 +68,14 @@ impl Ctx for BuildCtx {
         cleanup!(container, span);
 
         container
-            .install_deps(&image_state)
+            .install_pkger_deps(&image_state)
+            .instrument(span.clone())
+            .await?;
+
+        cleanup!(container, span);
+
+        container
+            .install_recipe_deps(&image_state)
             .instrument(span.clone())
             .await?;
 

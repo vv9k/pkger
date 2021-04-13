@@ -21,7 +21,7 @@ pub struct BuildContainerCtx<'job> {
     is_running: Arc<AtomicBool>,
     bld_dir: PathBuf,
     out_dir: PathBuf,
-    _target: BuildTarget,
+    target: BuildTarget,
 }
 
 impl<'job> BuildContainerCtx<'job> {
@@ -39,7 +39,7 @@ impl<'job> BuildContainerCtx<'job> {
             image,
             container,
             is_running,
-            _target: target,
+            target,
             bld_dir: bld_dir.to_path_buf(),
             out_dir: out_dir.to_path_buf(),
         }
@@ -105,35 +105,33 @@ impl<'job> BuildContainerCtx<'job> {
         Ok(())
     }
 
-    pub async fn install_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("install-deps", container = %self.container_id());
-        let _enter = span.enter();
-
-        info!("installing dependencies");
-        let pkg_mngr = state.os.package_manager();
+    pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
         let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
             deps.resolve_names(&state.image)
         } else {
             vec![]
         };
 
-        if deps.is_empty() {
-            trace!("no dependencies to install");
-            return Ok(());
+        self._install_deps(&deps, &state).await
+    }
+
+    pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
+        let mut deps = vec!["tar", "git"];
+        match self.target {
+            BuildTarget::Rpm => {
+                deps.push("rpmbuild");
+            }
+            BuildTarget::Deb => {
+                deps.push("dpkg-deb");
+            }
+            BuildTarget::Gzip => {
+                deps.push("gzip");
+            }
         }
 
-        let deps = deps.join(" ");
-        trace!(deps = %deps, "resolved dependency names");
+        let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
 
-        let cmd = format!(
-            "{} {} {}",
-            pkg_mngr.as_ref(),
-            pkg_mngr.install_args().join(" "),
-            deps,
-        );
-        trace!(command = %cmd, "installing with");
-
-        self.container_exec(cmd).instrument(span.clone()).await
+        self._install_deps(&deps, &state).await
     }
 
     pub async fn execute_scripts(&self) -> Result<()> {
@@ -222,6 +220,33 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await
             .map_err(|e| anyhow!("failed to archive output directory - {}", e))
+    }
+
+    async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {
+        let span = info_span!("install-deps", container = %self.container_id());
+        let _enter = span.enter();
+
+        info!("installing dependencies");
+        let pkg_mngr = state.os.package_manager();
+
+        if deps.is_empty() {
+            trace!("no dependencies to install");
+            return Ok(());
+        }
+
+        let deps = deps.join(" ");
+
+        trace!(deps = %deps, "resolved dependency names");
+
+        let cmd = format!(
+            "{} {} {}",
+            pkg_mngr.as_ref(),
+            pkg_mngr.install_args().join(" "),
+            deps
+        );
+        trace!(command = %cmd, "installing with");
+
+        self.container_exec(cmd).instrument(span.clone()).await
     }
 
     fn container_id(&self) -> &str {
