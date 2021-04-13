@@ -3,7 +3,7 @@ use crate::image::{Image, ImageState};
 use crate::recipe::{BuildTarget, Recipe};
 use crate::Result;
 
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use moby::{tty::TtyChunk, Container, ExecContainerOptions};
 use std::path::{Path, PathBuf};
 use std::str;
@@ -199,6 +199,7 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("create-dirs", container = %self.container_id());
         let _enter = span.enter();
 
+        info!("creating necessary directories");
         let dirs = vec![
             self.out_dir.to_string_lossy().to_string(),
             self.bld_dir.to_string_lossy().to_string(),
@@ -209,6 +210,18 @@ impl<'job> BuildContainerCtx<'job> {
         self.container_exec(format!("mkdir -pv {}", dirs))
             .instrument(span.clone())
             .await
+    }
+
+    pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
+        let span = info_span!("archive-output", container = %self.container_id());
+
+        info!("copying final archive");
+        self.container
+            .copy_from(self.out_dir.as_path())
+            .try_concat()
+            .instrument(span.clone())
+            .await
+            .map_err(|e| anyhow!("failed to archive output directory - {}", e))
     }
 
     fn container_id(&self) -> &str {
