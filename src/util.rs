@@ -1,4 +1,5 @@
 //! Helper functions that don't fit anywhere else
+#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 

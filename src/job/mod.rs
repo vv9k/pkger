@@ -1,11 +1,27 @@
 mod build;
+mod container;
 mod oneshot;
 
 pub use build::BuildCtx;
 pub use oneshot::OneShotCtx;
 
+use async_trait::async_trait;
+
+#[macro_export]
+macro_rules! cleanup {
+    ($ctx:ident, $span: ident) => {
+        if $ctx.cleanup_if_exit().instrument($span.clone()).await? {
+            return Err(anyhow!("job interrupted by ctrl-c signal"));
+        }
+    };
+}
+
+#[async_trait]
 pub trait Ctx {
+    type JobResult;
+
     fn id(&self) -> &str;
+    async fn run(&mut self) -> Self::JobResult;
 }
 
 pub enum JobResult {
@@ -33,23 +49,15 @@ impl JobResult {
     }
 }
 
-pub enum JobCtx<'j> {
+pub enum JobCtx<'job> {
     Build(BuildCtx),
-    OneShot(OneShotCtx<'j>),
+    OneShot(OneShotCtx<'job>),
 }
 
-pub struct JobRunner<'j> {
-    pub ctx: JobCtx<'j>,
-}
-
-impl<'j> JobRunner<'j> {
-    pub fn new<J: Into<JobCtx<'j>>>(ctx: J) -> JobRunner<'j> {
-        JobRunner { ctx: ctx.into() }
-    }
-
-    pub async fn run(mut self) -> JobResult {
-        match &mut self.ctx {
-            JobCtx::Build(ctx) => {
+impl<'job> JobCtx<'job> {
+    pub async fn run(self) -> JobResult {
+        match self {
+            JobCtx::Build(mut ctx) => {
                 if let Err(e) = ctx.run().await {
                     let reason = match e.downcast::<moby::Error>() {
                         Ok(err) => match err {
@@ -63,7 +71,7 @@ impl<'j> JobRunner<'j> {
                     JobResult::success(ctx.id())
                 }
             }
-            JobCtx::OneShot(ctx) => {
+            JobCtx::OneShot(mut ctx) => {
                 if let Err(e) = ctx.run().await {
                     let reason = match e.downcast::<moby::Error>() {
                         Ok(err) => match err {

@@ -1,20 +1,19 @@
+use crate::cleanup;
 use crate::image::{Image, ImageState, ImagesState};
-use crate::job::{Ctx, JobCtx};
+use crate::job::{container::BuildContainerCtx, Ctx, JobCtx};
 use crate::recipe::{BuildTarget, Recipe};
 use crate::Config;
 use crate::Result;
 
+use async_trait::async_trait;
 use futures::StreamExt;
-use moby::{
-    image::ImageBuildChunk, tty::TtyChunk, BuildOptions, Container, ContainerOptions, Docker,
-    ExecContainerOptions, RmContainerOptions,
-};
+use moby::{image::ImageBuildChunk, BuildOptions, ContainerOptions, Docker};
 use std::path::PathBuf;
 use std::str;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use tracing::{debug, error, info, info_span, trace, Instrument};
+use tracing::{debug, info, info_span, trace, Instrument};
 
 #[derive(Debug)]
 /// Groups all data and functionality necessary to create an artifact
@@ -22,99 +21,25 @@ pub struct BuildCtx {
     id: String,
     recipe: Recipe,
     image: Image,
-    config: Arc<Config>,
-    docker: Arc<Docker>,
-    image_state: Arc<RwLock<ImagesState>>,
-    is_running: Arc<AtomicBool>,
+    docker: Docker,
     bld_dir: PathBuf,
     out_dir: PathBuf,
     target: BuildTarget,
     verbose: bool,
+    config: Arc<Config>,
+    image_state: Arc<RwLock<ImagesState>>,
+    is_running: Arc<AtomicBool>,
 }
 
+#[async_trait]
 impl Ctx for BuildCtx {
+    type JobResult = Result<()>;
+
     fn id(&self) -> &str {
         &self.id
     }
-}
 
-macro_rules! cleanup {
-    ($ctx:ident, $container:ident, $span: ident) => {
-        if $ctx
-            .cleanup_if_exit(&$container)
-            .instrument($span.clone())
-            .await?
-        {
-            return Err(anyhow!("job interrupted by ctrl-c signal"));
-        }
-    };
-}
-
-impl BuildCtx {
-    pub fn new(
-        recipe: Recipe,
-        image: Image,
-        config: Arc<Config>,
-        docker: Arc<Docker>,
-        image_state: Arc<RwLock<ImagesState>>,
-        is_running: Arc<AtomicBool>,
-        target: BuildTarget,
-        verbose: bool,
-    ) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let id = format!(
-            "pkger-{}-{}-{}",
-            &recipe.metadata.name, &image.name, &timestamp,
-        );
-        let bld_dir = PathBuf::from(format!(
-            "/tmp/{}-build-{}",
-            &recipe.metadata.name, &timestamp,
-        ));
-        let out_dir = PathBuf::from(format!("/tmp/{}-out-{}", &recipe.metadata.name, &timestamp,));
-        trace!(id = %id, "creating new build context");
-
-        BuildCtx {
-            id,
-            config,
-            image,
-            recipe,
-            docker,
-            image_state,
-            is_running,
-            bld_dir,
-            out_dir,
-            target,
-            verbose,
-        }
-    }
-
-    async fn cleanup_if_exit<'job>(&self, container: &Container<'job>) -> Result<bool> {
-        let span = info_span!("check-is-running");
-        let _enter = span.enter();
-        if !self.is_running.load(Ordering::SeqCst) {
-            trace!(container_id = %container.id(), "not running, cleanup");
-
-            container
-                .stop(None)
-                .instrument(span.clone())
-                .await
-                .map_err(|e| anyhow!("failed to stop container - {}", e))?;
-
-            return container
-                .delete()
-                .instrument(span.clone())
-                .await
-                .map_err(|e| anyhow!("failed to delete container - {}", e))
-                .map(|_| true);
-        }
-
-        Ok(false)
-    }
-
-    pub async fn run(&mut self) -> Result<()> {
+    async fn run(&mut self) -> Self::JobResult {
         let span =
             info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name);
         let _enter = span.enter();
@@ -137,41 +62,71 @@ impl BuildCtx {
             .instrument(span.clone())
             .await?;
 
-        cleanup!(self, container, span);
+        cleanup!(container, span);
 
-        self.install_deps(&container, &image_state)
+        container
+            .install_deps(&image_state)
             .instrument(span.clone())
             .await?;
 
-        cleanup!(self, container, span);
+        cleanup!(container, span);
 
-        self.execute_scripts(&container)
-            .instrument(span.clone())
-            .await?;
+        container.execute_scripts().instrument(span.clone()).await?;
 
-        cleanup!(self, container, span);
+        cleanup!(container, span);
 
-        if let Err(e) = container
-            .remove(
-                &RmContainerOptions::builder()
-                    .force(true)
-                    .volumes(true)
-                    .build(),
-            )
-            .instrument(span.clone())
-            .await
-        {
-            error!("failed to delete container - {}", e);
-        }
+        container.cleanup().await?;
 
         Ok(())
+    }
+}
+
+impl BuildCtx {
+    pub fn new(
+        recipe: Recipe,
+        image: Image,
+        docker: Docker,
+        target: BuildTarget,
+        verbose: bool,
+        config: Arc<Config>,
+        image_state: Arc<RwLock<ImagesState>>,
+        is_running: Arc<AtomicBool>,
+    ) -> Self {
+        let timestamp = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let id = format!(
+            "pkger-{}-{}-{}",
+            &recipe.metadata.name, &image.name, &timestamp,
+        );
+        let bld_dir = PathBuf::from(format!(
+            "/tmp/{}-build-{}",
+            &recipe.metadata.name, &timestamp,
+        ));
+        let out_dir = PathBuf::from(format!("/tmp/{}-out-{}", &recipe.metadata.name, &timestamp,));
+        trace!(id = %id, "creating new build context");
+
+        BuildCtx {
+            id,
+            config,
+            image,
+            docker,
+            recipe,
+            image_state,
+            is_running,
+            bld_dir,
+            out_dir,
+            target,
+            verbose,
+        }
     }
 
     /// Creates and starts a container from the given ImageState
     async fn container_spawn<'job>(
         &'job self,
         image_state: &ImageState,
-    ) -> Result<Container<'job>> {
+    ) -> Result<BuildContainerCtx<'job>> {
         let span = info_span!("container-spawn");
         let _enter = span.enter();
 
@@ -180,7 +135,6 @@ impl BuildCtx {
         env.insert("PKGER_OUT_DIR", self.out_dir.to_string_lossy());
         env.insert("PKGER_OS", image_state.os.as_ref());
         env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
-
         trace!(env = ?env);
 
         let opts = ContainerOptions::builder(&image_state.image)
@@ -206,44 +160,15 @@ impl BuildCtx {
         container.start().instrument(span.clone()).await?;
         info!(container_id = %id, "started container");
 
-        Ok(container)
-    }
-
-    async fn container_exec<'job, S: AsRef<str>>(
-        &self,
-        container: &Container<'job>,
-        cmd: S,
-    ) -> Result<()> {
-        let span = info_span!("container-exec");
-        let _enter = span.enter();
-
-        debug!(cmd = %cmd.as_ref(), container = %container.id(), "executing");
-
-        let opts = ExecContainerOptions::builder()
-            .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
-            .attach_stdout(true)
-            .attach_stderr(true)
-            .build();
-
-        let mut stream = container.exec(&opts);
-
-        while let Some(result) = stream.next().instrument(span.clone()).await {
-            cleanup!(self, container, span);
-            match result? {
-                TtyChunk::StdOut(chunk) => {
-                    if self.verbose {
-                        info!("{}", str::from_utf8(&chunk)?.trim_end_matches("\n"));
-                    }
-                }
-                TtyChunk::StdErr(chunk) => {
-                    if self.verbose {
-                        error!("{}", str::from_utf8(&chunk)?.trim_end_matches("\n"));
-                    }
-                }
-                _ => unreachable!(),
-            }
-        }
-        Ok(())
+        Ok(BuildContainerCtx::new(
+            container,
+            &self.recipe,
+            &self.image,
+            self.is_running.clone(),
+            self.target.clone(),
+            self.bld_dir.as_path(),
+            self.out_dir.as_path(),
+        ))
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
@@ -301,101 +226,7 @@ impl BuildCtx {
         Err(anyhow!("stream ended before image id was received"))
     }
 
-    async fn install_deps<'job>(
-        &self,
-        container: &Container<'job>,
-        state: &ImageState,
-    ) -> Result<()> {
-        let span = info_span!("install-deps");
-        let _enter = span.enter();
-
-        info!("installing dependencies");
-        let pkg_mngr = state.os.package_manager();
-        let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
-            deps.resolve_names(&state.image)
-        } else {
-            vec![]
-        };
-
-        if deps.is_empty() {
-            trace!("no dependencies to install");
-            return Ok(());
-        }
-
-        let deps = deps.join(" ");
-        trace!(deps = %deps, "resolved dependency names");
-
-        let cmd = format!(
-            "{} {} {}",
-            pkg_mngr.as_ref(),
-            pkg_mngr.install_args().join(" "),
-            deps,
-        );
-        trace!(command = %cmd, "installing with");
-
-        self.container_exec(container, cmd)
-            .instrument(span.clone())
-            .await
-    }
-
-    async fn execute_scripts<'job>(&self, container: &Container<'job>) -> Result<()> {
-        let span = info_span!("exec-scripts");
-        let _enter = span.enter();
-
-        if let Some(config_script) = &self.recipe.configure_script {
-            info!("executing config scripts");
-            for cmd in &config_script.steps {
-                trace!(command = %cmd.cmd, "processing");
-                if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&self.image.name) {
-                        trace!(image = %self.image.name, "not found, skipping");
-                        continue;
-                    }
-                }
-                trace!(command = %cmd.cmd, "running");
-                self.container_exec(container, &cmd.cmd)
-                    .instrument(span.clone())
-                    .await?;
-            }
-        }
-
-        info!("executing build scripts");
-        for cmd in &self.recipe.build_script.steps {
-            trace!(command = %cmd.cmd, "processing");
-            if !cmd.images.is_empty() {
-                trace!(images = ?cmd.images, "only execute on");
-                if !cmd.images.contains(&self.image.name) {
-                    trace!(image = %self.image.name, "not found, skipping");
-                    continue;
-                }
-            }
-            trace!(command = %cmd.cmd, "running");
-            self.container_exec(container, &cmd.cmd)
-                .instrument(span.clone())
-                .await?;
-        }
-
-        if let Some(install_script) = &self.recipe.install_script {
-            info!("executing install scripts");
-            for cmd in &install_script.steps {
-                trace!(command = %cmd.cmd, "processing");
-                if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&self.image.name) {
-                        trace!(image = %self.image.name, "not found, skipping");
-                        continue;
-                    }
-                }
-                trace!(command = %cmd.cmd, "running");
-                self.container_exec(container, &cmd.cmd)
-                    .instrument(span.clone())
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
+    //async fn archive_output_dir<'job>(&self, container: &Container<'job>) -> Result<()> {}
 }
 
 impl<'job> From<BuildCtx> for JobCtx<'job> {
