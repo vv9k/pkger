@@ -1,16 +1,27 @@
-use crate::job::{Ctx, JobCtx};
+use crate::job::{Ctx, JobCtx, container::convert_id};
 use crate::Result;
 
 use async_trait::async_trait;
 use futures::StreamExt;
 use moby::{tty::TtyChunk, ContainerOptions, Docker, LogsOptions};
 use std::time::SystemTime;
+use tracing::{trace,info_span, Instrument, info};
 
+#[derive(Debug, Default)]
 pub struct Output {
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
 }
 
+impl Output {
+    pub fn push_chunk(&mut self, chunk: TtyChunk) {
+        match chunk {
+            TtyChunk::StdErr(mut inner) => self.stderr.append(&mut inner),
+            TtyChunk::StdOut(mut inner) => self.stdout.append(&mut inner),
+            _ => unreachable!(),
+        }
+    }
+}
 #[derive(Debug)]
 /// Simple job that spawns a container with a command to execute and returns its stdout and/or
 /// stderr.
@@ -31,15 +42,26 @@ impl<'job> Ctx for OneShotCtx<'job> {
     }
 
     async fn run(&mut self) -> Self::JobResult {
-        let handle = self
+        let span = info_span!("oneshot-ctx", id = %self.id);
+        let _enter = span.enter();
+
+        info!("creating container");
+        let (id, handle) = self
             .docker
             .containers()
             .create(self.opts)
+            .instrument(span.clone())
             .await
-            .map(|info| self.docker.containers().get(info.id))
+            .map(|info| {
+                let handle = self.docker.containers().get(&info.id);
+                (info.id, handle)
+            })
             .map_err(|e| anyhow!("failed to create a container - {}", e))?;
+        let id = convert_id(&id);
+        trace!(container_id = %id);
 
-        handle.start().await?;
+        handle.start().instrument(span.clone()).await?;
+        info!("started container");
 
         let mut logs_stream = handle.logs(
             &LogsOptions::builder()
@@ -47,17 +69,14 @@ impl<'job> Ctx for OneShotCtx<'job> {
                 .stderr(self.stderr)
                 .build(),
         );
-        let mut stdout = vec![];
-        let mut stderr = vec![];
+
+        info!("collecting output");
+        let mut output = Output::default();
         while let Some(chunk) = logs_stream.next().await {
-            match chunk? {
-                TtyChunk::StdOut(mut _chunk) => stdout.append(&mut _chunk),
-                TtyChunk::StdErr(mut _chunk) => stderr.append(&mut _chunk),
-                _ => {}
-            }
+            output.push_chunk(chunk?);
         }
 
-        Ok(Output { stdout, stderr })
+        Ok(output)
     }
 }
 

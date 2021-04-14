@@ -12,7 +12,12 @@ use std::sync::Arc;
 use tracing::{debug, error, info, info_span, trace, Instrument};
 
 /// Length of significant characters of a container ID.
-pub const CONTAINER_ID_LEN: usize = 12;
+const CONTAINER_ID_LEN: usize = 12;
+
+pub fn convert_id(id: &str) -> &str
+{
+    &id[..CONTAINER_ID_LEN]
+}
 
 pub struct BuildContainerCtx<'job> {
     container: Container<'job>,
@@ -250,6 +255,6 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     fn container_id(&self) -> &str {
-        &self.container.id()[..CONTAINER_ID_LEN]
+        convert_id(&self.container.id())
     }
 }
