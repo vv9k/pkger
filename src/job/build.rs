@@ -2,6 +2,7 @@ use crate::cleanup;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{container::DockerContainer, Ctx, JobCtx};
 use crate::recipe::{BuildTarget, Recipe};
+use crate::util::{save_tar_gz, unpack_archive};
 use crate::Config;
 use crate::Result;
 
@@ -27,6 +28,7 @@ pub struct BuildCtx {
     docker: Docker,
     container_bld_dir: PathBuf,
     container_out_dir: PathBuf,
+    out_dir: PathBuf,
     target: BuildTarget,
     config: Arc<Config>,
     image_state: Arc<RwLock<ImagesState>>,
@@ -137,10 +139,12 @@ impl BuildCtx {
             "pkger-{}-{}-{}",
             &recipe.metadata.name, &image.name, &timestamp,
         );
-        let bld_dir = PathBuf::from(format!(
+        let container_bld_dir = PathBuf::from(format!(
             "/tmp/{}-build-{}",
             &recipe.metadata.name, &timestamp,
         ));
+        let container_out_dir =
+            PathBuf::from(format!("/tmp/{}-out-{}", &recipe.metadata.name, &timestamp,));
         trace!(id = %id, "creating new build context");
 
         BuildCtx {
@@ -148,8 +152,9 @@ impl BuildCtx {
             recipe,
             image,
             docker,
-            container_bld_dir: bld_dir,
-            container_out_dir: PathBuf::from(&config.output_dir),
+            container_bld_dir,
+            container_out_dir,
+            out_dir: PathBuf::from(&config.output_dir),
             target,
             config,
             image_state,
@@ -257,7 +262,7 @@ impl BuildCtx {
 
         let os_ver = image.os.os_ver();
         let out_dir = self
-            .container_out_dir
+            .out_dir
             .join(format!("{}/{}", image.os.as_ref(), os_ver));
 
         if out_dir.exists() {
@@ -283,7 +288,7 @@ pub struct BuildContainerCtx<'job> {
     opts: ContainerOptions,
     recipe: &'job Recipe,
     image: &'job Image,
-    container_out_dir: PathBuf,
+    container_out_dir: &'job Path,
     target: BuildTarget,
 }
 
@@ -296,14 +301,14 @@ impl<'job> BuildContainerCtx<'job> {
         image: &'job Image,
         is_running: Arc<AtomicBool>,
         target: BuildTarget,
-        out_dir: &Path,
+        container_out_dir: &'job Path,
     ) -> BuildContainerCtx<'job> {
         BuildContainerCtx {
             container: DockerContainer::new(docker, Some(is_running)),
             opts,
             recipe,
             image,
-            container_out_dir: out_dir.to_path_buf(),
+            container_out_dir,
             target,
         }
     }
@@ -420,6 +425,7 @@ impl<'job> BuildContainerCtx<'job> {
     pub async fn create_package(&self, output_dir: &Path) -> Result<()> {
         match self.target {
             BuildTarget::Rpm => self.build_rpm(&output_dir).await,
+            BuildTarget::Gzip => self.build_gzip(&output_dir).await,
             _ => Ok(()),
         }
     }
@@ -444,7 +450,7 @@ impl<'job> BuildContainerCtx<'job> {
         info!("copying final archive");
         self.container
             .inner()
-            .copy_from(self.container_out_dir.as_path())
+            .copy_from(self.container_out_dir)
             .try_concat()
             .instrument(span.clone())
             .await
@@ -452,11 +458,11 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     /// Creates final RPM package and saves it to `output_dir`
-    pub async fn build_rpm(&self, output_dir: &Path) -> Result<()> {
-        let span = info_span!("rpm", container = %self.container.id());
+    async fn build_rpm(&self, output_dir: &Path) -> Result<()> {
+        let span = info_span!("RPM", container = %self.container.id());
         let _enter = span.enter();
 
-        info!(parent: &span, "building rpm");
+        info!(parent: &span, "building RPM package");
 
         let dirs = vec![
             "/root/rpmbuild/SPECS".to_string(),
@@ -533,17 +539,43 @@ impl<'job> BuildContainerCtx<'job> {
 
         let mut archive = tar::Archive::new(&rpm[..]);
 
-        for entry in archive.entries()? {
-            let mut entry = entry?;
-            if let tar::EntryType::Regular = entry.header().entry_type() {
-                let path = entry.header().path()?.to_path_buf();
-                trace!(parent: &span, entry = %path.display(), to = %output_dir.display(), "unpacking");
-                let name = path.file_name().unwrap_or_default();
-                entry.unpack(output_dir.join(name))?;
-            }
+        async move {
+            unpack_archive(&mut archive, output_dir)
+                .map_err(|e| anyhow!("failed to unpack archive - {}", e))
         }
+        .instrument(span.clone())
+        .await
+    }
 
-        Ok(())
+    /// Creates final GZIP package and saves it to `output_dir`
+    async fn build_gzip(&self, output_dir: &Path) -> Result<()> {
+        let span = info_span!("GZIP", container = %self.container.id());
+        let _enter = span.enter();
+
+        info!(parent: &span, "building GZIP package");
+        let package = self
+            .container
+            .inner()
+            .copy_from(self.container_out_dir)
+            .try_concat()
+            .instrument(span.clone())
+            .await?;
+
+        let archive = tar::Archive::new(&package[..]);
+
+        async move {
+            save_tar_gz(
+                archive,
+                &format!(
+                    "{}-{}.tar.gz",
+                    &self.recipe.metadata.name, &self.recipe.metadata.version
+                ),
+                output_dir,
+            )
+            .map_err(|e| anyhow!("failed to save package as tar.gz - {}", e))
+        }
+        .instrument(span.clone())
+        .await
     }
 
     async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {

@@ -40,10 +40,10 @@ pub fn save_tar_gz<T: io::Read>(
 ) -> Result<()> {
     let path = output_dir.join(name);
 
-    let span = info_span!("unpack-archive", path = %path.display());
+    let span = info_span!("save-tar-gz", path = %path.display());
     let _enter = span.enter();
 
-    trace!("creating a gzipped tarball");
+    trace!(parent: &span, "creating a gzipped tarball");
     let f = File::create(path.as_path())?;
     let mut e = GzEncoder::new(f, Compression::default());
     let mut archive = archive.into_inner();

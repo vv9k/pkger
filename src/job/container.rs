@@ -114,7 +114,7 @@ impl<'job> DockerContainer<'job> {
         let span = info_span!("container-exec");
         let _enter = span.enter();
 
-        debug!(cmd = %cmd.as_ref(), "executing");
+        debug!(parent: &span, cmd = %cmd.as_ref(), "executing");
 
         let opts = ExecContainerOptions::builder()
             .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
