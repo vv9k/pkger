@@ -123,6 +123,7 @@ impl TryFrom<MetadataRep> for Metadata {
             images,
             git: rep.git,
             depends,
+            skip_default_deps: rep.skip_default_deps,
             build_depends,
             obsoletes,
             conflicts,
@@ -147,16 +148,18 @@ pub struct MetadataRep {
     pub source: String,
     pub images: Vec<toml::Value>,
 
-    // Git repository as source
+    /// Git repository as source
     pub git: Option<String>,
 
+    /// Whether to install default dependencies before build
+    pub skip_default_deps: Option<bool>,
     pub build_depends: Option<Vec<String>>,
     pub depends: Option<Vec<String>>,
     pub obsoletes: Option<Vec<String>>,
     pub conflicts: Option<Vec<String>>,
     pub provides: Option<Vec<String>>,
 
-    // Directories to exclude when creating the package
+    /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
 
     // Only Debian based
