@@ -217,15 +217,20 @@ fn setup_tracing_fmt(opts: &Opts) {
         .with_target(false)
         .with_level(true);
 
-    tracing_subscriber::fmt::fmt()
+    let fmt = tracing_subscriber::fmt::fmt()
         .with_target(false)
-        .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
         .with_level(true)
         .with_max_level(Level::TRACE)
         .with_env_filter(&filter)
         .fmt_fields(formatter)
-        .event_format(format)
-        .init();
+        .event_format(format);
+
+    if opts.hide_date {
+        fmt.without_time().init()
+    } else {
+        fmt.with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
+            .init()
+    };
 
     trace!(log_filter = %filter);
 }

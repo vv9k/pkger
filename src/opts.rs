@@ -28,6 +28,9 @@ pub struct Opts {
     #[clap(short, long)]
     /// Enable debug output.
     pub debug: bool,
+    #[clap(long)]
+    /// Disable timestamp from output.
+    pub hide_date: bool,
 }
 
 impl Opts {
