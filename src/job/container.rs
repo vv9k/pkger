@@ -128,10 +128,18 @@ impl<'job> DockerContainer<'job> {
             cleanup!(self, span);
             match result? {
                 TtyChunk::StdOut(chunk) => {
-                    info!("{}", str::from_utf8(&chunk)?.trim_end_matches('\n'));
+                    info!(
+                        parent: &span,
+                        "{}",
+                        str::from_utf8(&chunk)?.trim_end_matches('\n')
+                    );
                 }
                 TtyChunk::StdErr(chunk) => {
-                    error!("{}", str::from_utf8(&chunk)?.trim_end_matches('\n'));
+                    error!(
+                        parent: &span,
+                        "{}",
+                        str::from_utf8(&chunk)?.trim_end_matches('\n')
+                    );
                 }
                 _ => unreachable!(),
             }
