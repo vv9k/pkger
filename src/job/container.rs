@@ -1,8 +1,8 @@
 use crate::cleanup;
 use crate::Result;
 
-use futures::{StreamExt};
-use moby::{Container, ContainerOptions, ExecContainerOptions, tty::TtyChunk, Docker, LogsOptions};
+use futures::StreamExt;
+use moby::{tty::TtyChunk, Container, ContainerOptions, Docker, ExecContainerOptions, LogsOptions};
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -11,8 +11,7 @@ use tracing::{debug, error, info, info_span, trace, Instrument};
 /// Length of significant characters of a container ID.
 const CONTAINER_ID_LEN: usize = 12;
 
-pub fn convert_id(id: &str) -> &str
-{
+pub fn convert_id(id: &str) -> &str {
     &id[..CONTAINER_ID_LEN]
 }
 
@@ -39,9 +38,13 @@ pub struct DockerContainer<'job> {
 }
 
 impl<'job> DockerContainer<'job> {
-    pub fn new(docker: &'job Docker,  is_running: Option<Arc<AtomicBool>>) -> DockerContainer<'job> {
+    pub fn new(docker: &'job Docker, is_running: Option<Arc<AtomicBool>>) -> DockerContainer<'job> {
         Self {
-            is_running: if let Some (is_running) = is_running { is_running } else { Arc::new(AtomicBool::new(true))},
+            is_running: if let Some(is_running) = is_running {
+                is_running
+            } else {
+                Arc::new(AtomicBool::new(true))
+            },
             container: docker.containers().get(""),
             docker,
         }
@@ -73,7 +76,6 @@ impl<'job> DockerContainer<'job> {
         info!(container_id = %self.id(), "started container");
 
         Ok(())
-
     }
 
     pub async fn remove(&self) -> Result<()> {
@@ -143,12 +145,9 @@ impl<'job> DockerContainer<'job> {
 
         trace!(stdout = %stdout, stderr = %stderr);
 
-        let mut logs_stream = self.container.logs(
-            &LogsOptions::builder()
-                .stdout(stdout)
-                .stderr(stderr)
-                .build(),
-        );
+        let mut logs_stream = self
+            .container
+            .logs(&LogsOptions::builder().stdout(stdout).stderr(stderr).build());
 
         info!("collecting output");
         let mut output = Output::default();
@@ -157,7 +156,5 @@ impl<'job> DockerContainer<'job> {
         }
 
         Ok(output)
-
     }
-
 }
