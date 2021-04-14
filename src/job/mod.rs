@@ -10,7 +10,7 @@ use async_trait::async_trait;
 #[macro_export]
 macro_rules! cleanup {
     ($ctx:ident, $span: ident) => {
-        if $ctx.cleanup_if_exit().instrument($span.clone()).await? {
+        if $ctx.check_is_running().instrument($span.clone()).await? {
             return Err(anyhow!("job interrupted by ctrl-c signal"));
         }
     };
