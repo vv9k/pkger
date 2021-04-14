@@ -29,5 +29,4 @@ toml = "0.5"
 tracing = "0.1"
 tracing-futures = "0.1"
 tracing-subscriber = { version = "0.2", features = ["fmt", "chrono"] }
-lazy_static = "1"
 async-trait = "0.1"
