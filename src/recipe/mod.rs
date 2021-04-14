@@ -91,23 +91,16 @@ impl TryFrom<RecipeRep> for Recipe {
 
 impl From<&Recipe> for RpmSpec {
     fn from(recipe: &Recipe) -> Self {
-        let mut builder = RpmSpec::builder()
+        RpmSpec::builder()
             .name(&recipe.metadata.name)
+            .build_arch(&recipe.metadata.arch)
+            .summary(&recipe.metadata.description)
+            .description(&recipe.metadata.description)
             .license(&recipe.metadata.license)
             .version(&recipe.metadata.version)
             .release(&recipe.metadata.revision)
             .description(&recipe.metadata.description)
-            .build_script(&recipe.build_script.steps_as_script());
-
-        if let Some(config) = &recipe.configure_script {
-            builder = builder.prep_script(config.steps_as_script());
-        }
-
-        if let Some(install) = &recipe.install_script {
-            builder = builder.install_script(install.steps_as_script());
-        }
-
-        builder.build()
+            .build()
     }
 }
 
