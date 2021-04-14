@@ -9,8 +9,9 @@ use clap::Clap;
 )]
 pub struct Opts {
     /// URL to Docker daemon listening on a unix or tcp socket. An example could be
-    /// `unix:///var/run/docker.socket` or a tcp uri `tcp://127.0.0.1:81`.
-    #[clap(short, long)]
+    /// `unix:///var/run/docker.socket` or a tcp uri `tcp://127.0.0.1:81`. By default pkger will
+    /// try to connect to a unix socket at `/run/docker.sock`.
+    #[clap(long)]
     pub docker: Option<String>,
     /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
     pub recipes: Vec<String>,
@@ -21,9 +22,12 @@ pub struct Opts {
     /// Path to the config file (default - "./conf.toml").
     #[clap(short, long)]
     pub config: Option<String>,
-    /// Surpress all output.
+    /// Surpress all output (except for errors).
     #[clap(short, long)]
     pub quiet: bool,
+    #[clap(short, long)]
+    /// Enable debug output.
+    pub debug: bool,
 }
 
 impl Opts {
