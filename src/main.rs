@@ -26,7 +26,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::task;
-use tracing::{debug, error, info, trace, warn, Level};
+use tracing::{debug, error, info, info_span, trace, warn, Level};
 use tracing_subscriber::fmt::format;
 use tracing_subscriber::prelude::*;
 
@@ -51,7 +51,6 @@ struct Pkger {
     recipes: Arc<Recipes>,
     docker: Arc<DockerConnectionPool>,
     images_filter: Arc<Vec<String>>,
-    verbose: bool,
     images_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
 }
@@ -67,7 +66,6 @@ impl TryFrom<Config> for Pkger {
             images_filter: Arc::new(vec![]),
             recipes: Arc::new(recipes),
             docker: Arc::new(DockerConnectionPool::default()),
-            verbose: true,
             images_state: Arc::new(RwLock::new(
                 ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
             )),
@@ -109,7 +107,6 @@ impl Pkger {
             }
             .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?,
         );
-        self.verbose = !opts.quiet;
         Ok(())
     }
 
@@ -130,7 +127,6 @@ impl Pkger {
                             (*image).clone(),
                             self.docker.connect(),
                             image_info.target.clone(),
-                            self.verbose,
                             self.config.clone(),
                             self.images_state.clone(),
                             self.is_running.clone(),
@@ -180,11 +176,24 @@ impl Pkger {
     }
 }
 
-fn setup_tracing_fmt() {
+fn setup_tracing_fmt(opts: &Opts) {
+    let span = info_span!("setup-tracing");
+    let _enter = span.enter();
+
     let filter = if let Some(filter) = env::var_os("RUST_LOG") {
-        filter.to_string_lossy().to_string()
+        if opts.quiet {
+            "".to_string()
+        } else {
+            filter.to_string_lossy().to_string()
+        }
     } else {
-        "pkger=info".to_string()
+        if opts.quiet {
+            "pkger=error".to_string()
+        } else if opts.debug {
+            "pkger=trace".to_string()
+        } else {
+            "pkger=info".to_string()
+        }
     };
 
     let formatter =
@@ -206,19 +215,20 @@ fn setup_tracing_fmt() {
         .with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
         .with_level(true)
         .with_max_level(Level::TRACE)
-        .with_env_filter(filter)
+        .with_env_filter(&filter)
         .fmt_fields(formatter)
         .event_format(format)
         .init();
+
+    trace!(log_filter = %filter);
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
-    if !opts.quiet {
-        setup_tracing_fmt();
-    }
     trace!(opts = ?opts);
+
+    setup_tracing_fmt(&opts);
 
     let config_path = opts
         .config

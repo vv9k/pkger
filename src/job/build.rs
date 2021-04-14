@@ -26,7 +26,6 @@ pub struct BuildCtx {
     bld_dir: PathBuf,
     out_dir: PathBuf,
     target: BuildTarget,
-    verbose: bool,
     config: Arc<Config>,
     image_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
@@ -45,18 +44,14 @@ impl Ctx for BuildCtx {
             info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name);
         let _enter = span.enter();
 
-        if self.verbose {
-            info!(id = %self.id, "running job" );
-        }
+        info!(id = %self.id, "running job" );
         let image_state = self
             .image_build()
             .instrument(span.clone())
             .await
             .map_err(|e| anyhow!("failed to build image - {}", e))?;
 
-        if self.verbose {
-            info!(image = %image_state.image);
-        }
+        info!(image = %image_state.image);
 
         let container_ctx = self
             .container_spawn(&image_state)
@@ -108,7 +103,6 @@ impl BuildCtx {
         image: Image,
         docker: Docker,
         target: BuildTarget,
-        verbose: bool,
         config: Arc<Config>,
         image_state: Arc<RwLock<ImagesState>>,
         is_running: Arc<AtomicBool>,
@@ -136,7 +130,6 @@ impl BuildCtx {
             bld_dir,
             out_dir,
             target,
-            verbose,
             config,
             image_state,
             is_running,
@@ -207,9 +200,7 @@ impl BuildCtx {
                     return Err(anyhow!(error));
                 }
                 ImageBuildChunk::Update { stream } => {
-                    if self.verbose {
-                        info!("{}", stream);
-                    }
+                    info!("{}", stream);
                 }
                 ImageBuildChunk::Digest { aux } => {
                     let state = ImageState::new(
