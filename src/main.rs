@@ -195,14 +195,12 @@ fn setup_tracing_fmt(opts: &Opts) {
         } else {
             filter.to_string_lossy().to_string()
         }
+    } else if opts.quiet {
+        "pkger=error".to_string()
+    } else if opts.debug {
+        "pkger=trace".to_string()
     } else {
-        if opts.quiet {
-            "pkger=error".to_string()
-        } else if opts.debug {
-            "pkger=trace".to_string()
-        } else {
-            "pkger=info".to_string()
-        }
+        "pkger=info".to_string()
     };
 
     let formatter =
