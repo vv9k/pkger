@@ -8,6 +8,8 @@ use crate::Result;
 use async_trait::async_trait;
 use futures::{StreamExt, TryStreamExt};
 use moby::{image::ImageBuildChunk, BuildOptions, ContainerOptions, Docker};
+use rpmspec::RpmSpec;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
@@ -23,8 +25,8 @@ pub struct BuildCtx {
     recipe: Recipe,
     image: Image,
     docker: Docker,
-    bld_dir: PathBuf,
-    out_dir: PathBuf,
+    container_bld_dir: PathBuf,
+    container_out_dir: PathBuf,
     target: BuildTarget,
     config: Arc<Config>,
     image_state: Arc<RwLock<ImagesState>>,
@@ -51,6 +53,11 @@ impl Ctx for BuildCtx {
             .await
             .map_err(|e| anyhow!("failed to build image - {}", e))?;
 
+        let out_dir = self
+            .create_out_dir(&image_state)
+            .instrument(span.clone())
+            .await?;
+
         let container_ctx = self
             .container_spawn(&image_state)
             .instrument(span.clone())
@@ -76,7 +83,15 @@ impl Ctx for BuildCtx {
 
         cleanup!(container_ctx, span);
 
-        container_ctx.create_dirs().instrument(span.clone()).await?;
+        let dirs = vec![
+            self.container_out_dir.to_string_lossy().to_string(),
+            self.container_bld_dir.to_string_lossy().to_string(),
+        ];
+
+        container_ctx
+            .create_dirs(&dirs[..])
+            .instrument(span.clone())
+            .await?;
 
         cleanup!(container_ctx, span);
 
@@ -86,6 +101,11 @@ impl Ctx for BuildCtx {
             .await?;
 
         cleanup!(container_ctx, span);
+
+        container_ctx
+            .create_package(out_dir.as_path())
+            .instrument(span.clone())
+            .await?;
 
         let _bytes = container_ctx
             .archive_output_dir()
@@ -121,7 +141,6 @@ impl BuildCtx {
             "/tmp/{}-build-{}",
             &recipe.metadata.name, &timestamp,
         ));
-        let out_dir = PathBuf::from(format!("/tmp/{}-out-{}", &recipe.metadata.name, &timestamp,));
         trace!(id = %id, "creating new build context");
 
         BuildCtx {
@@ -129,8 +148,8 @@ impl BuildCtx {
             recipe,
             image,
             docker,
-            bld_dir,
-            out_dir,
+            container_bld_dir: bld_dir,
+            container_out_dir: PathBuf::from(&config.output_dir),
             target,
             config,
             image_state,
@@ -144,8 +163,8 @@ impl BuildCtx {
         let _enter = span.enter();
 
         let mut env = self.recipe.env.clone();
-        env.insert("PKGER_BLD_DIR", self.bld_dir.to_string_lossy());
-        env.insert("PKGER_OUT_DIR", self.out_dir.to_string_lossy());
+        env.insert("PKGER_BLD_DIR", self.container_bld_dir.to_string_lossy());
+        env.insert("PKGER_OUT_DIR", self.container_out_dir.to_string_lossy());
         env.insert("PKGER_OS", image_state.os.as_ref());
         env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
         trace!(env = ?env);
@@ -155,7 +174,12 @@ impl BuildCtx {
             .cmd(vec!["sleep infinity"])
             .entrypoint(vec!["/bin/sh", "-c"])
             .env(env.kv_vec())
-            .working_dir(self.bld_dir.to_string_lossy().to_string().as_str())
+            .working_dir(
+                self.container_bld_dir
+                    .to_string_lossy()
+                    .to_string()
+                    .as_str(),
+            )
             .build();
 
         let mut ctx = BuildContainerCtx::new(
@@ -165,8 +189,7 @@ impl BuildCtx {
             &self.image,
             self.is_running.clone(),
             self.target.clone(),
-            self.bld_dir.as_path(),
-            self.out_dir.as_path(),
+            self.container_out_dir.as_path(),
         );
 
         ctx.start_container()
@@ -227,6 +250,26 @@ impl BuildCtx {
 
         Err(anyhow!("stream ended before image id was received"))
     }
+
+    async fn create_out_dir(&self, image: &ImageState) -> Result<PathBuf> {
+        let span = info_span!("install-deps");
+        let _enter = span.enter();
+
+        let os_ver = image.os.os_ver();
+        let out_dir = self
+            .container_out_dir
+            .join(format!("{}/{}", image.os.as_ref(), os_ver));
+
+        if out_dir.exists() {
+            trace!(dir = %out_dir.display(), "already exists");
+            Ok(out_dir)
+        } else {
+            trace!(dir = %out_dir.display(), "creating output directory");
+            fs::create_dir_all(out_dir.as_path())
+                .map(|_| out_dir)
+                .map_err(|e| anyhow!("failed to create output directory - {}", e))
+        }
+    }
 }
 
 impl<'job> From<BuildCtx> for JobCtx<'job> {
@@ -240,7 +283,6 @@ pub struct BuildContainerCtx<'job> {
     opts: ContainerOptions,
     recipe: &'job Recipe,
     image: &'job Image,
-    bld_dir: PathBuf,
     out_dir: PathBuf,
     target: BuildTarget,
 }
@@ -254,7 +296,6 @@ impl<'job> BuildContainerCtx<'job> {
         image: &'job Image,
         is_running: Arc<AtomicBool>,
         target: BuildTarget,
-        bld_dir: &Path,
         out_dir: &Path,
     ) -> BuildContainerCtx<'job> {
         BuildContainerCtx {
@@ -262,7 +303,6 @@ impl<'job> BuildContainerCtx<'job> {
             opts,
             recipe,
             image,
-            bld_dir: bld_dir.to_path_buf(),
             out_dir: out_dir.to_path_buf(),
             target,
         }
@@ -298,7 +338,7 @@ impl<'job> BuildContainerCtx<'job> {
         let mut deps = vec!["tar", "git"];
         match self.target {
             BuildTarget::Rpm => {
-                deps.push("rpmbuild");
+                deps.push("rpm-build");
             }
             BuildTarget::Deb => {
                 deps.push("dpkg-deb");
@@ -377,16 +417,19 @@ impl<'job> BuildContainerCtx<'job> {
         Ok(())
     }
 
-    pub async fn create_dirs(&self) -> Result<()> {
+    pub async fn create_package(&self, output_dir: &Path) -> Result<()> {
+        match self.target {
+            BuildTarget::Rpm => self.build_rpm(&output_dir).await,
+            _ => Ok(()),
+        }
+    }
+
+    pub async fn create_dirs(&self, dirs: &[String]) -> Result<()> {
         let span = info_span!("create-dirs", container = %self.container.id());
         let _enter = span.enter();
 
-        info!("creating necessary directories");
-        let dirs = vec![
-            self.out_dir.to_string_lossy().to_string(),
-            self.bld_dir.to_string_lossy().to_string(),
-        ]
-        .join(" ");
+        let dirs = dirs.join(" ");
+
         trace!(directories = %dirs);
 
         self.container
@@ -408,8 +451,107 @@ impl<'job> BuildContainerCtx<'job> {
             .map_err(|e| anyhow!("failed to archive output directory - {}", e))
     }
 
+    pub async fn build_rpm(&self, output_dir: &Path) -> Result<()> {
+        let span = info_span!("rpm", container = %self.container.id());
+        let _enter = span.enter();
+
+        info!("building rpm");
+
+        let dirs = vec![
+            "/root/rpmbuild/SPECS".to_string(),
+            "/root/rpmbuild/SOURCES".to_string(),
+            "/root/rpmbuild/RPMS/".to_string(),
+            "/root/rpmbuild/SRPMS".to_string(),
+        ];
+
+        self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
+
+        self.container
+            .exec(format!(
+                "tar -zcvf /root/rpmbuild/SOURCES/{}-{}.tar.gz {}",
+                &self.recipe.metadata.name,
+                &self.recipe.metadata.version,
+                self.out_dir.display()
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        let spec = RpmSpec::from(self.recipe).render_owned()?;
+        let spec_file = format!("./{}.spec", &self.recipe.metadata.name);
+        debug!(spec = %spec);
+
+        trace!("create tar archive");
+        let mut archive_buf = Vec::new();
+        let mut archive = tar::Builder::new(&mut archive_buf);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(spec.as_bytes().iter().count() as u64);
+        header.set_cksum();
+        archive.append_data(&mut header, &spec_file, spec.as_bytes())?;
+        let archive_buf = archive.into_inner()?;
+
+        trace!("copy archive to container");
+        self.container
+            .inner()
+            .copy_file_into(
+                format!(
+                    "/root/rpmbuild/SPECS/{}-spec.tar",
+                    &self.recipe.metadata.name
+                ),
+                archive_buf,
+            )
+            .instrument(span.clone())
+            .await?;
+
+        trace!("extract archive");
+        self.container
+            .exec(format!(
+                "tar -xvf /root/rpmbuild/SPECS/{}-spec.tar -C /root/rpmbuild/SPECS",
+                &self.recipe.metadata.name,
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        self.container
+            .exec(format!(
+                "rpmbuild -bb /root/rpmbuild/SPECS/{}.spec",
+                &self.recipe.metadata.name
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        self.container
+            .exec("ls -l /root/rpmbuild/RPMS/x86_64/")
+            .instrument(span.clone())
+            .await?;
+
+        let rpm = self
+            .container
+            .inner()
+            .copy_from(&Path::new(&format!(
+                "/root/rpmbuild/RPMS/{}/",
+                &self.recipe.metadata.arch
+            )))
+            .try_concat()
+            .instrument(span.clone())
+            .await?;
+
+        let mut archive = tar::Archive::new(&rpm[..]);
+
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            if let tar::EntryType::Regular = entry.header().entry_type() {
+                let path = entry.header().path()?.to_path_buf();
+                trace!(entry = %path.display(), to = %output_dir.display(), "unpacking");
+                let name = path.file_name().unwrap_or_default();
+                entry.unpack(output_dir.join(name))?;
+            }
+        }
+
+        Ok(())
+    }
+
     async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {
-        let span = info_span!("install-deps", container = %self.container.id());
+        let span = info_span!("install-deps");
         let _enter = span.enter();
 
         info!("installing dependencies");
@@ -421,7 +563,6 @@ impl<'job> BuildContainerCtx<'job> {
         }
 
         let deps = deps.join(" ");
-
         trace!(deps = %deps, "resolved dependency names");
 
         let cmd = format!(
