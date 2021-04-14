@@ -1,5 +1,4 @@
 use crate::job::{Ctx, OneShotCtx};
-use crate::map_return;
 use crate::os::Os;
 use crate::Result;
 
@@ -215,21 +214,26 @@ impl ImagesState {
 
     pub fn save(&self) -> Result<()> {
         if !Path::new(&self.state_file).exists() {
-            map_return!(
-                fs::File::create(&self.state_file),
-                format!(
-                    "failed to create state file in {}",
-                    self.state_file.display()
-                )
-            );
+            fs::File::create(&self.state_file)
+                .map_err(|e| {
+                    anyhow!(
+                        "failed to create state file in {} - {}",
+                        self.state_file.display(),
+                        e
+                    )
+                })
+                .map(|_| ())
+        } else {
+            match serde_cbor::to_vec(&self) {
+                Ok(d) => fs::write(&self.state_file, d).map_err(|e| {
+                    anyhow!(
+                        "failed to save state file in {} - {}",
+                        self.state_file.display(),
+                        e
+                    )
+                }),
+                Err(e) => return Err(format_err!("failed to serialize image state - {}", e)),
+            }
         }
-        match serde_cbor::to_vec(&self) {
-            Ok(d) => map_return!(
-                fs::write(&self.state_file, d),
-                format!("failed to save state file in {}", self.state_file.display())
-            ),
-            Err(e) => return Err(format_err!("failed to serialize image state - {}", e)),
-        }
-        Ok(())
     }
 }

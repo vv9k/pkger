@@ -30,3 +30,4 @@ tracing = "0.1"
 tracing-futures = "0.1"
 tracing-subscriber = { version = "0.2", features = ["fmt", "chrono"] }
 async-trait = "0.1"
+flate2 = "1"
