@@ -51,8 +51,6 @@ impl Ctx for BuildCtx {
             .await
             .map_err(|e| anyhow!("failed to build image - {}", e))?;
 
-        info!(image = %image_state.image);
-
         let container_ctx = self
             .container_spawn(&image_state)
             .instrument(span.clone())
@@ -60,12 +58,16 @@ impl Ctx for BuildCtx {
 
         cleanup!(container_ctx, span);
 
-        container_ctx
-            .install_pkger_deps(&image_state)
-            .instrument(span.clone())
-            .await?;
+        let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
 
-        cleanup!(container_ctx, span);
+        if !skip_deps {
+            container_ctx
+                .install_pkger_deps(&image_state)
+                .instrument(span.clone())
+                .await?;
+
+            cleanup!(container_ctx, span);
+        }
 
         container_ctx
             .install_recipe_deps(&image_state)
@@ -275,16 +277,24 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
+        let span = info_span!("install-recipe-deps", container = %self.container.id());
+        let _enter = span.enter();
+
         let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
             deps.resolve_names(&state.image)
         } else {
             vec![]
         };
 
-        self._install_deps(&deps, &state).await
+        self._install_deps(&deps, &state)
+            .instrument(span.clone())
+            .await
     }
 
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
+        let span = info_span!("install-default-deps", container = %self.container.id());
+        let _enter = span.enter();
+
         let mut deps = vec!["tar", "git"];
         match self.target {
             BuildTarget::Rpm => {
@@ -300,7 +310,9 @@ impl<'job> BuildContainerCtx<'job> {
 
         let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
 
-        self._install_deps(&deps, &state).await
+        self._install_deps(&deps, &state)
+            .instrument(span.clone())
+            .await
     }
 
     pub async fn execute_scripts(&self) -> Result<()> {
