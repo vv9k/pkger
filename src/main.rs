@@ -38,6 +38,7 @@ pub struct Config {
     images_dir: String,
     recipes_dir: String,
     output_dir: String,
+    docker: Option<String>,
 }
 impl Config {
     fn from_path<P: AsRef<Path>>(val: P) -> Result<Self> {
@@ -101,9 +102,17 @@ impl Pkger {
         }
 
         self.docker = Arc::new(
+            // check if docker uri provided as cli arg
             match opts.docker {
                 Some(uri) => DockerConnectionPool::new(uri),
-                None => Ok(DockerConnectionPool::default()),
+                None => {
+                    // otherwhise check if available as config parameter
+                    if let Some(uri) = &self.config.docker {
+                        DockerConnectionPool::new(uri)
+                    } else {
+                        Ok(DockerConnectionPool::default())
+                    }
+                }
             }
             .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?,
         );
