@@ -1,15 +1,15 @@
 # pkger 📦
 [![Build Status](https://github.com/wojciechkepka/pkger/workflows/pkger%20CI/badge.svg)](https://github.com/wojciechkepka/pkger/actions?query=workflow%3A%22pkger+CI%22)
 
-**pkger** is a tool to automate building *RPMs* and *DEBs* as well as other artifacts on multiple *Linux* distributions, versions and architectures.
+**pkger** is a tool that automates building *RPMs*, *DEBs* and other package on multiple *Linux* distributions, versions and architectures.
 
 ## How it works
 
-**pkger** has 2 concepts - images and recipes. Each recipe is a sort of build mainfest that allows **pkger** to create the final artifact. Images are directories that contain a `Dockerfile` as well as optional other files. 
+**pkger** has 2 concepts - images and recipes. Each recipe is a sort of build mainfest that allows **pkger** to create the final package. Images are directories that contain a `Dockerfile` as well as optional other files that might get included in the image build phase. 
 
 ## Recipe
 
-The recipe is divided into 2 required parts (metadata, build):
+The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts:
  - ### metadata
    - All the metadata and information needed for the build
    - **pkger** will install all dependencies listed in `build_depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution. Default dependencies like `gzip` or `git` might be installed depending on the target job type. To skip installation of default dependencies add `skip_default_deps = true` to `[metadata]`
@@ -26,12 +26,13 @@ revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
 build_depends = ["curl", "gcc", "pkg-config", "debian10:{libssl-dev},centos8:{openssl-devel}"]
+skip_default_deps = true
 depends = []
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
-	{ name = "centos8", target = "rpm" },
-	{ name = "debian10", target = "deb"}
+	{ name = "centos8" , target = "rpm" },
+	{ name = "debian10", target = "deb" }
 ]
 ```
  - ### config (Optional)
@@ -44,12 +45,12 @@ steps = [
 ]
 ```
  - ### build
-   - All build steps presented as a list of string
+   - All build steps presented as a list of strings
    - Steps will be executed with a working directory set to `$PKGER_BLD_DIR`
    - To execute a command only in a container with specific image/images you can write:
      - `pkger%:centos8 echo 'test'` for a single image
      - `pkger%:{centos8,debian10} echo 'test'` or `pkger%:{centos8, debian10} echo 'test'` for multiple images
-   - After successfully running all steps **pkger** will assemble the final artifact from `$PKGER_BLD_DIR` directory
+   - After successfully running all steps **pkger** will assemble the final package from `$PKGER_BLD_DIR` directory
 ```
 [build]
 steps = [
@@ -99,7 +100,7 @@ output_dir = ""
  - `recipes_dir` - directory with recipes
    - Each recipe is a directory containing a `recipe.toml` file and source files (if not remote) 
  - `output_dir` - directory with built packages
-   - When **pkger** finishes building the package it will create a directory `$output_dir/$PKGER_OS/$PKGER_OS_VERSION/` where it will put the built artifact
+   - When **pkger** finishes building the package it will create a directory `$output_dir/$PKGER_OS/$PKGER_OS_VERSION/` where it will put the built package
 
 ## Usage
 
@@ -108,15 +109,15 @@ To install **pkger** clone and build this repository with `cargo build --release
 To use **pkger** you need a [docker daemon listening on a tcp or unix port](https://success.docker.com/article/how-do-i-enable-the-remote-api-for-dockerd).
 After that run:
  - `pkger -d $docker_address -c $config_file [RECIPES]`
- - Substitute `$docker_address` with address like `http://0.0.0.0:2376`
- - Substitute `$config_file` with path to the config file 
- - Add any amount of recipes whitespace separated at the end
+ - Substitute `$docker_address` with address like `http://0.0.0.0:2376` or unix socket `unix:///run/docker.sock`
+ - Substitute `$config_file` with path to the config file. If `-c` is not provided **pkger** will look for the configuration file in the default location - `./conf.toml`
+ - Add any amount of recipes whitespace separated at the end. If no recipe name is provided, all recipes will be built queued for a build.
 
-To debug run with `RUST_LOG=pkger=trace` env variable set. By default **pkger** will set `RUST_LOG=pkger=info` to display basic output.
+By default **pkger** will display basic output as hierhical log. To debug run with `-d` or `--debug` option. To surpress all output except for errors add `-q` or `--quiet`. To manually set log level set `RUST_LOG` env variable to a value like `pkger=debug` with debug replace with the desired log level.
 
 ## Example
 
- - Example configuration, recipe can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)
+ - Example configuration and recipe can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)
  - Example file structure:
 ```
 example_structure/
