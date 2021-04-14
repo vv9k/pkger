@@ -1,22 +1,19 @@
 use crate::cleanup;
 use crate::image::{Image, ImageState, ImagesState};
-use crate::job::{
-    container::{DockerContainer},
-    Ctx, JobCtx,
-};
+use crate::job::{container::DockerContainer, Ctx, JobCtx};
 use crate::recipe::{BuildTarget, Recipe};
 use crate::Config;
 use crate::Result;
 
 use async_trait::async_trait;
-use futures::{TryStreamExt, StreamExt};
+use futures::{StreamExt, TryStreamExt};
 use moby::{image::ImageBuildChunk, BuildOptions, ContainerOptions, Docker};
+use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use std::path::Path;
 use tracing::{debug, info, info_span, trace, Instrument};
 
 #[derive(Debug)]
@@ -86,7 +83,10 @@ impl Ctx for BuildCtx {
 
         cleanup!(container_ctx, span);
 
-        container_ctx.execute_scripts().instrument(span.clone()).await?;
+        container_ctx
+            .execute_scripts()
+            .instrument(span.clone())
+            .await?;
 
         cleanup!(container_ctx, span);
 
@@ -174,7 +174,10 @@ impl BuildCtx {
             self.out_dir.as_path(),
         );
 
-        ctx.start_container().instrument(span.clone()).await.map(|_| ctx)
+        ctx.start_container()
+            .instrument(span.clone())
+            .await
+            .map(|_| ctx)
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
@@ -250,6 +253,7 @@ pub struct BuildContainerCtx<'job> {
 }
 
 impl<'job> BuildContainerCtx<'job> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         docker: &'job Docker,
         opts: ContainerOptions,
@@ -260,9 +264,8 @@ impl<'job> BuildContainerCtx<'job> {
         bld_dir: &Path,
         out_dir: &Path,
     ) -> BuildContainerCtx<'job> {
-        
         BuildContainerCtx {
-            container: DockerContainer::new(docker, Some(is_running.clone())),
+            container: DockerContainer::new(docker, Some(is_running)),
             opts,
             recipe,
             image,
@@ -325,7 +328,8 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
                 trace!(command = %cmd.cmd, "running");
-                self.container.exec(&cmd.cmd)
+                self.container
+                    .exec(&cmd.cmd)
                     .instrument(span.clone())
                     .await?;
             }
@@ -342,7 +346,8 @@ impl<'job> BuildContainerCtx<'job> {
                 }
             }
             trace!(command = %cmd.cmd, "running");
-            self.container.exec(&cmd.cmd)
+            self.container
+                .exec(&cmd.cmd)
                 .instrument(span.clone())
                 .await?;
         }
@@ -359,7 +364,8 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
                 trace!(command = %cmd.cmd, "running");
-                self.container.exec(&cmd.cmd)
+                self.container
+                    .exec(&cmd.cmd)
                     .instrument(span.clone())
                     .await?;
             }
@@ -380,7 +386,8 @@ impl<'job> BuildContainerCtx<'job> {
         .join(" ");
         trace!(directories = %dirs);
 
-        self.container.exec(format!("mkdir -pv {}", dirs))
+        self.container
+            .exec(format!("mkdir -pv {}", dirs))
             .instrument(span.clone())
             .await
     }

@@ -1,4 +1,7 @@
-use crate::job::{Ctx, JobCtx, container::{Output, DockerContainer}};
+use crate::job::{
+    container::{DockerContainer, Output},
+    Ctx, JobCtx,
+};
 use crate::Result;
 
 use async_trait::async_trait;
@@ -32,7 +35,10 @@ impl<'job> Ctx for OneShotCtx<'job> {
         let mut container = DockerContainer::new(&self.docker, None);
         container.spawn(&self.opts).instrument(span.clone()).await?;
 
-        container.logs(self.stdout, self.stderr).instrument(span.clone()).await
+        container
+            .logs(self.stdout, self.stderr)
+            .instrument(span.clone())
+            .await
     }
 }
 
