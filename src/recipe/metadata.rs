@@ -60,6 +60,8 @@ pub struct Metadata {
     // Git repository as source
     pub git: Option<String>,
 
+    // Whether default dependencies should be installed before the build
+    pub skip_default_deps: Option<bool>,
     pub build_depends: Option<Dependencies>,
     pub depends: Option<Dependencies>,
     pub obsoletes: Option<Dependencies>,
