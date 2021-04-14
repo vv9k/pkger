@@ -1,11 +1,8 @@
 use crate::cleanup;
-use crate::image::{Image, ImageState};
-use crate::recipe::{BuildTarget, Recipe};
 use crate::Result;
 
-use futures::{StreamExt, TryStreamExt};
-use moby::{tty::TtyChunk, Container, ExecContainerOptions};
-use std::path::{Path, PathBuf};
+use futures::{StreamExt};
+use moby::{Container, ContainerOptions, ExecContainerOptions, tty::TtyChunk, Docker, LogsOptions};
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,39 +16,68 @@ pub fn convert_id(id: &str) -> &str
     &id[..CONTAINER_ID_LEN]
 }
 
-pub struct BuildContainerCtx<'job> {
-    container: Container<'job>,
-    recipe: &'job Recipe,
-    image: &'job Image,
-    is_running: Arc<AtomicBool>,
-    bld_dir: PathBuf,
-    out_dir: PathBuf,
-    target: BuildTarget,
+#[derive(Debug, Default)]
+pub struct Output {
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
 }
 
-impl<'job> BuildContainerCtx<'job> {
-    pub fn new(
-        container: Container<'job>,
-        recipe: &'job Recipe,
-        image: &'job Image,
-        is_running: Arc<AtomicBool>,
-        target: BuildTarget,
-        bld_dir: &Path,
-        out_dir: &Path,
-    ) -> BuildContainerCtx<'job> {
-        BuildContainerCtx {
-            recipe,
-            image,
-            container,
-            is_running,
-            target,
-            bld_dir: bld_dir.to_path_buf(),
-            out_dir: out_dir.to_path_buf(),
+impl Output {
+    pub fn push_chunk(&mut self, chunk: TtyChunk) {
+        match chunk {
+            TtyChunk::StdErr(mut inner) => self.stderr.append(&mut inner),
+            TtyChunk::StdOut(mut inner) => self.stdout.append(&mut inner),
+            _ => unreachable!(),
+        }
+    }
+}
+
+pub struct DockerContainer<'job> {
+    is_running: Arc<AtomicBool>,
+    container: Container<'job>,
+    docker: &'job Docker,
+}
+
+impl<'job> DockerContainer<'job> {
+    pub fn new(docker: &'job Docker,  is_running: Option<Arc<AtomicBool>>) -> DockerContainer<'job> {
+        Self {
+            is_running: if let Some (is_running) = is_running { is_running } else { Arc::new(AtomicBool::new(true))},
+            container: docker.containers().get(""),
+            docker,
         }
     }
 
-    pub async fn cleanup(&self) -> Result<()> {
-        let span = info_span!("cleanup");
+    pub fn inner(&self) -> &Container<'job> {
+        &self.container
+    }
+
+    pub fn id(&self) -> &str {
+        convert_id(&self.container.id())
+    }
+
+    pub async fn spawn(&mut self, opts: &ContainerOptions) -> Result<()> {
+        let span = info_span!("container-spawn");
+        let _enter = span.enter();
+
+        let id = self
+            .docker
+            .containers()
+            .create(&opts)
+            .instrument(span.clone())
+            .await
+            .map(|info| info.id)?;
+        self.container = self.docker.containers().get(&id);
+        info!(container_id = %self.id(), "created container");
+
+        self.container.start().instrument(span.clone()).await?;
+        info!(container_id = %self.id(), "started container");
+
+        Ok(())
+
+    }
+
+    pub async fn remove(&self) -> Result<()> {
+        let span = info_span!("container-remove");
         let _enter = span.enter();
 
         trace!("stopping container");
@@ -69,19 +95,20 @@ impl<'job> BuildContainerCtx<'job> {
             .map_err(|e| anyhow!("failed to delete container - {}", e))
     }
 
-    pub async fn cleanup_if_exit(&self) -> Result<bool> {
+    pub async fn check_is_running(&self) -> Result<bool> {
         let span = info_span!("check-is-running");
         let _enter = span.enter();
+
         if !self.is_running.load(Ordering::SeqCst) {
             trace!("not running");
 
-            return self.cleanup().instrument(span.clone()).await.map(|_| true);
+            return self.remove().instrument(span.clone()).await.map(|_| true);
         }
 
         Ok(false)
     }
 
-    pub async fn container_exec<S: AsRef<str>>(&self, cmd: S) -> Result<()> {
+    pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<()> {
         let span = info_span!("container-exec");
         let _enter = span.enter();
 
@@ -110,151 +137,27 @@ impl<'job> BuildContainerCtx<'job> {
         Ok(())
     }
 
-    pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
-        let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
-            deps.resolve_names(&state.image)
-        } else {
-            vec![]
-        };
-
-        self._install_deps(&deps, &state).await
-    }
-
-    pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
-        let mut deps = vec!["tar", "git"];
-        match self.target {
-            BuildTarget::Rpm => {
-                deps.push("rpmbuild");
-            }
-            BuildTarget::Deb => {
-                deps.push("dpkg-deb");
-            }
-            BuildTarget::Gzip => {
-                deps.push("gzip");
-            }
-        }
-
-        let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
-
-        self._install_deps(&deps, &state).await
-    }
-
-    pub async fn execute_scripts(&self) -> Result<()> {
-        let span = info_span!("exec-scripts", container = %self.container_id());
+    pub async fn logs(&self, stdout: bool, stderr: bool) -> Result<Output> {
+        let span = info_span!("container-logs");
         let _enter = span.enter();
 
-        if let Some(config_script) = &self.recipe.configure_script {
-            info!("executing config scripts");
-            for cmd in &config_script.steps {
-                trace!(command = %cmd.cmd, "processing");
-                if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&self.image.name) {
-                        trace!(image = %self.image.name, "not found, skipping");
-                        continue;
-                    }
-                }
-                trace!(command = %cmd.cmd, "running");
-                self.container_exec(&cmd.cmd)
-                    .instrument(span.clone())
-                    .await?;
-            }
-        }
+        trace!(stdout = %stdout, stderr = %stderr);
 
-        info!("executing build scripts");
-        for cmd in &self.recipe.build_script.steps {
-            trace!(command = %cmd.cmd, "processing");
-            if !cmd.images.is_empty() {
-                trace!(images = ?cmd.images, "only execute on");
-                if !cmd.images.contains(&self.image.name) {
-                    trace!(image = %self.image.name, "not found, skipping");
-                    continue;
-                }
-            }
-            trace!(command = %cmd.cmd, "running");
-            self.container_exec(&cmd.cmd)
-                .instrument(span.clone())
-                .await?;
-        }
-
-        if let Some(install_script) = &self.recipe.install_script {
-            info!("executing install scripts");
-            for cmd in &install_script.steps {
-                trace!(command = %cmd.cmd, "processing");
-                if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&self.image.name) {
-                        trace!(image = %self.image.name, "not found, skipping");
-                        continue;
-                    }
-                }
-                trace!(command = %cmd.cmd, "running");
-                self.container_exec(&cmd.cmd)
-                    .instrument(span.clone())
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
-
-    pub async fn create_dirs(&self) -> Result<()> {
-        let span = info_span!("create-dirs", container = %self.container_id());
-        let _enter = span.enter();
-
-        info!("creating necessary directories");
-        let dirs = vec![
-            self.out_dir.to_string_lossy().to_string(),
-            self.bld_dir.to_string_lossy().to_string(),
-        ]
-        .join(" ");
-        trace!(directories = %dirs);
-
-        self.container_exec(format!("mkdir -pv {}", dirs))
-            .instrument(span.clone())
-            .await
-    }
-
-    pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
-        let span = info_span!("archive-output", container = %self.container_id());
-
-        info!("copying final archive");
-        self.container
-            .copy_from(self.out_dir.as_path())
-            .try_concat()
-            .instrument(span.clone())
-            .await
-            .map_err(|e| anyhow!("failed to archive output directory - {}", e))
-    }
-
-    async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {
-        let span = info_span!("install-deps", container = %self.container_id());
-        let _enter = span.enter();
-
-        info!("installing dependencies");
-        let pkg_mngr = state.os.package_manager();
-
-        if deps.is_empty() {
-            trace!("no dependencies to install");
-            return Ok(());
-        }
-
-        let deps = deps.join(" ");
-
-        trace!(deps = %deps, "resolved dependency names");
-
-        let cmd = format!(
-            "{} {} {}",
-            pkg_mngr.as_ref(),
-            pkg_mngr.install_args().join(" "),
-            deps
+        let mut logs_stream = self.container.logs(
+            &LogsOptions::builder()
+                .stdout(stdout)
+                .stderr(stderr)
+                .build(),
         );
-        trace!(command = %cmd, "installing with");
 
-        self.container_exec(cmd).instrument(span.clone()).await
+        info!("collecting output");
+        let mut output = Output::default();
+        while let Some(chunk) = logs_stream.next().instrument(span.clone()).await {
+            output.push_chunk(chunk?);
+        }
+
+        Ok(output)
+
     }
 
-    fn container_id(&self) -> &str {
-        convert_id(&self.container.id())
-    }
 }
