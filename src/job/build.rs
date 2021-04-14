@@ -283,7 +283,7 @@ pub struct BuildContainerCtx<'job> {
     opts: ContainerOptions,
     recipe: &'job Recipe,
     image: &'job Image,
-    out_dir: PathBuf,
+    container_out_dir: PathBuf,
     target: BuildTarget,
 }
 
@@ -303,7 +303,7 @@ impl<'job> BuildContainerCtx<'job> {
             opts,
             recipe,
             image,
-            out_dir: out_dir.to_path_buf(),
+            container_out_dir: out_dir.to_path_buf(),
             target,
         }
     }
@@ -444,18 +444,19 @@ impl<'job> BuildContainerCtx<'job> {
         info!("copying final archive");
         self.container
             .inner()
-            .copy_from(self.out_dir.as_path())
+            .copy_from(self.container_out_dir.as_path())
             .try_concat()
             .instrument(span.clone())
             .await
             .map_err(|e| anyhow!("failed to archive output directory - {}", e))
     }
 
+    /// Creates final RPM package and saves it to `output_dir`
     pub async fn build_rpm(&self, output_dir: &Path) -> Result<()> {
         let span = info_span!("rpm", container = %self.container.id());
         let _enter = span.enter();
 
-        info!("building rpm");
+        info!(parent: &span, "building rpm");
 
         let dirs = vec![
             "/root/rpmbuild/SPECS".to_string(),
@@ -471,16 +472,16 @@ impl<'job> BuildContainerCtx<'job> {
                 "tar -zcvf /root/rpmbuild/SOURCES/{}-{}.tar.gz {}",
                 &self.recipe.metadata.name,
                 &self.recipe.metadata.version,
-                self.out_dir.display()
+                self.container_out_dir.display()
             ))
             .instrument(span.clone())
             .await?;
 
         let spec = RpmSpec::from(self.recipe).render_owned()?;
         let spec_file = format!("./{}.spec", &self.recipe.metadata.name);
-        debug!(spec = %spec);
+        debug!(parent: &span, spec = %spec);
 
-        trace!("create tar archive");
+        trace!(parent: &span, "create tar archive");
         let mut archive_buf = Vec::new();
         let mut archive = tar::Builder::new(&mut archive_buf);
         let mut header = tar::Header::new_gnu();
@@ -489,7 +490,7 @@ impl<'job> BuildContainerCtx<'job> {
         archive.append_data(&mut header, &spec_file, spec.as_bytes())?;
         let archive_buf = archive.into_inner()?;
 
-        trace!("copy archive to container");
+        trace!(parent: &span, "copy archive to container");
         self.container
             .inner()
             .copy_file_into(
@@ -502,7 +503,7 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await?;
 
-        trace!("extract archive");
+        trace!(parent: &span, "extract archive");
         self.container
             .exec(format!(
                 "tar -xvf /root/rpmbuild/SPECS/{}-spec.tar -C /root/rpmbuild/SPECS",
@@ -516,11 +517,6 @@ impl<'job> BuildContainerCtx<'job> {
                 "rpmbuild -bb /root/rpmbuild/SPECS/{}.spec",
                 &self.recipe.metadata.name
             ))
-            .instrument(span.clone())
-            .await?;
-
-        self.container
-            .exec("ls -l /root/rpmbuild/RPMS/x86_64/")
             .instrument(span.clone())
             .await?;
 
@@ -541,7 +537,7 @@ impl<'job> BuildContainerCtx<'job> {
             let mut entry = entry?;
             if let tar::EntryType::Regular = entry.header().entry_type() {
                 let path = entry.header().path()?.to_path_buf();
-                trace!(entry = %path.display(), to = %output_dir.display(), "unpacking");
+                trace!(parent: &span, entry = %path.display(), to = %output_dir.display(), "unpacking");
                 let name = path.file_name().unwrap_or_default();
                 entry.unpack(output_dir.join(name))?;
             }
