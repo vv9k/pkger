@@ -430,16 +430,23 @@ impl<'job> BuildContainerCtx<'job> {
         }
     }
 
-    pub async fn create_dirs(&self, dirs: &[String]) -> Result<()> {
+    pub async fn create_dirs<P: AsRef<Path>>(&self, dirs: &[P]) -> Result<()> {
         let span = info_span!("create-dirs", container = %self.container.id());
         let _enter = span.enter();
 
-        let dirs = dirs.join(" ");
+        let dirs_joined =
+            dirs.iter()
+                .map(P::as_ref)
+                .fold(String::new(), |mut dirs_joined, path| {
+                    dirs_joined.push_str(&format!(" {}", path.display()));
+                    dirs_joined
+                });
+        let dirs_joined = dirs_joined.trim();
 
-        trace!(directories = %dirs);
+        trace!(directories = %dirs_joined);
 
         self.container
-            .exec(format!("mkdir -pv {}", dirs))
+            .exec(format!("mkdir -pv {}", dirs_joined))
             .instrument(span.clone())
             .await
     }
@@ -464,27 +471,37 @@ impl<'job> BuildContainerCtx<'job> {
 
         info!(parent: &span, "building RPM package");
 
+        let base_path = PathBuf::from("/root/rpmbuild");
+        let specs = base_path.join("SPECS");
+        let sources = base_path.join("SOURCES");
+        let rpms = base_path.join("RPMS");
+        let srpms = base_path.join("SRPMS");
+
         let dirs = vec![
-            "/root/rpmbuild/SPECS".to_string(),
-            "/root/rpmbuild/SOURCES".to_string(),
-            "/root/rpmbuild/RPMS/".to_string(),
-            "/root/rpmbuild/SRPMS".to_string(),
+            specs.as_path(),
+            sources.as_path(),
+            rpms.as_path(),
+            srpms.as_path(),
         ];
 
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
+        let source_tar = format!(
+            "{}-{}.tar.gz",
+            &self.recipe.metadata.name, &self.recipe.metadata.version
+        );
+
         self.container
             .exec(format!(
-                "tar -zcvf /root/rpmbuild/SOURCES/{}-{}.tar.gz {}",
-                &self.recipe.metadata.name,
-                &self.recipe.metadata.version,
+                "tar -zcvf {} {}",
+                sources.join(&source_tar).display(),
                 self.container_out_dir.display()
             ))
             .instrument(span.clone())
             .await?;
 
         let spec = RpmSpec::from(self.recipe).render_owned()?;
-        let spec_file = format!("./{}.spec", &self.recipe.metadata.name);
+        let spec_file = format!("{}.spec", &self.recipe.metadata.name);
         debug!(parent: &span, spec = %spec);
 
         trace!(parent: &span, "create tar archive");
@@ -493,46 +510,37 @@ impl<'job> BuildContainerCtx<'job> {
         let mut header = tar::Header::new_gnu();
         header.set_size(spec.as_bytes().iter().count() as u64);
         header.set_cksum();
-        archive.append_data(&mut header, &spec_file, spec.as_bytes())?;
+        archive.append_data(&mut header, &format!("./{}", spec_file), spec.as_bytes())?;
         let archive_buf = archive.into_inner()?;
+
+        let spec_tar = specs.join(&spec_file);
 
         trace!(parent: &span, "copy archive to container");
         self.container
             .inner()
-            .copy_file_into(
-                format!(
-                    "/root/rpmbuild/SPECS/{}-spec.tar",
-                    &self.recipe.metadata.name
-                ),
-                archive_buf,
-            )
+            .copy_file_into(spec_tar.as_path(), archive_buf)
             .instrument(span.clone())
             .await?;
 
         trace!(parent: &span, "extract archive");
         self.container
             .exec(format!(
-                "tar -xvf /root/rpmbuild/SPECS/{}-spec.tar -C /root/rpmbuild/SPECS",
-                &self.recipe.metadata.name,
+                "tar -xvf {} -C {}",
+                spec_tar.display(),
+                specs.display(),
             ))
             .instrument(span.clone())
             .await?;
 
         self.container
-            .exec(format!(
-                "rpmbuild -bb /root/rpmbuild/SPECS/{}.spec",
-                &self.recipe.metadata.name
-            ))
+            .exec(format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
             .instrument(span.clone())
             .await?;
 
         let rpm = self
             .container
             .inner()
-            .copy_from(&Path::new(&format!(
-                "/root/rpmbuild/RPMS/{}/",
-                &self.recipe.metadata.arch
-            )))
+            .copy_from(rpms.join(&self.recipe.metadata.arch).as_path())
             .try_concat()
             .instrument(span.clone())
             .await?;
