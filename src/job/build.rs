@@ -7,6 +7,7 @@ use crate::Config;
 use crate::Result;
 
 use async_trait::async_trait;
+use deb_control::binary::BinaryDebControl;
 use futures::{StreamExt, TryStreamExt};
 use moby::{image::ImageBuildChunk, BuildOptions, ContainerOptions, Docker};
 use rpmspec::RpmSpec;
@@ -346,7 +347,7 @@ impl<'job> BuildContainerCtx<'job> {
                 deps.push("rpm-build");
             }
             BuildTarget::Deb => {
-                deps.push("dpkg-deb");
+                deps.push("dpkg");
             }
             BuildTarget::Gzip => {
                 deps.push("gzip");
@@ -426,7 +427,7 @@ impl<'job> BuildContainerCtx<'job> {
         match self.target {
             BuildTarget::Rpm => self.build_rpm(&output_dir).await,
             BuildTarget::Gzip => self.build_gzip(&output_dir).await,
-            _ => Ok(()),
+            BuildTarget::Deb => self.build_deb(&output_dir).await,
         }
     }
 
@@ -464,7 +465,7 @@ impl<'job> BuildContainerCtx<'job> {
             .map_err(|e| anyhow!("failed to archive output directory - {}", e))
     }
 
-    /// Creates final RPM package and saves it to `output_dir`
+    /// Creates a final RPM package and saves it to `output_dir`
     async fn build_rpm(&self, output_dir: &Path) -> Result<()> {
         let span = info_span!("RPM", container = %self.container.id());
         let _enter = span.enter();
@@ -477,7 +478,7 @@ impl<'job> BuildContainerCtx<'job> {
         let rpms = base_path.join("RPMS");
         let srpms = base_path.join("SRPMS");
 
-        let dirs = vec![
+        let dirs = [
             specs.as_path(),
             sources.as_path(),
             rpms.as_path(),
@@ -501,7 +502,7 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
 
         let spec = RpmSpec::from(self.recipe).render_owned()?;
-        let spec_file = format!("{}.spec", &self.recipe.metadata.name);
+        let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec = %spec);
 
         trace!(parent: &span, "create tar archive");
@@ -510,7 +511,7 @@ impl<'job> BuildContainerCtx<'job> {
         let mut header = tar::Header::new_gnu();
         header.set_size(spec.as_bytes().iter().count() as u64);
         header.set_cksum();
-        archive.append_data(&mut header, &format!("./{}", spec_file), spec.as_bytes())?;
+        archive.append_data(&mut header, &["./", &spec_file].join(""), spec.as_bytes())?;
         let archive_buf = archive.into_inner()?;
 
         let spec_tar = specs.join(&spec_file);
@@ -555,24 +556,95 @@ impl<'job> BuildContainerCtx<'job> {
         .await
     }
 
+    /// Creates a final DEB packages and saves it to `output_dir`
     async fn build_deb(&self, output_dir: &Path) -> Result<()> {
         let span = info_span!("DEB", container = %self.container.id());
         let _enter = span.enter();
 
         info!(parent: &span, "building DEB package");
 
-        let base_dir = PathBuf::from(format!(
-            "/root/debbuild/{}-{}",
-            &self.recipe.metadata.name, &self.recipe.metadata.version
-        ));
-        let dirs = vec![base_dir.join("DEBIAN")];
+        let name = [
+            &self.recipe.metadata.name,
+            "-",
+            &self.recipe.metadata.version,
+        ]
+        .join("");
+
+        let debbld_dir = PathBuf::from("/root/debbuild");
+        let tmp_dir = debbld_dir.join("tmp");
+        let base_dir = debbld_dir.join(&name);
+        let deb_dir = base_dir.join("DEBIAN");
+        let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
 
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
-        Ok(())
+        let control = BinaryDebControl::from(self.recipe).render_owned()?;
+        debug!(parent: &span, control = %control);
+
+        trace!(parent: &span, "create tar archive");
+        let mut archive_buf = Vec::new();
+        let mut archive = tar::Builder::new(&mut archive_buf);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(control.as_bytes().iter().count() as u64);
+        header.set_cksum();
+        archive.append_data(&mut header, "./control", control.as_bytes())?;
+        let archive_buf = archive.into_inner()?;
+        let archive_path = tmp_dir.join([&name, "-control.tar"].join(""));
+
+        trace!(parent: &span, "copy archive to container");
+        self.container
+            .inner()
+            .copy_file_into(archive_path.as_path(), archive_buf)
+            .instrument(span.clone())
+            .await?;
+
+        trace!(parent: &span, "extract archive");
+        self.container
+            .exec(format!(
+                "tar -xvf {} -C {}",
+                archive_path.display(),
+                deb_dir.display(),
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        trace!(parent: &span, "copy sources");
+        self.container
+            .exec(format!(
+                "cp -r {}/ {}",
+                self.container_out_dir.display(),
+                base_dir.display()
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        self.container
+            .exec(format!(
+                "dpkg-deb --build --root-owner-group {}",
+                base_dir.display()
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        let deb = self
+            .container
+            .inner()
+            .copy_from(debbld_dir.join([&name, ".deb"].join("")).as_path())
+            .try_concat()
+            .instrument(span.clone())
+            .await?;
+
+        let mut archive = tar::Archive::new(&deb[..]);
+
+        async move {
+            unpack_archive(&mut archive, output_dir)
+                .map_err(|e| anyhow!("failed to unpack archive - {}", e))
+        }
+        .instrument(span.clone())
+        .await
     }
 
-    /// Creates final GZIP package and saves it to `output_dir`
+    /// Creates a final GZIP package and saves it to `output_dir`
     async fn build_gzip(&self, output_dir: &Path) -> Result<()> {
         let span = info_span!("GZIP", container = %self.container.id());
         let _enter = span.enter();
@@ -618,12 +690,7 @@ impl<'job> BuildContainerCtx<'job> {
         let deps = deps.join(" ");
         trace!(deps = %deps, "resolved dependency names");
 
-        let cmd = format!(
-            "{} {} {}",
-            pkg_mngr.as_ref(),
-            pkg_mngr.install_args().join(" "),
-            deps
-        );
+        let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
         trace!(command = %cmd, "installing with");
 
         self.container.exec(cmd).instrument(span.clone()).await
