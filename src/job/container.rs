@@ -16,19 +16,9 @@ pub fn convert_id(id: &str) -> &str {
 }
 
 #[derive(Debug, Default)]
-pub struct Output {
-    pub stdout: Vec<u8>,
-    pub stderr: Vec<u8>,
-}
-
-impl Output {
-    pub fn push_chunk(&mut self, chunk: TtyChunk) {
-        match chunk {
-            TtyChunk::StdErr(mut inner) => self.stderr.append(&mut inner),
-            TtyChunk::StdOut(mut inner) => self.stdout.append(&mut inner),
-            _ => unreachable!(),
-        }
-    }
+pub struct Output<T> {
+    pub stdout: Vec<T>,
+    pub stderr: Vec<T>,
 }
 
 pub struct DockerContainer<'job> {
@@ -110,7 +100,7 @@ impl<'job> DockerContainer<'job> {
         Ok(false)
     }
 
-    pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<()> {
+    pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<Output<String>> {
         let span = info_span!("container-exec");
         let _enter = span.enter();
 
@@ -124,30 +114,29 @@ impl<'job> DockerContainer<'job> {
 
         let mut stream = self.container.exec(&opts);
 
+        let mut output = Output::default();
+
         while let Some(result) = stream.next().instrument(span.clone()).await {
             cleanup!(self, span);
             match result? {
                 TtyChunk::StdOut(chunk) => {
-                    info!(
-                        parent: &span,
-                        "{}",
-                        str::from_utf8(&chunk)?.trim_end_matches('\n')
-                    );
+                    let chunk = str::from_utf8(&chunk)?.trim_end_matches('\n');
+                    output.stdout.push(chunk.to_string());
+                    info!(parent: &span, "{}", chunk);
                 }
                 TtyChunk::StdErr(chunk) => {
-                    error!(
-                        parent: &span,
-                        "{}",
-                        str::from_utf8(&chunk)?.trim_end_matches('\n')
-                    );
+                    let chunk = str::from_utf8(&chunk)?.trim_end_matches('\n');
+                    output.stderr.push(chunk.to_string());
+                    error!(parent: &span, "{}", chunk);
                 }
                 _ => unreachable!(),
             }
         }
-        Ok(())
+
+        Ok(output)
     }
 
-    pub async fn logs(&self, stdout: bool, stderr: bool) -> Result<Output> {
+    pub async fn logs(&self, stdout: bool, stderr: bool) -> Result<Output<u8>> {
         let span = info_span!("container-logs");
         let _enter = span.enter();
 
@@ -160,7 +149,11 @@ impl<'job> DockerContainer<'job> {
         info!("collecting output");
         let mut output = Output::default();
         while let Some(chunk) = logs_stream.next().instrument(span.clone()).await {
-            output.push_chunk(chunk?);
+            match chunk? {
+                TtyChunk::StdErr(mut inner) => output.stderr.append(&mut inner),
+                TtyChunk::StdOut(mut inner) => output.stdout.append(&mut inner),
+                _ => unreachable!(),
+            }
         }
 
         Ok(output)
