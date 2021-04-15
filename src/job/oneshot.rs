@@ -22,7 +22,7 @@ pub struct OneShotCtx<'job> {
 
 #[async_trait]
 impl<'job> Ctx for OneShotCtx<'job> {
-    type JobResult = Result<Output>;
+    type JobResult = Result<Output<u8>>;
 
     fn id(&self) -> &str {
         &self.id

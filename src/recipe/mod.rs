@@ -1,13 +1,13 @@
 mod envs;
 mod metadata;
 
+use crate::cmd::Cmd;
+use crate::{Error, Result};
+
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 pub use envs::Env;
 pub use metadata::{BuildTarget, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
-
-use crate::cmd::Cmd;
-use crate::{Error, Result};
 
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -89,32 +89,60 @@ impl TryFrom<RecipeRep> for Recipe {
     }
 }
 
-impl From<&Recipe> for RpmSpec {
-    fn from(recipe: &Recipe) -> Self {
-        RpmSpec::builder()
-            .name(&recipe.metadata.name)
-            .build_arch(&recipe.metadata.arch)
-            .summary(&recipe.metadata.description)
-            .description(&recipe.metadata.description)
-            .license(&recipe.metadata.license)
-            .version(&recipe.metadata.version)
-            .release(&recipe.metadata.revision)
-            .description(&recipe.metadata.description)
-            .build()
-    }
-}
-
-impl From<&Recipe> for BinaryDebControl {
-    fn from(recipe: &Recipe) -> Self {
-        let arch = match &recipe.metadata.arch[..] {
+impl Recipe {
+    pub fn as_deb_control(&self, image: &str) -> BinaryDebControl {
+        let arch = match &self.metadata.arch[..] {
             "x86_64" => "amd64",
-            _ => "any",
+            "x86" => "i386",
+            arch => arch,
         };
-        DebControlBuilder::binary_package_builder(&recipe.metadata.name)
-            .version(&recipe.metadata.version)
-            .description(&recipe.metadata.description)
-            .architecture(arch)
-            .build()
+        let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
+            .version(&self.metadata.version)
+            .description(&self.metadata.description)
+            .architecture(arch);
+
+        if let Some(depends) = &self.metadata.depends {
+            builder = builder.add_depends_entries(depends.resolve_names(image));
+        }
+        if let Some(conflicts) = &self.metadata.conflicts {
+            builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
+        }
+        if let Some(provides) = &self.metadata.provides {
+            builder = builder.add_provides_entries(provides.resolve_names(image));
+        }
+
+        builder.build()
+    }
+
+    pub fn as_rpm_spec(&self, files: &[String], image: &str) -> RpmSpec {
+        let mut builder = RpmSpec::builder()
+            .name(&self.metadata.name)
+            .build_arch(&self.metadata.arch)
+            .summary(&self.metadata.description)
+            .description(&self.metadata.description)
+            .license(&self.metadata.license)
+            .version(&self.metadata.version)
+            .release(&self.metadata.revision)
+            .add_files_entries(files)
+            .description(&self.metadata.description);
+
+        if let Some(conflicts) = &self.metadata.conflicts {
+            builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
+        }
+        if let Some(provides) = &self.metadata.provides {
+            builder = builder.add_provides_entries(provides.resolve_names(image));
+        }
+        if let Some(requires) = &self.metadata.depends {
+            builder = builder.add_requires_entries(requires.resolve_names(image));
+        }
+        if let Some(obsoletes) = &self.metadata.obsoletes {
+            builder = builder.add_obsoletes_entries(obsoletes.resolve_names(image));
+        }
+        if let Some(build_requires) = &self.metadata.build_depends {
+            builder = builder.add_build_requires_entries(build_requires.resolve_names(image));
+        }
+
+        builder.build()
     }
 }
 
@@ -165,6 +193,7 @@ macro_rules! impl_step_rep {
         }
 
         impl $ty {
+            #[allow(dead_code)]
             pub fn steps_as_script(&self) -> String {
                 let mut script = String::new();
                 self.steps.iter().for_each(|step| {

@@ -7,10 +7,8 @@ use crate::Config;
 use crate::Result;
 
 use async_trait::async_trait;
-use deb_control::binary::BinaryDebControl;
 use futures::{StreamExt, TryStreamExt};
 use moby::{image::ImageBuildChunk, BuildOptions, ContainerOptions, Docker};
-use rpmspec::RpmSpec;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -106,7 +104,7 @@ impl Ctx for BuildCtx {
         cleanup!(container_ctx, span);
 
         container_ctx
-            .create_package(out_dir.as_path())
+            .create_package(&image_state, out_dir.as_path())
             .instrument(span.clone())
             .await?;
 
@@ -423,11 +421,11 @@ impl<'job> BuildContainerCtx<'job> {
         Ok(())
     }
 
-    pub async fn create_package(&self, output_dir: &Path) -> Result<()> {
+    pub async fn create_package(&self, image_state: &ImageState, output_dir: &Path) -> Result<()> {
         match self.target {
-            BuildTarget::Rpm => self.build_rpm(&output_dir).await,
+            BuildTarget::Rpm => self.build_rpm(&image_state, &output_dir).await,
             BuildTarget::Gzip => self.build_gzip(&output_dir).await,
-            BuildTarget::Deb => self.build_deb(&output_dir).await,
+            BuildTarget::Deb => self.build_deb(&image_state, &output_dir).await,
         }
     }
 
@@ -450,6 +448,7 @@ impl<'job> BuildContainerCtx<'job> {
             .exec(format!("mkdir -pv {}", dirs_joined))
             .instrument(span.clone())
             .await
+            .map(|_| ())
     }
 
     pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
@@ -466,7 +465,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     /// Creates a final RPM package and saves it to `output_dir`
-    async fn build_rpm(&self, output_dir: &Path) -> Result<()> {
+    async fn build_rpm(&self, image_state: &ImageState, output_dir: &Path) -> Result<()> {
         let span = info_span!("RPM", container = %self.container.id());
         let _enter = span.enter();
 
@@ -505,7 +504,23 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await?;
 
-        let spec = RpmSpec::from(self.recipe).render_owned()?;
+        let files = self
+            .container
+            .exec(format!("ls {}", self.container_out_dir.display()))
+            .instrument(span.clone())
+            .await
+            .map(|out| {
+                out.stdout
+                    .join("")
+                    .split(' ')
+                    .map(|s| format!("/{}", s))
+                    .collect::<Vec<_>>()
+            })?;
+
+        let spec = self
+            .recipe
+            .as_rpm_spec(&files[..], &image_state.image)
+            .render_owned()?;
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec = %spec, spec_file = %spec_file);
 
@@ -557,7 +572,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     /// Creates a final DEB packages and saves it to `output_dir`
-    async fn build_deb(&self, output_dir: &Path) -> Result<()> {
+    async fn build_deb(&self, image_state: &ImageState, output_dir: &Path) -> Result<()> {
         let span = info_span!("DEB", container = %self.container.id());
         let _enter = span.enter();
 
@@ -578,7 +593,10 @@ impl<'job> BuildContainerCtx<'job> {
 
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
-        let control = BinaryDebControl::from(self.recipe).render_owned()?;
+        let control = self
+            .recipe
+            .as_deb_control(&image_state.image)
+            .render_owned()?;
         debug!(parent: &span, control = %control);
 
         let entries = vec![("./control", control.as_bytes())];
@@ -689,6 +707,10 @@ impl<'job> BuildContainerCtx<'job> {
         let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
         trace!(command = %cmd, "installing with");
 
-        self.container.exec(cmd).instrument(span.clone()).await
+        self.container
+            .exec(cmd)
+            .instrument(span.clone())
+            .await
+            .map(|_| ())
     }
 }

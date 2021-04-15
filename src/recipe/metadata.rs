@@ -62,6 +62,7 @@ pub struct Metadata {
 
     // Whether default dependencies should be installed before the build
     pub skip_default_deps: Option<bool>,
+
     pub build_depends: Option<Dependencies>,
     pub depends: Option<Dependencies>,
     pub obsoletes: Option<Dependencies>,
