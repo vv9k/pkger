@@ -56,3 +56,31 @@ pub fn save_tar_gz<T: io::Read>(
 
     Ok(())
 }
+
+pub fn create_tar_archive<'archive, E, P>(entries: E) -> Result<Vec<u8>>
+where
+    E: IntoIterator<Item = (P, &'archive [u8])>,
+    P: AsRef<Path>,
+{
+    let span = info_span!("create-TAR-archive");
+    let _enter = span.enter();
+
+    let archive_buf = Vec::new();
+    let mut archive = tar::Builder::new(archive_buf);
+
+    for entry in entries {
+        let path = entry.0.as_ref();
+        let size = entry.1.iter().count() as u64;
+        trace!(entry = %path.display(), size = %size, "adding to archive");
+        let mut header = tar::Header::new_gnu();
+        header.set_size(size);
+        header.set_cksum();
+        archive.append_data(&mut header, path, entry.1)?;
+    }
+
+    archive.finish()?;
+
+    archive
+        .into_inner()
+        .map_err(|e| anyhow!("failed to create tar archive - {}", e))
+}
