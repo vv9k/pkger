@@ -555,6 +555,23 @@ impl<'job> BuildContainerCtx<'job> {
         .await
     }
 
+    async fn build_deb(&self, output_dir: &Path) -> Result<()> {
+        let span = info_span!("DEB", container = %self.container.id());
+        let _enter = span.enter();
+
+        info!(parent: &span, "building DEB package");
+
+        let base_dir = PathBuf::from(format!(
+            "/root/debbuild/{}-{}",
+            &self.recipe.metadata.name, &self.recipe.metadata.version
+        ));
+        let dirs = vec![base_dir.join("DEBIAN")];
+
+        self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
+
+        Ok(())
+    }
+
     /// Creates final GZIP package and saves it to `output_dir`
     async fn build_gzip(&self, output_dir: &Path) -> Result<()> {
         let span = info_span!("GZIP", container = %self.container.id());
