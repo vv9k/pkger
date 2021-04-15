@@ -2,7 +2,7 @@ use crate::cleanup;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{container::DockerContainer, Ctx, JobCtx};
 use crate::recipe::{BuildTarget, Recipe};
-use crate::util::{save_tar_gz, unpack_archive};
+use crate::util::{create_tar_archive, save_tar_gz, unpack_archive};
 use crate::Config;
 use crate::Result;
 
@@ -472,6 +472,13 @@ impl<'job> BuildContainerCtx<'job> {
 
         info!(parent: &span, "building RPM package");
 
+        let name = [
+            &self.recipe.metadata.name,
+            "-",
+            &self.recipe.metadata.version,
+        ]
+        .join("");
+
         let base_path = PathBuf::from("/root/rpmbuild");
         let specs = base_path.join("SPECS");
         let sources = base_path.join("SOURCES");
@@ -487,10 +494,7 @@ impl<'job> BuildContainerCtx<'job> {
 
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
-        let source_tar = format!(
-            "{}-{}.tar.gz",
-            &self.recipe.metadata.name, &self.recipe.metadata.version
-        );
+        let source_tar = [&name, ".tar.gz"].join("");
 
         self.container
             .exec(format!(
@@ -503,23 +507,19 @@ impl<'job> BuildContainerCtx<'job> {
 
         let spec = RpmSpec::from(self.recipe).render_owned()?;
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
-        debug!(parent: &span, spec = %spec);
+        debug!(parent: &span, spec = %spec, spec_file = %spec_file);
 
-        trace!(parent: &span, "create tar archive");
-        let mut archive_buf = Vec::new();
-        let mut archive = tar::Builder::new(&mut archive_buf);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(spec.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        archive.append_data(&mut header, &["./", &spec_file].join(""), spec.as_bytes())?;
-        let archive_buf = archive.into_inner()?;
+        let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
+        let spec_tar = async move { create_tar_archive(entries) }
+            .instrument(span.clone())
+            .await?;
 
-        let spec_tar = specs.join(&spec_file);
+        let spec_tar_path = specs.join([&name, "-spec.tar"].join(""));
 
         trace!(parent: &span, "copy archive to container");
         self.container
             .inner()
-            .copy_file_into(spec_tar.as_path(), archive_buf)
+            .copy_file_into(spec_tar_path.as_path(), &spec_tar)
             .instrument(span.clone())
             .await?;
 
@@ -527,7 +527,7 @@ impl<'job> BuildContainerCtx<'job> {
         self.container
             .exec(format!(
                 "tar -xvf {} -C {}",
-                spec_tar.display(),
+                spec_tar_path.display(),
                 specs.display(),
             ))
             .instrument(span.clone())
@@ -581,20 +581,16 @@ impl<'job> BuildContainerCtx<'job> {
         let control = BinaryDebControl::from(self.recipe).render_owned()?;
         debug!(parent: &span, control = %control);
 
-        trace!(parent: &span, "create tar archive");
-        let mut archive_buf = Vec::new();
-        let mut archive = tar::Builder::new(&mut archive_buf);
-        let mut header = tar::Header::new_gnu();
-        header.set_size(control.as_bytes().iter().count() as u64);
-        header.set_cksum();
-        archive.append_data(&mut header, "./control", control.as_bytes())?;
-        let archive_buf = archive.into_inner()?;
-        let archive_path = tmp_dir.join([&name, "-control.tar"].join(""));
+        let entries = vec![("./control", control.as_bytes())];
+        let control_tar = async move { create_tar_archive(entries) }
+            .instrument(span.clone())
+            .await?;
+        let control_tar_path = tmp_dir.join([&name, "-control.tar"].join(""));
 
         trace!(parent: &span, "copy archive to container");
         self.container
             .inner()
-            .copy_file_into(archive_path.as_path(), archive_buf)
+            .copy_file_into(control_tar_path.as_path(), &control_tar)
             .instrument(span.clone())
             .await?;
 
@@ -602,7 +598,7 @@ impl<'job> BuildContainerCtx<'job> {
         self.container
             .exec(format!(
                 "tar -xvf {} -C {}",
-                archive_path.display(),
+                control_tar_path.display(),
                 deb_dir.display(),
             ))
             .instrument(span.clone())
