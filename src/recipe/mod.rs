@@ -106,9 +106,14 @@ impl From<&Recipe> for RpmSpec {
 
 impl From<&Recipe> for BinaryDebControl {
     fn from(recipe: &Recipe) -> Self {
+        let arch = match &recipe.metadata.arch[..] {
+            "x86_64" => "amd64",
+            _ => "any",
+        };
         DebControlBuilder::binary_package_builder(&recipe.metadata.name)
             .version(&recipe.metadata.version)
             .description(&recipe.metadata.description)
+            .architecture(arch)
             .build()
     }
 }
