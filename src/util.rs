@@ -14,16 +14,15 @@ pub fn unpack_archive<T: io::Read, P: AsRef<Path>>(
     archive: &mut tar::Archive<T>,
     output_dir: P,
 ) -> Result<()> {
-    let span = info_span!("unpack-archive");
-    let _enter = span.enter();
-
     let output_dir = output_dir.as_ref();
+    let span = info_span!("unpack-archive", output_dir = %output_dir.display());
+    let _enter = span.enter();
 
     for entry in archive.entries()? {
         let mut entry = entry?;
         if let tar::EntryType::Regular = entry.header().entry_type() {
             let path = entry.header().path()?.to_path_buf();
-            trace!(parent: &span, entry = %path.display(), to = %output_dir.display(), "unpacking");
+            trace!(parent: &span, entry = %path.display(), "unpacking");
             let name = path.file_name().unwrap_or_default();
 
             entry.unpack(output_dir.join(name))?;
@@ -39,7 +38,6 @@ pub fn save_tar_gz<T: io::Read>(
     output_dir: &Path,
 ) -> Result<()> {
     let path = output_dir.join(name);
-
     let span = info_span!("save-tar-gz", path = %path.display());
     let _enter = span.enter();
 
