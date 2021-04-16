@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::fs::{self, DirEntry};
 use std::path::Path;
-use tracing::error;
+use tracing::{info_span, trace, warn};
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
 
@@ -24,10 +24,15 @@ pub struct Recipes(HashMap<String, Recipe>);
 
 impl Recipes {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let mut recipes = Recipes::default();
         let path = env::current_dir()?.join(path.as_ref());
 
+        let span = info_span!("init-recipes", path = %path.display());
+        let _enter = span.enter();
+
+        let mut recipes = Recipes::default();
+
         if !path.is_dir() {
+            warn!("recipes path is not a directory");
             return Ok(recipes);
         }
 
@@ -37,12 +42,13 @@ impl Recipes {
                     let filename = entry.file_name().to_string_lossy().to_string();
                     match RecipeRep::try_from(entry) {
                         Ok(recipe) => {
+                            trace!(recipe = ?recipe);
                             recipes.0.insert(filename, Recipe::try_from(recipe)?);
                         }
-                        Err(e) => error!("failed to read recipe - {}", e),
+                        Err(e) => warn!(recipe = %filename, reason = %e, "failed to read recipe"),
                     }
                 }
-                Err(e) => error!("invalid entry - {}", e),
+                Err(e) => warn!(reason = %e, "invalid entry"),
             }
         }
 

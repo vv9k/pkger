@@ -27,7 +27,7 @@ use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::task;
-use tracing::{debug, error, info, info_span, trace, warn, Level};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument, Level};
 use tracing_subscriber::fmt::format;
 use tracing_subscriber::prelude::*;
 
@@ -78,7 +78,12 @@ impl TryFrom<Config> for Pkger {
 
 impl Pkger {
     fn process_opts(&mut self, opts: Opts) -> Result<()> {
+        let span = info_span!("process-opts");
+        let _enter = span.enter();
+
         if !opts.recipes.is_empty() {
+            trace!(opts_recipes = %opts.recipes.join(", "));
+
             let filtered = self
                 .recipes
                 .inner_ref()
@@ -93,24 +98,39 @@ impl Pkger {
                     recipes.remove(&recipe);
                 }
             }
+            let mut recipes = String::new();
+            for recipe in self.recipes.inner_ref().keys() {
+                recipes.push_str(recipe.as_str());
+                recipes.push_str(", ");
+            }
+
+            info!(recipes = %recipes, "building only");
+        } else {
+            info!("building all recipes");
         }
 
         if let Some(images) = opts.images {
+            trace!(opts_images = %images.join(", "));
             if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
                 filter.extend(images);
             }
-            trace!(images = ?self.images_filter, "building only on");
+            info!(images = ?self.images_filter, "building only on");
         }
 
         self.docker = Arc::new(
             // check if docker uri provided as cli arg
             match opts.docker {
-                Some(uri) => DockerConnectionPool::new(uri),
+                Some(uri) => {
+                    trace!(uri = %uri, "using docker uri from opts");
+                    DockerConnectionPool::new(uri)
+                }
                 None => {
                     // otherwhise check if available as config parameter
                     if let Some(uri) = &self.config.docker {
+                        trace!(uri = %uri, "using docker uri from config");
                         DockerConnectionPool::new(uri)
                     } else {
+                        trace!("using default docker uri");
                         Ok(DockerConnectionPool::default())
                     }
                 }
@@ -121,12 +141,15 @@ impl Pkger {
     }
 
     async fn process_tasks(&self) {
+        let span = info_span!("process-tasks");
+        let _enter = span.enter();
+
         let mut tasks = Vec::new();
         for recipe in self.recipes.inner_ref().values() {
             for image_info in &recipe.metadata.images {
                 if !self.images_filter.is_empty() && !self.images_filter.contains(&image_info.image)
                 {
-                    trace!(image = %image_info.image, "skipping");
+                    debug!(image = %image_info.image, "skipping");
                     continue;
                 }
                 if let Some(image) = self.images.images().get(&image_info.image) {
@@ -152,7 +175,7 @@ impl Pkger {
         let mut errors = vec![];
 
         for task in tasks {
-            let handle = task.await;
+            let handle = task.instrument(span.clone()).await;
             if let Err(e) = handle {
                 error!(reason = %e, "failed to join the task");
                 continue;

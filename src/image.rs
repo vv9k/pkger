@@ -10,17 +10,21 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{debug, error, info_span, trace, warn, Instrument};
+use tracing::{debug, info_span, trace, warn, Instrument};
 
 #[derive(Debug, Default)]
 pub struct Images(HashMap<String, Image>);
 
 impl Images {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let mut images = Images::default();
         let path = path.as_ref();
+        let span = info_span!("init-images", path = %path.display());
+        let _enter = span.enter();
+
+        let mut images = Images::default();
 
         if !path.is_dir() {
+            warn!("images path is not a directory");
             return Ok(images);
         }
 
@@ -30,12 +34,15 @@ impl Images {
                     let filename = entry.file_name().to_string_lossy().to_string();
                     match Image::new(entry.path()) {
                         Ok(image) => {
+                            trace!(image = ?image);
                             images.0.insert(filename, image);
                         }
-                        Err(e) => error!("failed to read image from path - {}", e),
+                        Err(e) => {
+                            warn!(image = %filename, reason = %e, "failed to read image from path")
+                        }
                     }
                 }
-                Err(e) => error!("invalid entry - {}", e),
+                Err(e) => warn!(reason = %e, "invalid entry"),
             }
         }
 
@@ -72,13 +79,16 @@ impl Image {
     /// Checks whether any of the files located at the path of this Image changed since last build.
     /// If shouldn't be rebuilt returns previous `ImageState`.
     pub fn find_cached_state(&self, state: &Arc<RwLock<ImagesState>>) -> Option<ImageState> {
+        let span = info_span!("find-image-cache");
+        let _enter = span.enter();
+
         trace!("checking if image should be rebuilt");
         if let Ok(states) = state.read() {
             if let Some(state) = (*states).images.get(&self.name) {
                 if let Ok(entries) = fs::read_dir(self.path.as_path()) {
                     for file in entries {
                         if let Err(e) = file {
-                            warn!("error while loading file - {} ", e);
+                            warn!(reason = %e, "error while loading file");
                             continue;
                         }
                         let file = file.unwrap();
@@ -86,9 +96,9 @@ impl Image {
                         let metadata = fs::metadata(path.as_path());
                         if let Err(e) = metadata {
                             warn!(
-                                "error while reading metadata of `{}` - {}",
-                                path.display(),
-                                e
+                                path = %path.display(),
+                                reason = %e,
+                                "failed to read metadata",
                             );
                             continue;
                         }
@@ -96,18 +106,23 @@ impl Image {
                         let mod_time = metadata.modified();
                         if let Err(e) = &mod_time {
                             warn!(
-                                "error while checking modification time of `{}` - {}",
-                                path.display(),
-                                e
+                                path = %path.display(),
+                                reason = %e,
+                                "failed to check modification time",
                             );
+                            continue;
                         }
                         let mod_time = mod_time.unwrap();
                         if mod_time > state.timestamp {
+                            trace!(path = %path.display(),
+                             mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
                             return None;
                         }
                     }
                 }
-                return Some(state.to_owned());
+                let state = state.to_owned();
+                trace!(image_state = ?state, "found cached state");
+                return Some(state);
             }
         }
         None
