@@ -10,7 +10,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{error, trace, warn};
+use tracing::{debug, error, info_span, trace, warn, Instrument};
 
 #[derive(Debug, Default)]
 pub struct Images(HashMap<String, Image>);
@@ -132,10 +132,16 @@ impl ImageState {
         docker: &Docker,
     ) -> Result<ImageState> {
         let name = format!(
-            "pkger-{}-{}",
+            "{}-{}",
             image,
-            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+            timestamp
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
         );
+        let span = info_span!("create-image-state", image = %name);
+        let _enter = span.enter();
+
         let out = OneShotCtx::new(
             docker,
             &ContainerOptions::builder(image)
@@ -146,6 +152,7 @@ impl ImageState {
             false,
         )
         .run()
+        .instrument(span.clone())
         .await
         .map_err(|e| anyhow!("failed to check image os - {}", e))?;
 
@@ -153,11 +160,13 @@ impl ImageState {
 
         let os_name = extract_key(&out, "ID");
         let version = extract_key(&out, "VERSION_ID");
+        let os = Os::from(os_name, version);
+        debug!(os = %os.as_ref(), version = %os.os_ver(), "parsed image info");
 
         Ok(ImageState {
             id: id.to_string(),
             image: image.to_string(),
-            os: Os::from(os_name, version),
+            os,
             tag: tag.to_string(),
             timestamp: *timestamp,
         })
@@ -165,7 +174,7 @@ impl ImageState {
 }
 
 fn extract_key(out: &str, key: &str) -> Option<String> {
-    let key = format!("{}=", key);
+    let key = [key, "="].join("");
     if let Some(line) = out.lines().find(|line| line.starts_with(&key)) {
         let line = line.strip_prefix(&key).unwrap();
         if line.starts_with('"') {
@@ -214,6 +223,7 @@ impl ImagesState {
 
     pub fn save(&self) -> Result<()> {
         if !Path::new(&self.state_file).exists() {
+            trace!(state_file = %self.state_file.display(), "doesn't exist, creating");
             fs::File::create(&self.state_file)
                 .map_err(|e| {
                     anyhow!(
@@ -224,6 +234,7 @@ impl ImagesState {
                 })
                 .map(|_| ())
         } else {
+            trace!(state_file = %self.state_file.display(), "file exists");
             match serde_cbor::to_vec(&self) {
                 Ok(d) => fs::write(&self.state_file, d).map_err(|e| {
                     anyhow!(
@@ -232,7 +243,7 @@ impl ImagesState {
                         e
                     )
                 }),
-                Err(e) => return Err(format_err!("failed to serialize image state - {}", e)),
+                Err(e) => return Err(anyhow!("failed to serialize image state - {}", e)),
             }
         }
     }
