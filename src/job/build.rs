@@ -494,6 +494,7 @@ impl<'job> BuildContainerCtx<'job> {
         let specs = base_path.join("SPECS");
         let sources = base_path.join("SOURCES");
         let rpms = base_path.join("RPMS");
+        let rpms_arch = rpms.join(&arch);
         let srpms = base_path.join("SRPMS");
         let tmp_buildroot = PathBuf::from(["/tmp/", &buildroot_name].join(""));
         let source_tar_path = sources.join(&source_tar);
@@ -502,6 +503,7 @@ impl<'job> BuildContainerCtx<'job> {
             specs.as_path(),
             sources.as_path(),
             rpms.as_path(),
+            rpms_arch.as_path(),
             srpms.as_path(),
         ];
 
@@ -520,9 +522,9 @@ impl<'job> BuildContainerCtx<'job> {
         trace!(parent: &span, "prepare archived source files");
         self.container
             .exec(format!(
-                "cd /tmp && tar -zcvf {} {}",
+                "cd {} && tar -zcvf {} .",
+                tmp_buildroot.display(),
                 source_tar_path.display(),
-                &buildroot_name,
             ))
             .instrument(span.clone())
             .await?;
@@ -544,11 +546,35 @@ impl<'job> BuildContainerCtx<'job> {
                     .map(|s| s.trim_start_matches('.').to_string())
                     .collect::<Vec<_>>()
             })?;
+        trace!(source_files = %files.join(", "));
 
         let spec = self
             .recipe
             .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
             .render_owned()?;
+
+        // this should be handled by rpmspec-rs
+        let mut lines = spec.lines();
+        let mut spec_new = String::new();
+        while let Some(line) = lines.next() {
+            if line.starts_with("%description") {
+                spec_new.push('\n');
+                spec_new.push_str(line);
+                spec_new.push('\n');
+                break;
+            } else if line == "" {
+                continue;
+            } else {
+                spec_new.push_str(line);
+                spec_new.push('\n');
+            }
+        }
+        lines.for_each(|line| {
+            spec_new.push_str(line);
+            spec_new.push('\n');
+        });
+        let spec = spec_new;
+
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec_file = %spec_file, spec = %spec);
 
@@ -576,10 +602,12 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await?;
 
+        // TODO: check why rpmbuild doesn't extract the source_tar to BUILDROOT
         self.container
             .exec(format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
             .instrument(span.clone())
             .await?;
+        // TODO: verify stderr here to check if build succeded
 
         let rpm = self
             .container
