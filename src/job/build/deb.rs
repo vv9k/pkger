@@ -15,17 +15,23 @@ impl<'job> BuildContainerCtx<'job> {
         image_state: &ImageState,
         output_dir: &Path,
     ) -> Result<()> {
-        let span = info_span!("DEB", container = %self.container.id());
-        let _enter = span.enter();
-
-        info!(parent: &span, "building DEB package");
-
         let name = [
             &self.recipe.metadata.name,
             "-",
             &self.recipe.metadata.version,
         ]
         .join("");
+        let arch = if self.recipe.metadata.arch.is_empty() {
+            "all"
+        } else {
+            &self.recipe.metadata.arch
+        };
+        let package_name = [&name, ".", &arch].join("");
+
+        let span = info_span!("DEB", package = %package_name);
+        let _enter = span.enter();
+
+        info!(parent: &span, "building DEB package");
 
         let debbld_dir = PathBuf::from("/root/debbuild");
         let tmp_dir = debbld_dir.join("tmp");

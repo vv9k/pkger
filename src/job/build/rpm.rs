@@ -15,11 +15,6 @@ impl<'job> BuildContainerCtx<'job> {
         image_state: &ImageState,
         output_dir: &Path,
     ) -> Result<()> {
-        let span = info_span!("RPM", container = %self.container.id());
-        let _enter = span.enter();
-
-        info!(parent: &span, "building RPM package");
-
         let name = [
             &self.recipe.metadata.name,
             "-",
@@ -38,6 +33,11 @@ impl<'job> BuildContainerCtx<'job> {
         };
         let buildroot_name = [&name, "-", &revision, ".", &arch].join("");
         let source_tar = [&name, ".tar.gz"].join("");
+
+        let span = info_span!("RPM", package = %buildroot_name);
+        let _enter = span.enter();
+
+        info!(parent: &span, "building RPM package");
 
         let base_path = PathBuf::from("/root/rpmbuild");
         let specs = base_path.join("SPECS");
@@ -129,6 +129,7 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await?;
 
+        trace!(parent: &span, "rpmbuild");
         // TODO: check why rpmbuild doesn't extract the source_tar to BUILDROOTt
         self.container
             .exec(format!("rpmbuild -bb {}", specs.join(spec_file).display(),))

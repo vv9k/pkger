@@ -60,26 +60,26 @@ impl<'job> DockerContainer<'job> {
             .await
             .map(|info| info.id)?;
         self.container = self.docker.containers().get(&id);
-        info!(container_id = %self.id(), "created container");
+        info!(parent: &span, id = %self.id(), "created container");
 
         self.container.start().instrument(span.clone()).await?;
-        info!(container_id = %self.id(), "started container");
+        info!(parent: &span, id = %self.id(), "started container");
 
         Ok(())
     }
 
     pub async fn remove(&self) -> Result<()> {
-        let span = info_span!("container-remove");
+        let span = info_span!("container-remove", id = %self.id());
         let _enter = span.enter();
 
-        trace!("stopping container");
+        trace!(parent: &span, "stopping container");
         self.container
             .stop(None)
             .instrument(span.clone())
             .await
             .map_err(|e| anyhow!("failed to stop container - {}", e))?;
 
-        trace!("deleting container");
+        trace!(parent: &span, "deleting container");
         self.container
             .delete()
             .instrument(span.clone())
@@ -88,11 +88,11 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub async fn check_is_running(&self) -> Result<bool> {
-        let span = info_span!("check-is-running");
+        let span = info_span!("check-is-running", id = %self.id());
         let _enter = span.enter();
 
         if !self.is_running.load(Ordering::SeqCst) {
-            trace!("not running");
+            trace!(parent: &span, "not running");
 
             return self.remove().instrument(span.clone()).await.map(|_| true);
         }
@@ -101,7 +101,7 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<Output<String>> {
-        let span = info_span!("container-exec");
+        let span = info_span!("container-exec", id = %self.id());
         let _enter = span.enter();
 
         debug!(parent: &span, cmd = %cmd.as_ref(), "executing");
@@ -137,16 +137,16 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub async fn logs(&self, stdout: bool, stderr: bool) -> Result<Output<u8>> {
-        let span = info_span!("container-logs");
+        let span = info_span!("container-logs", id = %self.id());
         let _enter = span.enter();
 
-        trace!(stdout = %stdout, stderr = %stderr);
+        trace!(parent: &span, stdout = %stdout, stderr = %stderr);
 
         let mut logs_stream = self
             .container
             .logs(&LogsOptions::builder().stdout(stdout).stderr(stderr).build());
 
-        info!("collecting output");
+        info!(parent: &span, "collecting output");
         let mut output = Output::default();
         while let Some(chunk) = logs_stream.next().instrument(span.clone()).await {
             match chunk? {

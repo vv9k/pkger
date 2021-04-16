@@ -117,7 +117,11 @@ impl Ctx for BuildCtx {
             .instrument(span.clone())
             .await?;
 
-        container_ctx.container.remove().await?;
+        container_ctx
+            .container
+            .remove()
+            .instrument(span.clone())
+            .await?;
 
         Ok(())
     }
@@ -325,7 +329,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("recipe-deps", container = %self.container.id());
+        let span = info_span!("recipe-deps");
         let _enter = span.enter();
 
         let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
@@ -340,7 +344,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("default-deps", container = %self.container.id());
+        let span = info_span!("default-deps");
         let _enter = span.enter();
 
         let mut deps = vec!["tar", "git"];
@@ -364,13 +368,12 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn execute_scripts(&self) -> Result<()> {
-        let span = info_span!("exec-scripts", container = %self.container.id());
+        let span = info_span!("exec-scripts");
         let _enter = span.enter();
 
         if let Some(config_script) = &self.recipe.configure_script {
             info!("executing config scripts");
             for cmd in &config_script.steps {
-                trace!(command = %cmd.cmd, "processing");
                 if !cmd.images.is_empty() {
                     trace!(images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
@@ -378,7 +381,6 @@ impl<'job> BuildContainerCtx<'job> {
                         continue;
                     }
                 }
-                trace!(command = %cmd.cmd, "running");
                 self.container
                     .exec(&cmd.cmd)
                     .instrument(span.clone())
@@ -388,7 +390,6 @@ impl<'job> BuildContainerCtx<'job> {
 
         info!("executing build scripts");
         for cmd in &self.recipe.build_script.steps {
-            trace!(command = %cmd.cmd, "processing");
             if !cmd.images.is_empty() {
                 trace!(images = ?cmd.images, "only execute on");
                 if !cmd.images.contains(&self.image.name) {
@@ -396,7 +397,6 @@ impl<'job> BuildContainerCtx<'job> {
                     continue;
                 }
             }
-            trace!(command = %cmd.cmd, "running");
             self.container
                 .exec(&cmd.cmd)
                 .instrument(span.clone())
@@ -406,7 +406,6 @@ impl<'job> BuildContainerCtx<'job> {
         if let Some(install_script) = &self.recipe.install_script {
             info!("executing install scripts");
             for cmd in &install_script.steps {
-                trace!(command = %cmd.cmd, "processing");
                 if !cmd.images.is_empty() {
                     trace!(images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
@@ -414,7 +413,6 @@ impl<'job> BuildContainerCtx<'job> {
                         continue;
                     }
                 }
-                trace!(command = %cmd.cmd, "running");
                 self.container
                     .exec(&cmd.cmd)
                     .instrument(span.clone())
@@ -434,7 +432,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn create_dirs<P: AsRef<Path>>(&self, dirs: &[P]) -> Result<()> {
-        let span = info_span!("create-dirs", container = %self.container.id());
+        let span = info_span!("create-dirs");
         let _enter = span.enter();
 
         let dirs_joined =
@@ -445,7 +443,6 @@ impl<'job> BuildContainerCtx<'job> {
                     dirs_joined
                 });
         let dirs_joined = dirs_joined.trim();
-
         trace!(directories = %dirs_joined);
 
         self.container
@@ -456,7 +453,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
-        let span = info_span!("archive-output", container = %self.container.id());
+        let span = info_span!("archive-output");
         let _enter = span.enter();
 
         info!("copying final archive");
@@ -471,7 +468,7 @@ impl<'job> BuildContainerCtx<'job> {
 
     /// Creates a final GZIP package and saves it to `output_dir`
     async fn build_gzip(&self, output_dir: &Path) -> Result<()> {
-        let span = info_span!("GZIP", container = %self.container.id());
+        let span = info_span!("GZIP");
         let _enter = span.enter();
 
         info!(parent: &span, "building GZIP package");
