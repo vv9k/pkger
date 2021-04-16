@@ -321,7 +321,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("install-recipe-deps", container = %self.container.id());
+        let span = info_span!("recipe-deps", container = %self.container.id());
         let _enter = span.enter();
 
         let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
@@ -336,7 +336,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("install-default-deps", container = %self.container.id());
+        let span = info_span!("default-deps", container = %self.container.id());
         let _enter = span.enter();
 
         let mut deps = vec!["tar", "git"];
@@ -453,6 +453,7 @@ impl<'job> BuildContainerCtx<'job> {
 
     pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
         let span = info_span!("archive-output", container = %self.container.id());
+        let _enter = span.enter();
 
         info!("copying final archive");
         self.container
@@ -546,7 +547,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .map(|s| s.trim_start_matches('.').to_string())
                     .collect::<Vec<_>>()
             })?;
-        trace!(source_files = %files.join(", "));
+        trace!(parent: &span, source_files = %files.join(", "));
 
         let spec = self
             .recipe
