@@ -477,12 +477,26 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
+        let revision = if &self.recipe.metadata.revision == "" {
+            "0"
+        } else {
+            &self.recipe.metadata.revision
+        };
+        let arch = if &self.recipe.metadata.arch == "" {
+            "noarch"
+        } else {
+            &self.recipe.metadata.arch
+        };
+        let buildroot_name = [&name, "-", &revision, ".", &arch].join("");
+        let source_tar = [&name, ".tar.gz"].join("");
 
         let base_path = PathBuf::from("/root/rpmbuild");
         let specs = base_path.join("SPECS");
         let sources = base_path.join("SOURCES");
         let rpms = base_path.join("RPMS");
         let srpms = base_path.join("SRPMS");
+        let tmp_buildroot = PathBuf::from(["/tmp/", &buildroot_name].join(""));
+        let source_tar_path = sources.join(&source_tar);
 
         let dirs = [
             specs.as_path(),
@@ -493,36 +507,50 @@ impl<'job> BuildContainerCtx<'job> {
 
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
-        let source_tar = [&name, ".tar.gz"].join("");
-
+        trace!(parent: &span, "copy source files to temporary location");
         self.container
             .exec(format!(
-                "tar -zcvf {} {}",
-                sources.join(&source_tar).display(),
-                self.container_out_dir.display()
+                "cp -rv {} {}",
+                self.container_out_dir.display(),
+                tmp_buildroot.display(),
             ))
             .instrument(span.clone())
             .await?;
 
+        trace!(parent: &span, "prepare archived source files");
+        self.container
+            .exec(format!(
+                "cd /tmp && tar -zcvf {} {}",
+                source_tar_path.display(),
+                &buildroot_name,
+            ))
+            .instrument(span.clone())
+            .await?;
+
+        trace!(parent: &span, "find source file paths");
         let files = self
             .container
-            .exec(format!("ls {}", self.container_out_dir.display()))
+            .exec(format!(
+                r#"cd {} && find . -type f -name "*""#,
+                self.container_out_dir.display()
+            ))
             .instrument(span.clone())
             .await
             .map(|out| {
                 out.stdout
                     .join("")
-                    .split(' ')
-                    .map(|s| format!("/{}", s))
+                    .split_ascii_whitespace()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.trim_start_matches('.').to_string())
                     .collect::<Vec<_>>()
             })?;
 
         let spec = self
             .recipe
-            .as_rpm_spec(&files[..], &image_state.image)
+            .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
             .render_owned()?;
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
-        debug!(parent: &span, spec = %spec, spec_file = %spec_file);
+        debug!(parent: &span, spec_file = %spec_file, spec = %spec);
 
         let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
         let spec_tar = async move { create_tar_archive(entries) }
@@ -531,14 +559,14 @@ impl<'job> BuildContainerCtx<'job> {
 
         let spec_tar_path = specs.join([&name, "-spec.tar"].join(""));
 
-        trace!(parent: &span, "copy archive to container");
+        trace!(parent: &span, "copy spec archive to container");
         self.container
             .inner()
             .copy_file_into(spec_tar_path.as_path(), &spec_tar)
             .instrument(span.clone())
             .await?;
 
-        trace!(parent: &span, "extract archive");
+        trace!(parent: &span, "extract spec archive");
         self.container
             .exec(format!(
                 "tar -xvf {} -C {}",
@@ -605,14 +633,14 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
         let control_tar_path = tmp_dir.join([&name, "-control.tar"].join(""));
 
-        trace!(parent: &span, "copy archive to container");
+        trace!(parent: &span, "copy control archive to container");
         self.container
             .inner()
             .copy_file_into(control_tar_path.as_path(), &control_tar)
             .instrument(span.clone())
             .await?;
 
-        trace!(parent: &span, "extract archive");
+        trace!(parent: &span, "extract control archive");
         self.container
             .exec(format!(
                 "tar -xvf {} -C {}",
@@ -622,7 +650,7 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await?;
 
-        trace!(parent: &span, "copy sources");
+        trace!(parent: &span, "copy source files to build dir");
         self.container
             .exec(format!(
                 "cp -r {}/ {}",

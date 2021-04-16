@@ -114,7 +114,7 @@ impl Recipe {
         builder.build()
     }
 
-    pub fn as_rpm_spec(&self, files: &[String], image: &str) -> RpmSpec {
+    pub fn as_rpm_spec(&self, sources: &[String], files: &[String], image: &str) -> RpmSpec {
         let mut builder = RpmSpec::builder()
             .name(&self.metadata.name)
             .build_arch(&self.metadata.arch)
@@ -124,6 +124,7 @@ impl Recipe {
             .version(&self.metadata.version)
             .release(&self.metadata.revision)
             .add_files_entries(files)
+            .add_sources_entries(sources)
             .description(&self.metadata.description);
 
         if let Some(conflicts) = &self.metadata.conflicts {
