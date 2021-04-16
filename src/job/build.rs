@@ -553,28 +553,6 @@ impl<'job> BuildContainerCtx<'job> {
             .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
             .render_owned()?;
 
-        // this should be handled by rpmspec-rs
-        let mut lines = spec.lines();
-        let mut spec_new = String::new();
-        while let Some(line) = lines.next() {
-            if line.starts_with("%description") {
-                spec_new.push('\n');
-                spec_new.push_str(line);
-                spec_new.push('\n');
-                break;
-            } else if line.is_empty() {
-                continue;
-            } else {
-                spec_new.push_str(line);
-                spec_new.push('\n');
-            }
-        }
-        lines.for_each(|line| {
-            spec_new.push_str(line);
-            spec_new.push('\n');
-        });
-        let spec = spec_new;
-
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec_file = %spec_file, spec = %spec);
 
