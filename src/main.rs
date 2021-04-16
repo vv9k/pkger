@@ -23,6 +23,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::task;
@@ -153,7 +154,7 @@ impl Pkger {
         for task in tasks {
             let handle = task.await;
             if let Err(e) = handle {
-                error!("failed to join the task - {}", e);
+                error!(reason = %e, "failed to join the task");
                 continue;
             }
 
@@ -171,16 +172,19 @@ impl Pkger {
     }
 
     fn save_images_state(&self) {
+        let span = info_span!("save-images-state");
+        let _enter = span.enter();
+
         let result = self.images_state.read();
 
         if let Err(e) = result {
-            error!("failed to save image state - {}", e);
+            error!(reason = %e, "failed to save image state");
             return;
         }
 
         // it's ok to unwrap, we check the wrapping error above
         if let Err(e) = (*result.unwrap()).save() {
-            error!("failed to save image state - {}", e);
+            error!(reason = %e, "failed to save image state");
         }
     }
 }
@@ -248,12 +252,25 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
     trace!(config_path = %config_path);
 
-    let config = Config::from_path(&config_path)
-        .map_err(|e| anyhow!("Failed to read config file from {} - {}", config_path, e))?;
+    let result = Config::from_path(&config_path);
+    if let Err(e) = &result {
+        error!(reason = %e, config_path = %config_path, "failed to read config file");
+        process::exit(1);
+    }
+    let config = result.unwrap();
     trace!(config = ?config);
 
-    let mut pkger = Pkger::try_from(config)
-        .map_err(|e| anyhow!("Failed to initialize pkger from config - {}", e))?;
+    let result = Pkger::try_from(config);
+    if let Err(e) = &result {
+        error!(reason = %e, "failed to initialize pkger from config");
+        process::exit(1);
+    }
+    let mut pkger = result.unwrap();
+
+    if let Err(e) = pkger.process_opts(opts) {
+        error!(reason = %e, "failed to process opts");
+        process::exit(1);
+    }
 
     let is_running = pkger.is_running.clone();
 
@@ -261,10 +278,9 @@ async fn main() -> Result<()> {
         warn!("got ctrl-c");
         is_running.store(false, Ordering::SeqCst);
     }) {
-        error!("failed to set ctrl-c handler - {}", e);
+        error!(reason = %e, "failed to set ctrl-c handler");
     };
 
-    pkger.process_opts(opts)?;
     pkger.process_tasks().await;
     pkger.save_images_state();
 
