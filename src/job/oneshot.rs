@@ -1,7 +1,5 @@
-use crate::job::{
-    container::{DockerContainer, Output},
-    Ctx, JobCtx,
-};
+use crate::container::{DockerContainer, Output};
+use crate::job::{Ctx, JobCtx};
 use crate::Result;
 
 use async_trait::async_trait;
