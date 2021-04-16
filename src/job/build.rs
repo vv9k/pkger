@@ -477,12 +477,12 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
-        let revision = if &self.recipe.metadata.revision == "" {
+        let revision = if self.recipe.metadata.revision.is_empty() {
             "0"
         } else {
             &self.recipe.metadata.revision
         };
-        let arch = if &self.recipe.metadata.arch == "" {
+        let arch = if self.recipe.metadata.arch.is_empty() {
             "noarch"
         } else {
             &self.recipe.metadata.arch
@@ -562,7 +562,7 @@ impl<'job> BuildContainerCtx<'job> {
                 spec_new.push_str(line);
                 spec_new.push('\n');
                 break;
-            } else if line == "" {
+            } else if line.is_empty() {
                 continue;
             } else {
                 spec_new.push_str(line);
@@ -602,7 +602,7 @@ impl<'job> BuildContainerCtx<'job> {
             .instrument(span.clone())
             .await?;
 
-        // TODO: check why rpmbuild doesn't extract the source_tar to BUILDROOT
+        // TODO: check why rpmbuild doesn't extract the source_tar to BUILDROOTt
         self.container
             .exec(format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
             .instrument(span.clone())

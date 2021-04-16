@@ -70,7 +70,7 @@ where
 
     for entry in entries {
         let path = entry.0.as_ref();
-        let size = entry.1.iter().count() as u64;
+        let size = entry.1.len() as u64;
         trace!(entry = %path.display(), size = %size, "adding to archive");
         let mut header = tar::Header::new_gnu();
         header.set_size(size);
