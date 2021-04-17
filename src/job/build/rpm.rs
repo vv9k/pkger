@@ -1,9 +1,8 @@
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::util::{create_tar_archive, unpack_archive};
+use crate::util::create_tar_archive;
 use crate::Result;
 
-use futures::TryStreamExt;
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::{debug, info, info_span, trace, Instrument};
@@ -140,21 +139,9 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
         // TODO: verify stderr here to check if build succeded
 
-        let rpm = self
-            .container
-            .inner()
-            .copy_from(rpms.join(&self.recipe.metadata.arch).as_path())
-            .try_concat()
+        self.container
+            .download_files(rpms.join(&self.recipe.metadata.arch).as_path(), output_dir)
             .instrument(span.clone())
-            .await?;
-
-        let mut archive = tar::Archive::new(&rpm[..]);
-
-        async move {
-            unpack_archive(&mut archive, output_dir)
-                .map_err(|e| anyhow!("failed to unpack archive - {}", e))
-        }
-        .instrument(span.clone())
-        .await
+            .await
     }
 }
