@@ -1,7 +1,6 @@
 mod deb;
 mod rpm;
 
-use crate::cleanup;
 use crate::container::DockerContainer;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
@@ -20,7 +19,15 @@ use std::str;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use tracing::{debug, info, info_span, trace, Instrument};
+use tracing::{debug, info, info_span, trace, Instrument, Span};
+
+macro_rules! cleanup {
+    ($ctx:ident, $span: ident) => {
+        if !$ctx.is_running(&$span).await? {
+            return Err(anyhow!("job interrupted by ctrl-c signal"));
+        }
+    };
+}
 
 #[derive(Debug)]
 /// Groups all data and functionality necessary to create an artifact
@@ -108,7 +115,7 @@ impl Ctx for BuildCtx {
         cleanup!(container_ctx, span);
 
         container_ctx
-            .create_package(&image_state, out_dir.as_path())
+            .create_package(&image_state, out_dir.as_path(), &span)
             .instrument(span.clone())
             .await?;
 
@@ -204,7 +211,7 @@ impl BuildCtx {
             self.container_out_dir.as_path(),
         );
 
-        ctx.start_container()
+        ctx.start_container(&span)
             .instrument(span.clone())
             .await
             .map(|_| ctx)
@@ -215,7 +222,6 @@ impl BuildCtx {
         let _enter = span.enter();
 
         if let Some(state) = self.image.find_cached_state(&self.image_state) {
-            debug!(state = ?state, "found cached image state");
             return Ok(state);
         }
 
@@ -264,7 +270,7 @@ impl BuildCtx {
     }
 
     async fn create_out_dir(&self, image: &ImageState) -> Result<PathBuf> {
-        let span = info_span!("install-deps");
+        let span = info_span!("create-out-dir");
         let _enter = span.enter();
 
         let os_ver = image.os.os_ver();
@@ -273,10 +279,10 @@ impl BuildCtx {
             .join(format!("{}/{}", image.os.as_ref(), os_ver));
 
         if out_dir.exists() {
-            trace!(dir = %out_dir.display(), "already exists");
+            trace!(dir = %out_dir.display(), "already exists, skipping");
             Ok(out_dir)
         } else {
-            trace!(dir = %out_dir.display(), "creating output directory");
+            trace!(dir = %out_dir.display(), "creating directory");
             fs::create_dir_all(out_dir.as_path())
                 .map(|_| out_dir)
                 .map_err(|e| anyhow!("failed to create output directory - {}", e))
@@ -320,12 +326,15 @@ impl<'job> BuildContainerCtx<'job> {
         }
     }
 
-    pub async fn check_is_running(&self) -> Result<bool> {
-        self.container.check_is_running().await
+    pub async fn is_running(&self, span: &Span) -> Result<bool> {
+        self.container.is_running().instrument(span.clone()).await
     }
 
-    pub async fn start_container(&mut self) -> Result<()> {
-        self.container.spawn(&self.opts).await
+    pub async fn start_container(&mut self, span: &Span) -> Result<()> {
+        self.container
+            .spawn(&self.opts)
+            .instrument(span.clone())
+            .await
     }
 
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
@@ -423,11 +432,24 @@ impl<'job> BuildContainerCtx<'job> {
         Ok(())
     }
 
-    pub async fn create_package(&self, image_state: &ImageState, output_dir: &Path) -> Result<()> {
+    pub async fn create_package(
+        &self,
+        image_state: &ImageState,
+        output_dir: &Path,
+        span: &Span,
+    ) -> Result<()> {
         match self.target {
-            BuildTarget::Rpm => self.build_rpm(&image_state, &output_dir).await,
-            BuildTarget::Gzip => self.build_gzip(&output_dir).await,
-            BuildTarget::Deb => self.build_deb(&image_state, &output_dir).await,
+            BuildTarget::Rpm => {
+                self.build_rpm(&image_state, &output_dir)
+                    .instrument(span.clone())
+                    .await
+            }
+            BuildTarget::Gzip => self.build_gzip(&output_dir).instrument(span.clone()).await,
+            BuildTarget::Deb => {
+                self.build_deb(&image_state, &output_dir)
+                    .instrument(span.clone())
+                    .await
+            }
         }
     }
 
@@ -509,8 +531,8 @@ impl<'job> BuildContainerCtx<'job> {
             return Ok(());
         }
 
+        trace!(deps = ?deps, "resolved dependency names");
         let deps = deps.join(" ");
-        trace!(deps = %deps, "resolved dependency names");
 
         let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
         trace!(command = %cmd, "installing with");

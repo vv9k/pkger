@@ -1,4 +1,3 @@
-use crate::cleanup;
 use crate::Result;
 
 use futures::StreamExt;
@@ -87,17 +86,17 @@ impl<'job> DockerContainer<'job> {
             .map_err(|e| anyhow!("failed to delete container - {}", e))
     }
 
-    pub async fn check_is_running(&self) -> Result<bool> {
-        let span = info_span!("check-is-running", id = %self.id());
+    pub async fn is_running(&self) -> Result<bool> {
+        let span = info_span!("is-running", id = %self.id());
         let _enter = span.enter();
 
         if !self.is_running.load(Ordering::SeqCst) {
             trace!(parent: &span, "not running");
 
-            return self.remove().instrument(span.clone()).await.map(|_| true);
+            return self.remove().instrument(span.clone()).await.map(|_| false);
         }
 
-        Ok(false)
+        Ok(true)
     }
 
     pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<Output<String>> {
@@ -117,7 +116,7 @@ impl<'job> DockerContainer<'job> {
         let mut output = Output::default();
 
         while let Some(result) = stream.next().instrument(span.clone()).await {
-            cleanup!(self, span);
+            self.check_ctrlc().instrument(span.clone()).await?;
             match result? {
                 TtyChunk::StdOut(chunk) => {
                     let chunk = str::from_utf8(&chunk)?.trim_end_matches('\n');
@@ -157,5 +156,16 @@ impl<'job> DockerContainer<'job> {
         }
 
         Ok(output)
+    }
+
+    async fn check_ctrlc(&self) -> Result<()> {
+        let span = info_span!("check-ctrlc");
+        let _enter = span.enter();
+
+        if !self.is_running().instrument(span.clone()).await? {
+            Err(anyhow!("container execution interrupted by ctrl-c signal"))
+        } else {
+            Ok(())
+        }
     }
 }

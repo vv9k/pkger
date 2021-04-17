@@ -95,12 +95,15 @@ impl<'job> BuildContainerCtx<'job> {
                     .map(|s| s.trim_start_matches('.').to_string())
                     .collect::<Vec<_>>()
             })?;
-        trace!(parent: &span, source_files = %files.join(", "));
+        trace!(parent: &span, source_files = ?files);
 
-        let spec = self
-            .recipe
-            .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
-            .render_owned()?;
+        let spec = async move {
+            self.recipe
+                .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
+                .render_owned()
+        }
+        .instrument(span.clone())
+        .await?;
 
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec_file = %spec_file, spec = %spec);
