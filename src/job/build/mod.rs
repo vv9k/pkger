@@ -116,7 +116,6 @@ impl Ctx for BuildCtx {
 
         container_ctx
             .create_package(&image_state, out_dir.as_path(), &span)
-            .instrument(span.clone())
             .await?;
 
         let _bytes = container_ctx
@@ -211,10 +210,7 @@ impl BuildCtx {
             self.container_out_dir.as_path(),
         );
 
-        ctx.start_container(&span)
-            .instrument(span.clone())
-            .await
-            .map(|_| ctx)
+        ctx.start_container(&span).await.map(|_| ctx)
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
