@@ -234,7 +234,7 @@ fn setup_tracing_fmt(opts: &Opts) {
             // Construct a custom formatter for `Debug` fields
             format::debug_fn(|writer, field, value| {
                 if field.name() == "message" {
-                    write!(writer, "\n{:?}",value)
+                    write!(writer, "{:?}",value)
                 } else {
                     let value = format!("{:#?}", value);
                     let field = format!("{}", field);

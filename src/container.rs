@@ -164,6 +164,7 @@ impl<'job> DockerContainer<'job> {
         let span =
             info_span!("download-files", source = %source.display(), destination = %dest.display());
         let _enter = span.enter();
+        trace!("fetching");
 
         let files = self
             .inner()
