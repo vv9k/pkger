@@ -177,8 +177,9 @@ impl BuildCtx {
 
     /// Creates and starts a container from the given ImageState
     async fn container_spawn(&self, image_state: &ImageState) -> Result<BuildContainerCtx<'_>> {
-        let span = info_span!("container-spawn");
+        let span = info_span!("init-container");
         let _enter = span.enter();
+        trace!(image = ?image_state);
 
         let mut env = self.recipe.env.clone();
         env.insert("PKGER_BLD_DIR", self.container_bld_dir.to_string_lossy());
@@ -500,7 +501,7 @@ impl<'job> BuildContainerCtx<'job> {
 
         let archive = tar::Archive::new(&package[..]);
 
-        async move {
+        span.in_scope(|| {
             save_tar_gz(
                 archive,
                 &format!(
@@ -510,9 +511,7 @@ impl<'job> BuildContainerCtx<'job> {
                 output_dir,
             )
             .map_err(|e| anyhow!("failed to save package as tar.gz - {}", e))
-        }
-        .instrument(span.clone())
-        .await
+        })
     }
 
     async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {

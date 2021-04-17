@@ -96,21 +96,17 @@ impl<'job> BuildContainerCtx<'job> {
             })?;
         trace!(parent: &span, source_files = ?files);
 
-        let spec = async move {
+        let spec = span.in_scope(|| {
             self.recipe
                 .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
                 .render_owned()
-        }
-        .instrument(span.clone())
-        .await?;
+        })?;
 
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec_file = %spec_file, spec = %spec);
 
         let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
-        let spec_tar = async move { create_tar_archive(entries) }
-            .instrument(span.clone())
-            .await?;
+        let spec_tar = span.in_scope(|| create_tar_archive(entries))?;
 
         let spec_tar_path = specs.join([&name, "-spec.tar"].join(""));
 
