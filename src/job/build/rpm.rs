@@ -58,29 +58,26 @@ impl<'job> BuildContainerCtx<'job> {
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
         trace!(parent: &span, "copy source files to temporary location");
-        self.container
-            .exec(format!(
-                "cp -rv {} {}",
-                self.container_out_dir.display(),
-                tmp_buildroot.display(),
-            ))
-            .instrument(span.clone())
-            .await?;
+        self.checked_exec(&format!(
+            "cp -rv {} {}",
+            self.container_out_dir.display(),
+            tmp_buildroot.display(),
+        ))
+        .instrument(span.clone())
+        .await?;
 
         trace!(parent: &span, "prepare archived source files");
-        self.container
-            .exec(format!(
-                "cd {} && tar -zcvf {} .",
-                tmp_buildroot.display(),
-                source_tar_path.display(),
-            ))
-            .instrument(span.clone())
-            .await?;
+        self.checked_exec(&format!(
+            "cd {} && tar -zcvf {} .",
+            tmp_buildroot.display(),
+            source_tar_path.display(),
+        ))
+        .instrument(span.clone())
+        .await?;
 
         trace!(parent: &span, "find source file paths");
         let files = self
-            .container
-            .exec(format!(
+            .checked_exec(&format!(
                 r#"cd {} && find . -type f -name "*""#,
                 self.container_out_dir.display()
             ))
@@ -118,19 +115,17 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
 
         trace!(parent: &span, "extract spec archive");
-        self.container
-            .exec(format!(
-                "tar -xvf {} -C {}",
-                spec_tar_path.display(),
-                specs.display(),
-            ))
-            .instrument(span.clone())
-            .await?;
+        self.checked_exec(&format!(
+            "tar -xvf {} -C {}",
+            spec_tar_path.display(),
+            specs.display(),
+        ))
+        .instrument(span.clone())
+        .await?;
 
         trace!(parent: &span, "rpmbuild");
         // TODO: check why rpmbuild doesn't extract the source_tar to BUILDROOTt
-        self.container
-            .exec(format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
+        self.checked_exec(&format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
             .instrument(span.clone())
             .await?;
         // TODO: verify stderr here to check if build succeded

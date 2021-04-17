@@ -1,7 +1,7 @@
 mod deb;
 mod rpm;
 
-use crate::container::DockerContainer;
+use crate::container::{DockerContainer, Output};
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
 use crate::recipe::{BuildTarget, Recipe};
@@ -387,10 +387,16 @@ impl<'job> BuildContainerCtx<'job> {
                         continue;
                     }
                 }
-                self.container
-                    .exec(&cmd.cmd)
-                    .instrument(span.clone())
-                    .await?;
+                let out = self.checked_exec(&cmd.cmd).instrument(span.clone()).await?;
+
+                if out.exit_code != 0 {
+                    return Err(anyhow!(
+                        "command `{}` failed with exit code {}\nError:\n{}",
+                        &cmd.cmd,
+                        out.exit_code,
+                        out.stderr.join("\n")
+                    ));
+                }
             }
         }
 
@@ -403,10 +409,8 @@ impl<'job> BuildContainerCtx<'job> {
                     continue;
                 }
             }
-            self.container
-                .exec(&cmd.cmd)
-                .instrument(span.clone())
-                .await?;
+
+            self.checked_exec(&cmd.cmd).instrument(span.clone()).await?;
         }
 
         if let Some(install_script) = &self.recipe.install_script {
@@ -419,10 +423,8 @@ impl<'job> BuildContainerCtx<'job> {
                         continue;
                     }
                 }
-                self.container
-                    .exec(&cmd.cmd)
-                    .instrument(span.clone())
-                    .await?;
+
+                self.checked_exec(&cmd.cmd).instrument(span.clone()).await?;
             }
         }
 
@@ -464,8 +466,7 @@ impl<'job> BuildContainerCtx<'job> {
         let dirs_joined = dirs_joined.trim();
         trace!(directories = %dirs_joined);
 
-        self.container
-            .exec(format!("mkdir -pv {}", dirs_joined))
+        self.checked_exec(&format!("mkdir -pv {}", dirs_joined))
             .instrument(span.clone())
             .await
             .map(|_| ())
@@ -514,6 +515,23 @@ impl<'job> BuildContainerCtx<'job> {
         })
     }
 
+    async fn checked_exec(&self, cmd: &str) -> Result<Output<String>> {
+        let span = info_span!("checked-exec");
+        let _enter = span.enter();
+
+        let out = self.container.exec(&cmd).instrument(span.clone()).await?;
+        if out.exit_code != 0 {
+            Err(anyhow!(
+                "command `{}` failed with exit code {}\nError:\n{}",
+                &cmd,
+                out.exit_code,
+                out.stderr.join("\n")
+            ))
+        } else {
+            Ok(out)
+        }
+    }
+
     async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {
         let span = info_span!("install-deps");
         let _enter = span.enter();
@@ -532,8 +550,7 @@ impl<'job> BuildContainerCtx<'job> {
         let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
         trace!(command = %cmd, "installing with");
 
-        self.container
-            .exec(cmd)
+        self.checked_exec(&cmd)
             .instrument(span.clone())
             .await
             .map(|_| ())
