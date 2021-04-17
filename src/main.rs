@@ -19,6 +19,7 @@ use crate::opts::Opts;
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
+use colored::Colorize;
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::env;
@@ -99,13 +100,8 @@ impl Pkger {
                     recipes.remove(&recipe);
                 }
             }
-            let mut recipes = String::new();
-            for recipe in self.recipes.inner_ref().keys() {
-                recipes.push_str(recipe.as_str());
-                recipes.push_str(", ");
-            }
 
-            info!(recipes = %recipes, "building only");
+            info!(recipes = ?self.recipes.inner_ref().keys().collect::<Vec<_>>(), "building only");
         } else {
             info!("building all recipes");
         }
@@ -155,18 +151,21 @@ impl Pkger {
                 }
                 if let Some(image) = self.images.images().get(&image_info.image) {
                     debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
-                    tasks.push(task::spawn(
-                        JobCtx::Build(BuildCtx::new(
-                            recipe.clone(),
-                            (*image).clone(),
-                            self.docker.connect(),
-                            image_info.target.clone(),
-                            self.config.clone(),
-                            self.images_state.clone(),
-                            self.is_running.clone(),
-                        ))
-                        .run(),
-                    ));
+                    tasks.push(
+                        task::spawn(
+                            JobCtx::Build(BuildCtx::new(
+                                recipe.clone(),
+                                (*image).clone(),
+                                self.docker.connect(),
+                                image_info.target.clone(),
+                                self.config.clone(),
+                                self.images_state.clone(),
+                                self.is_running.clone(),
+                            ))
+                            .run(),
+                        )
+                        .instrument(span.clone()),
+                    );
                 } else {
                     warn!(image = %image_info.image, "not found");
                 }
@@ -176,7 +175,7 @@ impl Pkger {
         let mut errors = vec![];
 
         for task in tasks {
-            let handle = task.instrument(span.clone()).await;
+            let handle = task.await;
             if let Err(e) = handle {
                 error!(reason = %e, "failed to join the task");
                 continue;
@@ -235,9 +234,11 @@ fn setup_tracing_fmt(opts: &Opts) {
             // Construct a custom formatter for `Debug` fields
             format::debug_fn(|writer, field, value| {
                 if field.name() == "message" {
-                    write!(writer, "{:?}",value)
+                    write!(writer, "\n{:?}",value)
                 } else {
-                    write!(writer, "{} = {:?}", field, value)
+                    let value = format!("{:#?}", value);
+                    let field = format!("{}", field);
+                    write!(writer, "{}={}", field.truecolor(0xa1, 0xa1, 0xa1), value.truecolor(0x26, 0xbd, 0xb0).italic())
                 }
             }).delimited(", ");
 
