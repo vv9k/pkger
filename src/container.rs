@@ -60,6 +60,7 @@ impl<'job> DockerContainer<'job> {
             .instrument(span.clone())
             .await
             .map(|info| info.id)?;
+
         self.container = self.docker.containers().get(&id);
         info!(parent: &span, id = %self.id(), "created container");
 
@@ -73,19 +74,21 @@ impl<'job> DockerContainer<'job> {
         let span = info_span!("container-remove", id = %self.id());
         let _enter = span.enter();
 
-        trace!(parent: &span, "stopping container");
+        info!(parent: &span, "stopping container");
         self.container
             .stop(None)
             .instrument(span.clone())
             .await
             .map_err(|e| anyhow!("failed to stop container - {}", e))?;
 
-        trace!(parent: &span, "deleting container");
+        info!(parent: &span, "deleting container");
         self.container
             .delete()
             .instrument(span.clone())
             .await
-            .map_err(|e| anyhow!("failed to delete container - {}", e))
+            .map_err(|e| anyhow!("failed to delete container - {}", e))?;
+
+        Ok(())
     }
 
     pub async fn is_running(&self) -> Result<bool> {
@@ -121,14 +124,18 @@ impl<'job> DockerContainer<'job> {
             self.check_ctrlc().instrument(span.clone()).await?;
             match result? {
                 TtyChunk::StdOut(chunk) => {
-                    let chunk = str::from_utf8(&chunk)?.trim_end_matches('\n');
+                    let chunk = str::from_utf8(&chunk)?;
                     output.stdout.push(chunk.to_string());
-                    info!(parent: &span, "{}", chunk);
+                    chunk.lines().for_each(|line| {
+                        info!(parent: &span, "{}", line.trim());
+                    })
                 }
                 TtyChunk::StdErr(chunk) => {
-                    let chunk = str::from_utf8(&chunk)?.trim_end_matches('\n');
+                    let chunk = str::from_utf8(&chunk)?;
                     output.stderr.push(chunk.to_string());
-                    error!(parent: &span, "{}", chunk);
+                    chunk.lines().for_each(|line| {
+                        error!(parent: &span, "{}", line.trim());
+                    })
                 }
                 _ => unreachable!(),
             }
@@ -161,8 +168,7 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub async fn download_files(&self, source: &Path, dest: &Path) -> Result<()> {
-        let span =
-            info_span!("download-files", source = %source.display(), destination = %dest.display());
+        let span = info_span!("container-download-files", id = %self.id(), source = %source.display(), destination = %dest.display());
         let _enter = span.enter();
         trace!("fetching");
 
@@ -175,12 +181,10 @@ impl<'job> DockerContainer<'job> {
 
         let mut archive = tar::Archive::new(&files[..]);
 
-        async move {
+        span.in_scope(|| {
             unpack_archive(&mut archive, dest)
                 .map_err(|e| anyhow!("failed to unpack archive - {}", e))
-        }
-        .instrument(span.clone())
-        .await
+        })
     }
 
     async fn check_ctrlc(&self) -> Result<()> {
