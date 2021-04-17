@@ -1,7 +1,9 @@
+use crate::util::unpack_archive;
 use crate::Result;
 
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use moby::{tty::TtyChunk, Container, ContainerOptions, Docker, ExecContainerOptions, LogsOptions};
+use std::path::Path;
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -156,6 +158,28 @@ impl<'job> DockerContainer<'job> {
         }
 
         Ok(output)
+    }
+
+    pub async fn download_files(&self, source: &Path, dest: &Path) -> Result<()> {
+        let span =
+            info_span!("download-files", source = %source.display(), destination = %dest.display());
+        let _enter = span.enter();
+
+        let files = self
+            .inner()
+            .copy_from(source)
+            .try_concat()
+            .instrument(span.clone())
+            .await?;
+
+        let mut archive = tar::Archive::new(&files[..]);
+
+        async move {
+            unpack_archive(&mut archive, dest)
+                .map_err(|e| anyhow!("failed to unpack archive - {}", e))
+        }
+        .instrument(span.clone())
+        .await
     }
 
     async fn check_ctrlc(&self) -> Result<()> {
