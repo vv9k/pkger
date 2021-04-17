@@ -58,32 +58,29 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
 
         trace!(parent: &span, "extract control archive");
-        self.container
-            .exec(format!(
-                "tar -xvf {} -C {}",
-                control_tar_path.display(),
-                deb_dir.display(),
-            ))
-            .instrument(span.clone())
-            .await?;
+        self.checked_exec(&format!(
+            "tar -xvf {} -C {}",
+            control_tar_path.display(),
+            deb_dir.display(),
+        ))
+        .instrument(span.clone())
+        .await?;
 
         trace!(parent: &span, "copy source files to build dir");
-        self.container
-            .exec(format!(
-                "cp -r {}/ {}",
-                self.container_out_dir.display(),
-                base_dir.display()
-            ))
-            .instrument(span.clone())
-            .await?;
+        self.checked_exec(&format!(
+            "cp -r {}/ {}",
+            self.container_out_dir.display(),
+            base_dir.display()
+        ))
+        .instrument(span.clone())
+        .await?;
 
-        self.container
-            .exec(format!(
-                "dpkg-deb --build --root-owner-group {}",
-                base_dir.display()
-            ))
-            .instrument(span.clone())
-            .await?;
+        self.checked_exec(&format!(
+            "dpkg-deb --build --root-owner-group {}",
+            base_dir.display()
+        ))
+        .instrument(span.clone())
+        .await?;
 
         self.container
             .download_files(

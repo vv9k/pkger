@@ -2,7 +2,9 @@ use crate::util::unpack_archive;
 use crate::Result;
 
 use futures::{StreamExt, TryStreamExt};
-use moby::{tty::TtyChunk, Container, ContainerOptions, Docker, ExecContainerOptions, LogsOptions};
+use moby::{
+    tty::TtyChunk, Container, ContainerOptions, Docker, Exec, ExecContainerOptions, LogsOptions,
+};
 use std::path::Path;
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,6 +22,7 @@ pub fn convert_id(id: &str) -> &str {
 pub struct Output<T> {
     pub stdout: Vec<T>,
     pub stderr: Vec<T>,
+    pub exit_code: u64,
 }
 
 pub struct DockerContainer<'job> {
@@ -116,7 +119,10 @@ impl<'job> DockerContainer<'job> {
             .attach_stderr(true)
             .build();
 
-        let mut stream = self.container.exec(&opts);
+        let exec = Exec::create(&self.docker, self.id(), &opts)
+            .instrument(span.clone())
+            .await?;
+        let mut stream = exec.start();
 
         let mut output = Output::default();
 
@@ -140,6 +146,12 @@ impl<'job> DockerContainer<'job> {
                 _ => unreachable!(),
             }
         }
+
+        output.exit_code = exec
+            .inspect()
+            .instrument(span.clone())
+            .await
+            .map(|details| details.exit_code.unwrap_or_default())?;
 
         Ok(output)
     }
