@@ -13,7 +13,7 @@ impl<'job> BuildContainerCtx<'job> {
         &self,
         image_state: &ImageState,
         output_dir: &Path,
-    ) -> Result<()> {
+    ) -> Result<PathBuf> {
         let name = [
             &self.recipe.metadata.name,
             "-",
@@ -123,15 +123,14 @@ impl<'job> BuildContainerCtx<'job> {
         .await?;
 
         trace!(parent: &span, "rpmbuild");
-        // TODO: check why rpmbuild doesn't extract the source_tar to BUILDROOTt
         self.checked_exec(&format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
             .instrument(span.clone())
             .await?;
-        // TODO: verify stderr here to check if build succeded
 
         self.container
             .download_files(rpms.join(&self.recipe.metadata.arch).as_path(), output_dir)
             .instrument(span)
             .await
+            .map(|_| output_dir.join(format!("{}.rpm", buildroot_name)))
     }
 }
