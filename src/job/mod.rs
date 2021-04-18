@@ -15,16 +15,20 @@ pub trait Ctx {
 }
 
 pub enum JobResult {
-    Success { id: String },
+    Success { id: String, output: String },
     Failure { id: String, reason: String },
 }
 
 impl JobResult {
-    pub fn success<I>(id: I) -> Self
+    pub fn success<I, O>(id: I, output: O) -> Self
     where
         I: Into<String>,
+        O: Into<String>,
     {
-        Self::Success { id: id.into() }
+        Self::Success {
+            id: id.into(),
+            output: output.into(),
+        }
     }
 
     pub fn failure<I, E>(id: I, err: E) -> Self
@@ -47,8 +51,8 @@ pub enum JobCtx<'job> {
 impl<'job> JobCtx<'job> {
     pub async fn run(self) -> JobResult {
         match self {
-            JobCtx::Build(mut ctx) => {
-                if let Err(e) = ctx.run().await {
+            JobCtx::Build(mut ctx) => match ctx.run().await {
+                Err(e) => {
                     let reason = match e.downcast::<moby::Error>() {
                         Ok(err) => match err {
                             moby::Error::Fault { code: _, message } => message,
@@ -57,10 +61,9 @@ impl<'job> JobCtx<'job> {
                         Err(e) => e.to_string(),
                     };
                     JobResult::failure(ctx.id(), reason)
-                } else {
-                    JobResult::success(ctx.id())
                 }
-            }
+                Ok(output) => JobResult::success(ctx.id(), output.to_string_lossy().to_string()),
+            },
             JobCtx::OneShot(mut ctx) => {
                 if let Err(e) = ctx.run().await {
                     let reason = match e.downcast::<moby::Error>() {
@@ -72,7 +75,7 @@ impl<'job> JobCtx<'job> {
                     };
                     JobResult::failure(ctx.id(), reason)
                 } else {
-                    JobResult::success(ctx.id())
+                    JobResult::success(ctx.id(), "".to_string())
                 }
             }
         }

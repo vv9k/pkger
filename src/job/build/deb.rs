@@ -13,7 +13,7 @@ impl<'job> BuildContainerCtx<'job> {
         &self,
         image_state: &ImageState,
         output_dir: &Path,
-    ) -> Result<()> {
+    ) -> Result<PathBuf> {
         let name = [
             &self.recipe.metadata.name,
             "-",
@@ -81,12 +81,12 @@ impl<'job> BuildContainerCtx<'job> {
         .instrument(span.clone())
         .await?;
 
+        let deb_name = [&name, ".deb"].join("");
+
         self.container
-            .download_files(
-                debbld_dir.join([&name, ".deb"].join("")).as_path(),
-                output_dir,
-            )
+            .download_files(debbld_dir.join(&deb_name).as_path(), output_dir)
             .instrument(span)
             .await
+            .map(|_| output_dir.join(deb_name))
     }
 }

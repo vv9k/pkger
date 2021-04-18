@@ -204,8 +204,8 @@ impl Pkger {
                 JobResult::Failure { id, reason } => {
                     error!(id = %id, reason = %reason, "job failed");
                 }
-                JobResult::Success { id } => {
-                    info!(id = %id, "job succeded");
+                JobResult::Success { id, output } => {
+                    info!(id = %id, output = %output, "job succeded");
                 }
             });
         }.instrument(span).await

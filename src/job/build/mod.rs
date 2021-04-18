@@ -47,7 +47,7 @@ pub struct BuildCtx {
 
 #[async_trait]
 impl Ctx for BuildCtx {
-    type JobResult = Result<()>;
+    type JobResult = Result<PathBuf>;
 
     fn id(&self) -> &str {
         &self.id
@@ -93,7 +93,7 @@ impl Ctx for BuildCtx {
 
             cleanup!(container_ctx);
 
-            container_ctx
+            let package = container_ctx
                 .create_package(&image_state, out_dir.as_path())
                 .await?;
 
@@ -105,7 +105,7 @@ impl Ctx for BuildCtx {
 
             container_ctx.container.remove().await?;
 
-            Ok(())
+            Ok(package)
         }
         .instrument(span)
         .await
@@ -416,7 +416,11 @@ impl<'job> BuildContainerCtx<'job> {
         .await
     }
 
-    pub async fn create_package(&self, image_state: &ImageState, output_dir: &Path) -> Result<()> {
+    pub async fn create_package(
+        &self,
+        image_state: &ImageState,
+        output_dir: &Path,
+    ) -> Result<PathBuf> {
         match self.target {
             BuildTarget::Rpm => self.build_rpm(&image_state, &output_dir).await,
             BuildTarget::Gzip => self.build_gzip(&output_dir).await,
@@ -460,8 +464,9 @@ impl<'job> BuildContainerCtx<'job> {
         .await
     }
 
-    /// Creates a final GZIP package and saves it to `output_dir`
-    async fn build_gzip(&self, output_dir: &Path) -> Result<()> {
+    /// Creates a final GZIP package and saves it to `output_dir` returning the path of the final
+    /// archive as String.
+    async fn build_gzip(&self, output_dir: &Path) -> Result<PathBuf> {
         let span = info_span!("GZIP");
         info!(parent: &span, "building GZIP package");
         let package = self
@@ -473,18 +478,16 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
 
         let archive = tar::Archive::new(&package[..]);
+        let archive_name = format!(
+            "{}-{}.tar.gz",
+            &self.recipe.metadata.name, &self.recipe.metadata.version
+        );
 
         span.in_scope(|| {
-            save_tar_gz(
-                archive,
-                &format!(
-                    "{}-{}.tar.gz",
-                    &self.recipe.metadata.name, &self.recipe.metadata.version
-                ),
-                output_dir,
-            )
-            .map_err(|e| anyhow!("failed to save package as tar.gz - {}", e))
+            save_tar_gz(archive, &archive_name, output_dir)
+                .map_err(|e| anyhow!("failed to save package as tar.gz - {}", e))
         })
+        .map(|_| output_dir.join(archive_name))
     }
 
     async fn checked_exec(&self, cmd: &str) -> Result<Output<String>> {
