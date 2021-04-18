@@ -34,7 +34,6 @@ impl<'job> BuildContainerCtx<'job> {
         let source_tar = [&name, ".tar.gz"].join("");
 
         let span = info_span!("RPM", package = %buildroot_name);
-        let _enter = span.enter();
 
         info!(parent: &span, "building RPM package");
 
@@ -132,7 +131,7 @@ impl<'job> BuildContainerCtx<'job> {
 
         self.container
             .download_files(rpms.join(&self.recipe.metadata.arch).as_path(), output_dir)
-            .instrument(span.clone())
+            .instrument(span)
             .await
     }
 }

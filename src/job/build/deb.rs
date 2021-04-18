@@ -28,7 +28,6 @@ impl<'job> BuildContainerCtx<'job> {
         let package_name = [&name, ".", &arch].join("");
 
         let span = info_span!("DEB", package = %package_name);
-        let _enter = span.enter();
 
         info!(parent: &span, "building DEB package");
 
@@ -87,7 +86,7 @@ impl<'job> BuildContainerCtx<'job> {
                 debbld_dir.join([&name, ".deb"].join("")).as_path(),
                 output_dir,
             )
-            .instrument(span.clone())
+            .instrument(span)
             .await
     }
 }

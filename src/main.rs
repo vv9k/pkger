@@ -139,59 +139,58 @@ impl Pkger {
 
     async fn process_tasks(&self) {
         let span = info_span!("process-tasks");
-        let _enter = span.enter();
+        async move {
+            let mut tasks = Vec::new();
+            for recipe in self.recipes.inner_ref().values() {
+                for image_info in &recipe.metadata.images {
+                    if !self.images_filter.is_empty() && !self.images_filter.contains(&image_info.image)
+                    {
+                        debug!(image = %image_info.image, "skipping");
+                        continue;
+                    }
+                    if let Some(image) = self.images.images().get(&image_info.image) {
+                        debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
+                        tasks.push(
+                            task::spawn(
+                                JobCtx::Build(BuildCtx::new(
+                                    recipe.clone(),
+                                    (*image).clone(),
+                                    self.docker.connect(),
+                                    image_info.target.clone(),
+                                    self.config.clone(),
+                                    self.images_state.clone(),
+                                    self.is_running.clone(),
+                                ))
+                                .run(),
+                            )
+                        );
+                    } else {
+                        warn!(image = %image_info.image, "not found");
+                    }
+                }
+            }
 
-        let mut tasks = Vec::new();
-        for recipe in self.recipes.inner_ref().values() {
-            for image_info in &recipe.metadata.images {
-                if !self.images_filter.is_empty() && !self.images_filter.contains(&image_info.image)
-                {
-                    debug!(image = %image_info.image, "skipping");
+            let mut errors = vec![];
+
+            for task in tasks {
+                let handle = task.await;
+                if let Err(e) = handle {
+                    error!(reason = %e, "failed to join the task");
                     continue;
                 }
-                if let Some(image) = self.images.images().get(&image_info.image) {
-                    debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
-                    tasks.push(
-                        task::spawn(
-                            JobCtx::Build(BuildCtx::new(
-                                recipe.clone(),
-                                (*image).clone(),
-                                self.docker.connect(),
-                                image_info.target.clone(),
-                                self.config.clone(),
-                                self.images_state.clone(),
-                                self.is_running.clone(),
-                            ))
-                            .run(),
-                        )
-                        .instrument(span.clone()),
-                    );
-                } else {
-                    warn!(image = %image_info.image, "not found");
+
+                errors.push(handle.unwrap());
+            }
+
+            errors.iter().for_each(|err| match err {
+                JobResult::Failure { id, reason } => {
+                    error!(id = %id, reason = %reason, "job failed");
                 }
-            }
-        }
-
-        let mut errors = vec![];
-
-        for task in tasks {
-            let handle = task.await;
-            if let Err(e) = handle {
-                error!(reason = %e, "failed to join the task");
-                continue;
-            }
-
-            errors.push(handle.unwrap());
-        }
-
-        errors.iter().for_each(|err| match err {
-            JobResult::Failure { id, reason } => {
-                error!(id = %id, reason = %reason, "job failed");
-            }
-            JobResult::Success { id } => {
-                info!(id = %id, "job succeded");
-            }
-        });
+                JobResult::Success { id } => {
+                    info!(id = %id, "job succeded");
+                }
+            });
+        }.instrument(span).await
     }
 
     fn save_images_state(&self) {

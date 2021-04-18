@@ -155,36 +155,37 @@ impl ImageState {
                 .as_secs()
         );
         let span = info_span!("create-image-state", image = %name);
-        let _enter = span.enter();
+        async move {
+            let out = OneShotCtx::new(
+                docker,
+                &ContainerOptions::builder(image)
+                    .name(&name)
+                    .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
+                    .build(),
+                true,
+                false,
+            )
+            .run()
+            .await
+            .map_err(|e| anyhow!("failed to check image os - {}", e))?;
 
-        let out = OneShotCtx::new(
-            docker,
-            &ContainerOptions::builder(image)
-                .name(&name)
-                .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
-                .build(),
-            true,
-            false,
-        )
-        .run()
-        .instrument(span.clone())
+            let out = String::from_utf8_lossy(&out.stdout);
+
+            let os_name = extract_key(&out, "ID");
+            let version = extract_key(&out, "VERSION_ID");
+            let os = Os::from(os_name, version);
+            debug!(os = %os.as_ref(), version = %os.os_ver(), "parsed image info");
+
+            Ok(ImageState {
+                id: id.to_string(),
+                image: image.to_string(),
+                os,
+                tag: tag.to_string(),
+                timestamp: *timestamp,
+            })
+        }
+        .instrument(span)
         .await
-        .map_err(|e| anyhow!("failed to check image os - {}", e))?;
-
-        let out = String::from_utf8_lossy(&out.stdout);
-
-        let os_name = extract_key(&out, "ID");
-        let version = extract_key(&out, "VERSION_ID");
-        let os = Os::from(os_name, version);
-        debug!(os = %os.as_ref(), version = %os.os_ver(), "parsed image info");
-
-        Ok(ImageState {
-            id: id.to_string(),
-            image: image.to_string(),
-            os,
-            tag: tag.to_string(),
-            timestamp: *timestamp,
-        })
     }
 }
 
