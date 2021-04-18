@@ -67,7 +67,7 @@ impl<'job> BuildContainerCtx<'job> {
 
         trace!(parent: &span, "copy source files to build dir");
         self.checked_exec(&format!(
-            "cp -r {}/ {}",
+            "cd {} && cp -rv . {}",
             self.container_out_dir.display(),
             base_dir.display()
         ))
