@@ -28,15 +28,14 @@ impl<'job> Ctx for OneShotCtx<'job> {
 
     async fn run(&mut self) -> Self::JobResult {
         let span = info_span!("oneshot-ctx", id = %self.id);
-        let _enter = span.enter();
+        async move {
+            let mut container = DockerContainer::new(&self.docker, None);
+            container.spawn(&self.opts).await?;
 
-        let mut container = DockerContainer::new(&self.docker, None);
-        container.spawn(&self.opts).instrument(span.clone()).await?;
-
-        container
-            .logs(self.stdout, self.stderr)
-            .instrument(span.clone())
-            .await
+            container.logs(self.stdout, self.stderr).await
+        }
+        .instrument(span)
+        .await
     }
 }
 

@@ -54,135 +54,138 @@ impl<'job> DockerContainer<'job> {
 
     pub async fn spawn(&mut self, opts: &ContainerOptions) -> Result<()> {
         let span = info_span!("container-spawn");
-        let _enter = span.enter();
+        async move {
+            let id = self
+                .docker
+                .containers()
+                .create(&opts)
+                .await
+                .map(|info| info.id)?;
 
-        let id = self
-            .docker
-            .containers()
-            .create(&opts)
-            .instrument(span.clone())
-            .await
-            .map(|info| info.id)?;
+            self.container = self.docker.containers().get(&id);
+            info!(id = %self.id(), "created container");
 
-        self.container = self.docker.containers().get(&id);
-        info!(parent: &span, id = %self.id(), "created container");
+            self.container.start().await?;
+            info!(id = %self.id(), "started container");
 
-        self.container.start().instrument(span.clone()).await?;
-        info!(parent: &span, id = %self.id(), "started container");
-
-        Ok(())
+            Ok(())
+        }
+        .instrument(span)
+        .await
     }
 
     pub async fn remove(&self) -> Result<()> {
         let span = info_span!("container-remove", id = %self.id());
-        let _enter = span.enter();
+        async move {
+            info!("stopping container");
+            self.container
+                .stop(None)
+                .await
+                .map_err(|e| anyhow!("failed to stop container - {}", e))?;
 
-        info!(parent: &span, "stopping container");
-        self.container
-            .stop(None)
-            .instrument(span.clone())
-            .await
-            .map_err(|e| anyhow!("failed to stop container - {}", e))?;
+            info!("deleting container");
+            self.container
+                .delete()
+                .await
+                .map_err(|e| anyhow!("failed to delete container - {}", e))?;
 
-        info!(parent: &span, "deleting container");
-        self.container
-            .delete()
-            .instrument(span.clone())
-            .await
-            .map_err(|e| anyhow!("failed to delete container - {}", e))?;
-
-        Ok(())
+            Ok(())
+        }
+        .instrument(span)
+        .await
     }
 
     pub async fn is_running(&self) -> Result<bool> {
         let span = info_span!("is-running", id = %self.id());
-        let _enter = span.enter();
+        async move {
+            if !self.is_running.load(Ordering::SeqCst) {
+                trace!("not running");
 
-        if !self.is_running.load(Ordering::SeqCst) {
-            trace!(parent: &span, "not running");
+                return self.remove().await.map(|_| false);
+            }
 
-            return self.remove().instrument(span.clone()).await.map(|_| false);
+            Ok(true)
         }
-
-        Ok(true)
+        .instrument(span)
+        .await
     }
 
     pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<Output<String>> {
         let span = info_span!("container-exec", id = %self.id());
-        let _enter = span.enter();
+        async move {
+            debug!(cmd = %cmd.as_ref(), "executing");
 
-        debug!(parent: &span, cmd = %cmd.as_ref(), "executing");
+            let opts = ExecContainerOptions::builder()
+                .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
+                .attach_stdout(true)
+                .attach_stderr(true)
+                .build();
 
-        let opts = ExecContainerOptions::builder()
-            .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
-            .attach_stdout(true)
-            .attach_stderr(true)
-            .build();
+            let exec = Exec::create(&self.docker, self.id(), &opts).await?;
+            let mut stream = exec.start();
 
-        let exec = Exec::create(&self.docker, self.id(), &opts)
-            .instrument(span.clone())
-            .await?;
-        let mut stream = exec.start();
+            let mut output = Output::default();
 
-        let mut output = Output::default();
-
-        while let Some(result) = stream.next().instrument(span.clone()).await {
-            self.check_ctrlc().instrument(span.clone()).await?;
-            match result? {
-                TtyChunk::StdOut(chunk) => {
-                    let chunk = str::from_utf8(&chunk)?;
-                    output.stdout.push(chunk.to_string());
-                    chunk.lines().for_each(|line| {
-                        info!(parent: &span, "{}", line.trim());
-                    })
+            while let Some(result) = stream.next().await {
+                self.check_ctrlc().await?;
+                match result? {
+                    TtyChunk::StdOut(chunk) => {
+                        let chunk = str::from_utf8(&chunk)?;
+                        output.stdout.push(chunk.to_string());
+                        chunk.lines().for_each(|line| {
+                            info!("{}", line.trim());
+                        })
+                    }
+                    TtyChunk::StdErr(chunk) => {
+                        let chunk = str::from_utf8(&chunk)?;
+                        output.stderr.push(chunk.to_string());
+                        chunk.lines().for_each(|line| {
+                            error!("{}", line.trim());
+                        })
+                    }
+                    _ => unreachable!(),
                 }
-                TtyChunk::StdErr(chunk) => {
-                    let chunk = str::from_utf8(&chunk)?;
-                    output.stderr.push(chunk.to_string());
-                    chunk.lines().for_each(|line| {
-                        error!(parent: &span, "{}", line.trim());
-                    })
-                }
-                _ => unreachable!(),
             }
+
+            output.exit_code = exec
+                .inspect()
+                .await
+                .map(|details| details.exit_code.unwrap_or_default())?;
+
+            Ok(output)
         }
-
-        output.exit_code = exec
-            .inspect()
-            .instrument(span.clone())
-            .await
-            .map(|details| details.exit_code.unwrap_or_default())?;
-
-        Ok(output)
+        .instrument(span)
+        .await
     }
 
     pub async fn logs(&self, stdout: bool, stderr: bool) -> Result<Output<u8>> {
         let span = info_span!("container-logs", id = %self.id());
-        let _enter = span.enter();
+        async move {
+            trace!(stdout = %stdout, stderr = %stderr);
 
-        trace!(parent: &span, stdout = %stdout, stderr = %stderr);
+            let mut logs_stream = self
+                .container
+                .logs(&LogsOptions::builder().stdout(stdout).stderr(stderr).build());
 
-        let mut logs_stream = self
-            .container
-            .logs(&LogsOptions::builder().stdout(stdout).stderr(stderr).build());
-
-        info!(parent: &span, "collecting output");
-        let mut output = Output::default();
-        while let Some(chunk) = logs_stream.next().instrument(span.clone()).await {
-            match chunk? {
-                TtyChunk::StdErr(mut inner) => output.stderr.append(&mut inner),
-                TtyChunk::StdOut(mut inner) => output.stdout.append(&mut inner),
-                _ => unreachable!(),
+            info!("collecting output");
+            let mut output = Output::default();
+            while let Some(chunk) = logs_stream.next().await {
+                match chunk? {
+                    TtyChunk::StdErr(mut inner) => output.stderr.append(&mut inner),
+                    TtyChunk::StdOut(mut inner) => output.stdout.append(&mut inner),
+                    _ => unreachable!(),
+                }
             }
-        }
 
-        Ok(output)
+            Ok(output)
+        }
+        .instrument(span)
+        .await
     }
 
     pub async fn download_files(&self, source: &Path, dest: &Path) -> Result<()> {
         let span = info_span!("container-download-files", id = %self.id(), source = %source.display(), destination = %dest.display());
-        let _enter = span.enter();
-        trace!("fetching");
+        trace!(parent: &span, "fetching");
 
         let files = self
             .inner()
@@ -201,12 +204,14 @@ impl<'job> DockerContainer<'job> {
 
     async fn check_ctrlc(&self) -> Result<()> {
         let span = info_span!("check-ctrlc");
-        let _enter = span.enter();
-
-        if !self.is_running().instrument(span.clone()).await? {
-            Err(anyhow!("container execution interrupted by ctrl-c signal"))
-        } else {
-            Ok(())
+        async move {
+            if !self.is_running().await? {
+                Err(anyhow!("container execution interrupted by ctrl-c signal"))
+            } else {
+                Ok(())
+            }
         }
+        .instrument(span)
+        .await
     }
 }

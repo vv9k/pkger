@@ -19,11 +19,11 @@ use std::str;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use tracing::{debug, info, info_span, trace, Instrument, Span};
+use tracing::{debug, info, info_span, trace, Instrument};
 
 macro_rules! cleanup {
-    ($ctx:ident, $span: ident) => {
-        if !$ctx.is_running(&$span).await? {
+    ($ctx:ident) => {
+        if !$ctx.is_running().await? {
             return Err(anyhow!("job interrupted by ctrl-c signal"));
         }
     };
@@ -55,80 +55,60 @@ impl Ctx for BuildCtx {
 
     async fn run(&mut self) -> Self::JobResult {
         let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.target.as_ref());
-        let _enter = span.enter();
+        async move {
+            info!(id = %self.id, "running job" );
+            let image_state = self
+                .image_build()
+                .await
+                .map_err(|e| anyhow!("failed to build image - {}", e))?;
 
-        info!(id = %self.id, "running job" );
-        let image_state = self
-            .image_build()
-            .instrument(span.clone())
-            .await
-            .map_err(|e| anyhow!("failed to build image - {}", e))?;
+            let out_dir = self.create_out_dir(&image_state).await?;
 
-        let out_dir = self
-            .create_out_dir(&image_state)
-            .instrument(span.clone())
-            .await?;
+            let container_ctx = self.container_spawn(&image_state).await?;
 
-        let container_ctx = self
-            .container_spawn(&image_state)
-            .instrument(span.clone())
-            .await?;
+            cleanup!(container_ctx);
 
-        cleanup!(container_ctx, span);
+            let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
 
-        let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
+            if !skip_deps {
+                container_ctx.install_pkger_deps(&image_state).await?;
 
-        if !skip_deps {
+                cleanup!(container_ctx);
+            }
+
+            container_ctx.install_recipe_deps(&image_state).await?;
+
+            cleanup!(container_ctx);
+
+            let dirs = vec![
+                self.container_out_dir.to_string_lossy().to_string(),
+                self.container_bld_dir.to_string_lossy().to_string(),
+            ];
+
+            container_ctx.create_dirs(&dirs[..]).await?;
+
+            cleanup!(container_ctx);
+
+            container_ctx.execute_scripts().await?;
+
+            cleanup!(container_ctx);
+
             container_ctx
-                .install_pkger_deps(&image_state)
-                .instrument(span.clone())
+                .create_package(&image_state, out_dir.as_path())
                 .await?;
 
-            cleanup!(container_ctx, span);
+            cleanup!(container_ctx);
+
+            let _bytes = container_ctx.archive_output_dir().await?;
+
+            cleanup!(container_ctx);
+
+            container_ctx.container.remove().await?;
+
+            Ok(())
         }
-
-        container_ctx
-            .install_recipe_deps(&image_state)
-            .instrument(span.clone())
-            .await?;
-
-        cleanup!(container_ctx, span);
-
-        let dirs = vec![
-            self.container_out_dir.to_string_lossy().to_string(),
-            self.container_bld_dir.to_string_lossy().to_string(),
-        ];
-
-        container_ctx
-            .create_dirs(&dirs[..])
-            .instrument(span.clone())
-            .await?;
-
-        cleanup!(container_ctx, span);
-
-        container_ctx
-            .execute_scripts()
-            .instrument(span.clone())
-            .await?;
-
-        cleanup!(container_ctx, span);
-
-        container_ctx
-            .create_package(&image_state, out_dir.as_path(), &span)
-            .await?;
-
-        let _bytes = container_ctx
-            .archive_output_dir()
-            .instrument(span.clone())
-            .await?;
-
-        container_ctx
-            .container
-            .remove()
-            .instrument(span.clone())
-            .await?;
-
-        Ok(())
+        .instrument(span)
+        .await
     }
 }
 
@@ -176,113 +156,120 @@ impl BuildCtx {
 
     /// Creates and starts a container from the given ImageState
     async fn container_spawn(&self, image_state: &ImageState) -> Result<BuildContainerCtx<'_>> {
-        let span = info_span!("init-container");
-        let _enter = span.enter();
-        trace!(image = ?image_state);
+        let span = info_span!("init-container-ctx");
+        async move {
+            trace!(image = ?image_state);
 
-        let mut env = self.recipe.env.clone();
-        env.insert("PKGER_BLD_DIR", self.container_bld_dir.to_string_lossy());
-        env.insert("PKGER_OUT_DIR", self.container_out_dir.to_string_lossy());
-        env.insert("PKGER_OS", image_state.os.as_ref());
-        env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
-        trace!(env = ?env);
+            let mut env = self.recipe.env.clone();
+            env.insert("PKGER_BLD_DIR", self.container_bld_dir.to_string_lossy());
+            env.insert("PKGER_OUT_DIR", self.container_out_dir.to_string_lossy());
+            env.insert("PKGER_OS", image_state.os.as_ref());
+            env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
+            trace!(env = ?env);
 
-        let opts = ContainerOptions::builder(&image_state.image)
-            .name(&self.id)
-            .cmd(vec!["sleep infinity"])
-            .entrypoint(vec!["/bin/sh", "-c"])
-            .env(env.kv_vec())
-            .working_dir(
-                self.container_bld_dir
-                    .to_string_lossy()
-                    .to_string()
-                    .as_str(),
-            )
-            .build();
+            let opts = ContainerOptions::builder(&image_state.image)
+                .name(&self.id)
+                .cmd(vec!["sleep infinity"])
+                .entrypoint(vec!["/bin/sh", "-c"])
+                .env(env.kv_vec())
+                .working_dir(
+                    self.container_bld_dir
+                        .to_string_lossy()
+                        .to_string()
+                        .as_str(),
+                )
+                .build();
 
-        let mut ctx = BuildContainerCtx::new(
-            &self.docker,
-            opts,
-            &self.recipe,
-            &self.image,
-            self.is_running.clone(),
-            self.target.clone(),
-            self.container_out_dir.as_path(),
-        );
+            let mut ctx = BuildContainerCtx::new(
+                &self.docker,
+                opts,
+                &self.recipe,
+                &self.image,
+                self.is_running.clone(),
+                self.target.clone(),
+                self.container_out_dir.as_path(),
+            );
 
-        ctx.start_container(&span).await.map(|_| ctx)
+            ctx.start_container().await.map(|_| ctx)
+        }
+        .instrument(span)
+        .await
     }
 
     async fn image_build(&mut self) -> Result<ImageState> {
         let span = info_span!("image-build");
-        let _enter = span.enter();
 
-        if let Some(state) = self.image.find_cached_state(&self.image_state) {
-            return Ok(state);
-        }
-
-        debug!(image = %self.image.name, "building from scratch");
-        let images = self.docker.images();
-        let opts = BuildOptions::builder(self.image.path.to_string_lossy().to_string())
-            .tag(&format!("{}:latest", &self.image.name))
-            .build();
-
-        let mut stream = images.build(&opts);
-
-        while let Some(chunk) = stream.next().instrument(span.clone()).await {
-            let chunk = chunk?;
-            match chunk {
-                ImageBuildChunk::Error {
-                    error,
-                    error_detail: _,
-                } => {
-                    return Err(anyhow!(error));
-                }
-                ImageBuildChunk::Update { stream } => {
-                    info!("{}", stream);
-                }
-                ImageBuildChunk::Digest { aux } => {
-                    let state = ImageState::new(
-                        &aux.id,
-                        &self.image.name,
-                        "latest",
-                        &SystemTime::now(),
-                        &self.docker,
-                    )
-                    .instrument(span.clone())
-                    .await?;
-
-                    if let Ok(mut image_state) = self.image_state.write() {
-                        (*image_state).update(&self.image.name, &state)
-                    }
-
-                    return Ok(state);
-                }
-                _ => {}
+        async move {
+            if let Some(state) = self.image.find_cached_state(&self.image_state) {
+                return Ok(state);
             }
-        }
 
-        Err(anyhow!("stream ended before image id was received"))
+            debug!(image = %self.image.name, "building from scratch");
+            let images = self.docker.images();
+            let opts = BuildOptions::builder(self.image.path.to_string_lossy().to_string())
+                .tag(&format!("{}:latest", &self.image.name))
+                .build();
+
+            let mut stream = images.build(&opts);
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+                match chunk {
+                    ImageBuildChunk::Error {
+                        error,
+                        error_detail: _,
+                    } => {
+                        return Err(anyhow!(error));
+                    }
+                    ImageBuildChunk::Update { stream } => {
+                        info!("{}", stream);
+                    }
+                    ImageBuildChunk::Digest { aux } => {
+                        let state = ImageState::new(
+                            &aux.id,
+                            &self.image.name,
+                            "latest",
+                            &SystemTime::now(),
+                            &self.docker,
+                        )
+                        .await?;
+
+                        if let Ok(mut image_state) = self.image_state.write() {
+                            (*image_state).update(&self.image.name, &state)
+                        }
+
+                        return Ok(state);
+                    }
+                    _ => {}
+                }
+            }
+
+            Err(anyhow!("stream ended before image id was received"))
+        }
+        .instrument(span)
+        .await
     }
 
     async fn create_out_dir(&self, image: &ImageState) -> Result<PathBuf> {
         let span = info_span!("create-out-dir");
-        let _enter = span.enter();
+        async move {
+            let os_ver = image.os.os_ver();
+            let out_dir = self
+                .out_dir
+                .join(format!("{}/{}", image.os.as_ref(), os_ver));
 
-        let os_ver = image.os.os_ver();
-        let out_dir = self
-            .out_dir
-            .join(format!("{}/{}", image.os.as_ref(), os_ver));
-
-        if out_dir.exists() {
-            trace!(dir = %out_dir.display(), "already exists, skipping");
-            Ok(out_dir)
-        } else {
-            trace!(dir = %out_dir.display(), "creating directory");
-            fs::create_dir_all(out_dir.as_path())
-                .map(|_| out_dir)
-                .map_err(|e| anyhow!("failed to create output directory - {}", e))
+            if out_dir.exists() {
+                trace!(dir = %out_dir.display(), "already exists, skipping");
+                Ok(out_dir)
+            } else {
+                trace!(dir = %out_dir.display(), "creating directory");
+                fs::create_dir_all(out_dir.as_path())
+                    .map(|_| out_dir)
+                    .map_err(|e| anyhow!("failed to create output directory - {}", e))
+            }
         }
+        .instrument(span)
+        .await
     }
 }
 
@@ -322,99 +309,81 @@ impl<'job> BuildContainerCtx<'job> {
         }
     }
 
-    pub async fn is_running(&self, span: &Span) -> Result<bool> {
-        self.container.is_running().instrument(span.clone()).await
+    pub async fn is_running(&self) -> Result<bool> {
+        self.container.is_running().await
     }
 
-    pub async fn start_container(&mut self, span: &Span) -> Result<()> {
-        self.container
-            .spawn(&self.opts)
-            .instrument(span.clone())
-            .await
+    pub async fn start_container(&mut self) -> Result<()> {
+        self.container.spawn(&self.opts).await
     }
 
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("recipe-deps");
-        let _enter = span.enter();
+        async move {
+            let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
+                deps.resolve_names(&state.image)
+            } else {
+                vec![]
+            };
 
-        let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
-            deps.resolve_names(&state.image)
-        } else {
-            vec![]
-        };
-
-        self._install_deps(&deps, &state)
-            .instrument(span.clone())
-            .await
+            self._install_deps(&deps, &state).await
+        }
+        .instrument(span)
+        .await
     }
 
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("default-deps");
-        let _enter = span.enter();
+        async move {
+            let mut deps = vec!["tar", "git"];
+            match self.target {
+                BuildTarget::Rpm => {
+                    deps.push("rpm-build");
+                }
+                BuildTarget::Deb => {
+                    deps.push("dpkg");
+                }
+                BuildTarget::Gzip => {
+                    deps.push("gzip");
+                }
+            }
 
-        let mut deps = vec!["tar", "git"];
-        match self.target {
-            BuildTarget::Rpm => {
-                deps.push("rpm-build");
-            }
-            BuildTarget::Deb => {
-                deps.push("dpkg");
-            }
-            BuildTarget::Gzip => {
-                deps.push("gzip");
-            }
+            let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
+
+            self._install_deps(&deps, &state).await
         }
-
-        let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
-
-        self._install_deps(&deps, &state)
-            .instrument(span.clone())
-            .await
+        .instrument(span)
+        .await
     }
 
     pub async fn execute_scripts(&self) -> Result<()> {
         let span = info_span!("exec-scripts");
-        let _enter = span.enter();
+        async move {
+            if let Some(config_script) = &self.recipe.configure_script {
+                info!("executing config scripts");
+                for cmd in &config_script.steps {
+                    if !cmd.images.is_empty() {
+                        trace!(images = ?cmd.images, "only execute on");
+                        if !cmd.images.contains(&self.image.name) {
+                            trace!(image = %self.image.name, "not found, skipping");
+                            continue;
+                        }
+                    }
+                    let out = self.checked_exec(&cmd.cmd).await?;
 
-        if let Some(config_script) = &self.recipe.configure_script {
-            info!("executing config scripts");
-            for cmd in &config_script.steps {
-                if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&self.image.name) {
-                        trace!(image = %self.image.name, "not found, skipping");
-                        continue;
+                    if out.exit_code != 0 {
+                        return Err(anyhow!(
+                            "command `{}` failed with exit code {}\nError:\n{}",
+                            &cmd.cmd,
+                            out.exit_code,
+                            out.stderr.join("\n")
+                        ));
                     }
                 }
-                let out = self.checked_exec(&cmd.cmd).instrument(span.clone()).await?;
-
-                if out.exit_code != 0 {
-                    return Err(anyhow!(
-                        "command `{}` failed with exit code {}\nError:\n{}",
-                        &cmd.cmd,
-                        out.exit_code,
-                        out.stderr.join("\n")
-                    ));
-                }
-            }
-        }
-
-        info!("executing build scripts");
-        for cmd in &self.recipe.build_script.steps {
-            if !cmd.images.is_empty() {
-                trace!(images = ?cmd.images, "only execute on");
-                if !cmd.images.contains(&self.image.name) {
-                    trace!(image = %self.image.name, "not found, skipping");
-                    continue;
-                }
             }
 
-            self.checked_exec(&cmd.cmd).instrument(span.clone()).await?;
-        }
-
-        if let Some(install_script) = &self.recipe.install_script {
-            info!("executing install scripts");
-            for cmd in &install_script.steps {
+            info!("executing build scripts");
+            for cmd in &self.recipe.build_script.steps {
                 if !cmd.images.is_empty() {
                     trace!(images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
@@ -423,73 +392,77 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
-                self.checked_exec(&cmd.cmd).instrument(span.clone()).await?;
+                self.checked_exec(&cmd.cmd).await?;
             }
-        }
 
-        Ok(())
+            if let Some(install_script) = &self.recipe.install_script {
+                info!("executing install scripts");
+                for cmd in &install_script.steps {
+                    if !cmd.images.is_empty() {
+                        trace!(images = ?cmd.images, "only execute on");
+                        if !cmd.images.contains(&self.image.name) {
+                            trace!(image = %self.image.name, "not found, skipping");
+                            continue;
+                        }
+                    }
+
+                    self.checked_exec(&cmd.cmd).await?;
+                }
+            }
+
+            Ok(())
+        }
+        .instrument(span)
+        .await
     }
 
-    pub async fn create_package(
-        &self,
-        image_state: &ImageState,
-        output_dir: &Path,
-        span: &Span,
-    ) -> Result<()> {
+    pub async fn create_package(&self, image_state: &ImageState, output_dir: &Path) -> Result<()> {
         match self.target {
-            BuildTarget::Rpm => {
-                self.build_rpm(&image_state, &output_dir)
-                    .instrument(span.clone())
-                    .await
-            }
-            BuildTarget::Gzip => self.build_gzip(&output_dir).instrument(span.clone()).await,
-            BuildTarget::Deb => {
-                self.build_deb(&image_state, &output_dir)
-                    .instrument(span.clone())
-                    .await
-            }
+            BuildTarget::Rpm => self.build_rpm(&image_state, &output_dir).await,
+            BuildTarget::Gzip => self.build_gzip(&output_dir).await,
+            BuildTarget::Deb => self.build_deb(&image_state, &output_dir).await,
         }
     }
 
     pub async fn create_dirs<P: AsRef<Path>>(&self, dirs: &[P]) -> Result<()> {
         let span = info_span!("create-dirs");
-        let _enter = span.enter();
+        async move {
+            let dirs_joined =
+                dirs.iter()
+                    .map(P::as_ref)
+                    .fold(String::new(), |mut dirs_joined, path| {
+                        dirs_joined.push_str(&format!(" {}", path.display()));
+                        dirs_joined
+                    });
+            let dirs_joined = dirs_joined.trim();
+            trace!(directories = %dirs_joined);
 
-        let dirs_joined =
-            dirs.iter()
-                .map(P::as_ref)
-                .fold(String::new(), |mut dirs_joined, path| {
-                    dirs_joined.push_str(&format!(" {}", path.display()));
-                    dirs_joined
-                });
-        let dirs_joined = dirs_joined.trim();
-        trace!(directories = %dirs_joined);
-
-        self.checked_exec(&format!("mkdir -pv {}", dirs_joined))
-            .instrument(span.clone())
-            .await
-            .map(|_| ())
+            self.checked_exec(&format!("mkdir -pv {}", dirs_joined))
+                .await
+                .map(|_| ())
+        }
+        .instrument(span)
+        .await
     }
 
     pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
         let span = info_span!("archive-output");
-        let _enter = span.enter();
-
-        info!("copying final archive");
-        self.container
-            .inner()
-            .copy_from(self.container_out_dir)
-            .try_concat()
-            .instrument(span.clone())
-            .await
-            .map_err(|e| anyhow!("failed to archive output directory - {}", e))
+        async move {
+            info!("copying final archive");
+            self.container
+                .inner()
+                .copy_from(self.container_out_dir)
+                .try_concat()
+                .await
+                .map_err(|e| anyhow!("failed to archive output directory - {}", e))
+        }
+        .instrument(span)
+        .await
     }
 
     /// Creates a final GZIP package and saves it to `output_dir`
     async fn build_gzip(&self, output_dir: &Path) -> Result<()> {
         let span = info_span!("GZIP");
-        let _enter = span.enter();
-
         info!(parent: &span, "building GZIP package");
         let package = self
             .container
@@ -516,42 +489,43 @@ impl<'job> BuildContainerCtx<'job> {
 
     async fn checked_exec(&self, cmd: &str) -> Result<Output<String>> {
         let span = info_span!("checked-exec");
-        let _enter = span.enter();
-
-        let out = self.container.exec(&cmd).instrument(span.clone()).await?;
-        if out.exit_code != 0 {
-            Err(anyhow!(
-                "command `{}` failed with exit code {}\nError:\n{}",
-                &cmd,
-                out.exit_code,
-                out.stderr.join("\n")
-            ))
-        } else {
-            Ok(out)
+        async move {
+            let out = self.container.exec(&cmd).await?;
+            if out.exit_code != 0 {
+                Err(anyhow!(
+                    "command `{}` failed with exit code {}\nError:\n{}",
+                    &cmd,
+                    out.exit_code,
+                    out.stderr.join("\n")
+                ))
+            } else {
+                Ok(out)
+            }
         }
+        .instrument(span)
+        .await
     }
 
     async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {
         let span = info_span!("install-deps");
-        let _enter = span.enter();
+        async move {
+            info!("installing dependencies");
+            let pkg_mngr = state.os.package_manager();
 
-        info!("installing dependencies");
-        let pkg_mngr = state.os.package_manager();
+            if deps.is_empty() {
+                trace!("no dependencies to install");
+                return Ok(());
+            }
 
-        if deps.is_empty() {
-            trace!("no dependencies to install");
-            return Ok(());
+            trace!(deps = ?deps, "resolved dependency names");
+            let deps = deps.join(" ");
+
+            let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
+            trace!(command = %cmd, "installing with");
+
+            self.checked_exec(&cmd).await.map(|_| ())
         }
-
-        trace!(deps = ?deps, "resolved dependency names");
-        let deps = deps.join(" ");
-
-        let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
-        trace!(command = %cmd, "installing with");
-
-        self.checked_exec(&cmd)
-            .instrument(span.clone())
-            .await
-            .map(|_| ())
+        .instrument(span)
+        .await
     }
 }
