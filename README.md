@@ -1,7 +1,7 @@
 # pkger 📦
 [![Build Status](https://github.com/wojciechkepka/pkger/workflows/pkger%20CI/badge.svg)](https://github.com/wojciechkepka/pkger/actions?query=workflow%3A%22pkger+CI%22)
 
-**pkger** is a tool that automates building *RPMs*, *DEBs* and other package on multiple *Linux* distributions, versions and architectures.
+**pkger** is a tool that automates building *RPMs*, *DEBs* and other packages on multiple *Linux* distributions, versions and architectures.
 
 ## How it works
 
@@ -120,7 +120,13 @@ After that run:
  - Substitute `$config_file` with path to the config file. If `-c` is not provided **pkger** will look for the configuration file in the default location - `./conf.toml`
  - Add any amount of recipes whitespace separated at the end. If no recipe name is provided, all recipes will be queued for a build.
 
-By default **pkger** will display basic output as hierhical log. To debug run with `-d` or `--debug` option. To surpress all output except for errors add `-q` or `--quiet`. To manually set log level set `RUST_LOG` env variable to a value like `pkger=debug` with debug replace with the desired log level.
+By default **pkger** will display basic output as hierhical log with level set to `INFO`. To debug run with `-d` or `--debug` option. To surpress all output except for errors add `-q` or `--quiet`. To manually set log level set `RUST_LOG` env variable to a value like `pkger=debug` with debug replaced with the desired log level.
+
+To decide what parts of events are displayed use the `--hide` flag that takes a filter string as input and tells **pkger** what fields to display. Each character of filter string is responsible for a single part of output. Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:
+ - `d` hides the timestamp
+ - `f` hides the fields in spans (the values between curly braces like `{id = vw89wje92}`)
+ - `l` hides the level
+ - `s` hides the spans entirely
 
 ## Example
 

@@ -5,6 +5,7 @@ mod cmd;
 mod container;
 mod deps;
 mod docker;
+mod fmt;
 mod image;
 mod job;
 mod opts;
@@ -19,19 +20,15 @@ use crate::opts::Opts;
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use colored::Colorize;
 use serde::Deserialize;
 use std::convert::TryFrom;
-use std::env;
 use std::fs;
 use std::path::Path;
 use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tokio::task;
-use tracing::{debug, error, info, info_span, trace, warn, Instrument, Level};
-use tracing_subscriber::fmt::format;
-use tracing_subscriber::prelude::*;
+use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
 const DEFAULT_CONF_FILE: &str = "conf.toml";
 const DEFAULT_STATE_FILE: &str = ".pkger.state";
@@ -79,7 +76,7 @@ impl TryFrom<Config> for Pkger {
 }
 
 impl Pkger {
-    fn process_opts(&mut self, opts: Opts) -> Result<()> {
+    fn process_opts(&mut self, opts: &Opts) -> Result<()> {
         let span = info_span!("process-opts");
         let _enter = span.enter();
 
@@ -106,8 +103,9 @@ impl Pkger {
             info!("building all recipes");
         }
 
-        if let Some(images) = opts.images {
-            trace!(opts_images = %images.join(", "));
+        if let Some(images) = &opts.images {
+            trace!(opts_images = ?images);
+            let images: Vec<_> = images.iter().map(|s| s.clone()).collect();
             if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
                 filter.extend(images);
             }
@@ -116,7 +114,7 @@ impl Pkger {
 
         self.docker = Arc::new(
             // check if docker uri provided as cli arg
-            match opts.docker {
+            match &opts.docker {
                 Some(uri) => {
                     trace!(uri = %uri, "using docker uri from opts");
                     DockerConnectionPool::new(uri)
@@ -211,64 +209,12 @@ impl Pkger {
     }
 }
 
-fn setup_tracing_fmt(opts: &Opts) {
-    let span = info_span!("setup-tracing");
-    let _enter = span.enter();
-
-    let filter = if let Some(filter) = env::var_os("RUST_LOG") {
-        if opts.quiet {
-            "".to_string()
-        } else {
-            filter.to_string_lossy().to_string()
-        }
-    } else if opts.quiet {
-        "pkger=error".to_string()
-    } else if opts.debug {
-        "pkger=trace".to_string()
-    } else {
-        "pkger=info".to_string()
-    };
-
-    let formatter =
-            // Construct a custom formatter for `Debug` fields
-            format::debug_fn(|writer, field, value| {
-                if field.name() == "message" {
-                    write!(writer, "{:?}",value)
-                } else {
-                    let value = format!("{:#?}", value);
-                    let field = format!("{}", field);
-                    write!(writer, "{}={}", field.truecolor(0xa1, 0xa1, 0xa1), value.truecolor(0x26, 0xbd, 0xb0).italic())
-                }
-            }).delimited(", ");
-
-    let format = tracing_subscriber::fmt::format()
-        .with_target(false)
-        .with_level(true);
-
-    let fmt = tracing_subscriber::fmt::fmt()
-        .with_target(false)
-        .with_level(true)
-        .with_max_level(Level::TRACE)
-        .with_env_filter(&filter)
-        .fmt_fields(formatter)
-        .event_format(format);
-
-    if opts.hide_date {
-        fmt.without_time().init()
-    } else {
-        fmt.with_timer(tracing_subscriber::fmt::time::ChronoUtc::rfc3339())
-            .init()
-    };
-
-    trace!(log_filter = %filter);
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
     trace!(opts = ?opts);
 
-    setup_tracing_fmt(&opts);
+    fmt::setup_tracing(&opts);
 
     let config_path = opts
         .config
@@ -291,7 +237,7 @@ async fn main() -> Result<()> {
     }
     let mut pkger = result.unwrap();
 
-    if let Err(e) = pkger.process_opts(opts) {
+    if let Err(e) = pkger.process_opts(&opts) {
         error!(reason = %e, "failed to process opts");
         process::exit(1);
     }
