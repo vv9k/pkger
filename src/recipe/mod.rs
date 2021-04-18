@@ -102,9 +102,15 @@ impl Recipe {
             "x86" => "i386",
             arch => arch,
         };
+        let maintainer = if let Some(maintainer) = &self.metadata.maintainer {
+            maintainer
+        } else {
+            "missing"
+        };
         let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
             .version(&self.metadata.version)
             .description(&self.metadata.description)
+            .maintainer(maintainer)
             .architecture(arch);
 
         if let Some(depends) = &self.metadata.depends {

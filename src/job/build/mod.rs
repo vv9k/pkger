@@ -446,7 +446,7 @@ impl<'job> BuildContainerCtx<'job> {
     }
 
     pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
-        let span = info_span!("archive-output");
+        let span = info_span!("archive-output", container_dir = %self.container_out_dir.display());
         async move {
             info!("copying final archive");
             self.container
