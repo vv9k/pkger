@@ -2,7 +2,7 @@ use crate::deps::Dependencies;
 use crate::{Error, Result};
 
 use serde::Deserialize;
-use std::convert::TryFrom;
+use std::convert::{AsRef, TryFrom};
 
 #[derive(Clone, Debug)]
 pub enum BuildTarget {
@@ -17,6 +17,16 @@ impl From<Option<String>> for BuildTarget {
             Some(s) if &s == "rpm" => Self::Rpm,
             Some(s) if &s == "deb" => Self::Deb,
             _ => Self::Gzip,
+        }
+    }
+}
+
+impl AsRef<str> for BuildTarget {
+    fn as_ref(&self) -> &str {
+        match &self {
+            BuildTarget::Rpm => "rpm",
+            BuildTarget::Deb => "deb",
+            BuildTarget::Gzip => "gzip",
         }
     }
 }
