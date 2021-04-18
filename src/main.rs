@@ -21,6 +21,7 @@ use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
@@ -83,19 +84,24 @@ impl Pkger {
         if !opts.recipes.is_empty() {
             trace!(opts_recipes = %opts.recipes.join(", "));
 
-            let filtered = self
-                .recipes
-                .inner_ref()
-                .iter()
-                .filter(|(recipe, _)| !&opts.recipes.contains(recipe))
-                .map(|(recipe, _)| recipe.clone())
-                .collect::<Vec<_>>();
-
             if let Some(recipes) = Arc::get_mut(&mut self.recipes) {
+                let mut new_recipes = HashMap::new();
                 let recipes = recipes.inner_ref_mut();
-                for recipe in filtered {
-                    recipes.remove(&recipe);
+                for recipe_name in &opts.recipes {
+                    if let Some(_) = recipes.get(recipe_name) {
+                        let recipe = recipes.remove(recipe_name).unwrap();
+                        new_recipes.insert(recipe_name.to_string(), recipe);
+                    } else {
+                        warn!(recipe = %recipe_name, "not found in recipes");
+                        continue;
+                    }
                 }
+                *recipes = new_recipes;
+            }
+
+            if self.recipes.inner_ref().is_empty() {
+                warn!("no recipes to build");
+                return Ok(());
             }
 
             info!(recipes = ?self.recipes.inner_ref().keys().collect::<Vec<_>>(), "building only");
@@ -105,11 +111,25 @@ impl Pkger {
 
         if let Some(images) = &opts.images {
             trace!(opts_images = ?images);
-            let images: Vec<_> = images.iter().map(|s| s.clone()).collect();
             if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
-                filter.extend(images);
+                for image in images {
+                    if let None = self.images.images().get(image) {
+                        warn!(image = %image, "not found in images");
+                    } else {
+                        filter.push(image.clone());
+                    }
+                }
+
+                if self.images_filter.is_empty() {
+                    warn!(
+                        "image filter was provided but no provided images matched existing images"
+                    );
+                } else {
+                    info!(images = ?self.images_filter, "building only on");
+                }
+            } else {
+                info!("building on all images");
             }
-            info!(images = ?self.images_filter, "building only on");
         }
 
         self.docker = Arc::new(
