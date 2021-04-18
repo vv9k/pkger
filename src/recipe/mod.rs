@@ -121,6 +121,14 @@ impl Recipe {
     }
 
     pub fn as_rpm_spec(&self, sources: &[String], files: &[String], image: &str) -> RpmSpec {
+        let install_script = sources
+            .iter()
+            .enumerate()
+            .fold(String::new(), |mut s, (i, _)| {
+                s.push_str(&format!("tar xvf %{{SOURCE{}}} -C %{{buildroot}}", i));
+                s
+            });
+
         let mut builder = RpmSpec::builder()
             .name(&self.metadata.name)
             .build_arch(&self.metadata.arch)
@@ -131,6 +139,7 @@ impl Recipe {
             .release(&self.metadata.revision)
             .add_files_entries(files)
             .add_sources_entries(sources)
+            .install_script(&install_script)
             .description(&self.metadata.description);
 
         if let Some(conflicts) = &self.metadata.conflicts {
