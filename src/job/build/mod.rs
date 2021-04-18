@@ -54,8 +54,7 @@ impl Ctx for BuildCtx {
     }
 
     async fn run(&mut self) -> Self::JobResult {
-        let span =
-            info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name);
+        let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.target.as_ref());
         let _enter = span.enter();
 
         info!(id = %self.id, "running job" );
