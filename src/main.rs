@@ -88,7 +88,7 @@ impl Pkger {
                 let mut new_recipes = HashMap::new();
                 let recipes = recipes.inner_ref_mut();
                 for recipe_name in &opts.recipes {
-                    if let Some(_) = recipes.get(recipe_name) {
+                    if recipes.get(recipe_name).is_some() {
                         let recipe = recipes.remove(recipe_name).unwrap();
                         new_recipes.insert(recipe_name.to_string(), recipe);
                     } else {
@@ -113,7 +113,7 @@ impl Pkger {
             trace!(opts_images = ?images);
             if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
                 for image in images {
-                    if let None = self.images.images().get(image) {
+                    if self.images.images().get(image).is_none() {
                         warn!(image = %image, "not found in images");
                     } else {
                         filter.push(image.clone());

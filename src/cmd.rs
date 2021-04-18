@@ -14,15 +14,15 @@ impl Cmd {
         if let Some(cmd) = cmd.strip_prefix(CMD_PREFIX) {
             Self::parse_prefixed_command(cmd)
         } else {
-            Self::parse_simple_command(cmd)
+            Ok(Self::parse_simple_command(cmd))
         }
     }
 
-    fn parse_simple_command(cmd: &str) -> Result<Self> {
-        Ok(Cmd {
+    fn parse_simple_command(cmd: &str) -> Self {
+        Cmd {
             cmd: cmd.to_string(),
             images: vec![],
-        })
+        }
     }
 
     fn parse_prefixed_command(cmd: &str) -> Result<Self> {

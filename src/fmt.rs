@@ -154,7 +154,8 @@ impl<'writer> FormatFields<'writer> for PkgerFieldsFmt {
     ) -> fmt::Result {
         let factory = PkgerFields {}.delimited(self.delimiter);
         let mut visitor = factory.make_visitor(&mut writer);
-        Ok(fields.record(&mut visitor))
+        fields.record(&mut visitor);
+        Ok(())
     }
 }
 
