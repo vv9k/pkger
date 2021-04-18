@@ -107,7 +107,7 @@ impl<'writer> Visit for PkgerFieldsVisitor<'writer> {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         if field.name() == "message" {
             let dbg = format!("{:?}", value);
-            if let Err(e) = write!(self.writer, "{}", dbg.bright_white()) {
+            if let Err(e) = write!(self.writer, "{}", dbg.bold()) {
                 self.err = Some(e);
             }
         } else {
@@ -204,32 +204,31 @@ where
         }
         if !self.hide_level {
             let level = match *event.metadata().level() {
-                Level::ERROR => "ERROR".bold().bright_red(),
-                Level::WARN => "WARN".bold().bright_yellow(),
-                Level::INFO => "INFO".bold().bright_green(),
-                Level::DEBUG => "DEBUG".bold().bright_blue(),
-                Level::TRACE => "TRACE".bold().bright_magenta(),
-            };
+                Level::ERROR => "ERROR".bright_red(),
+                Level::WARN => "WARN".bright_yellow(),
+                Level::INFO => "INFO".bright_green(),
+                Level::DEBUG => "DEBUG".bright_blue(),
+                Level::TRACE => "TRACE".bright_magenta(),
+            }
+            .bold();
             write!(writer, "{} ", level)?;
         }
 
         ctx.visit_spans::<fmt::Error, _>(|span| {
             if !self.hide_spans {
-                write!(writer, "{}", span.name().bold())?;
+                write!(writer, "{}", span.name())?;
 
                 let ext = span.extensions();
                 let fields = &ext
                     .get::<FormattedFields<N>>()
                     .expect("will never be `None`");
 
-                if !self.hide_fields {
-                    if !fields.is_empty() {
-                        write!(writer, "{}", "{".bold())?;
-                        write!(writer, "{}", fields)?;
-                        write!(writer, "{}", "}".bold())?;
-                    }
+                if !self.hide_fields && !fields.is_empty() {
+                    write!(writer, "{}", "{".bold())?;
+                    write!(writer, "{}", fields)?;
+                    write!(writer, "{}", "}".bold())?;
                 }
-                write!(writer, "{}", ":".blue())?;
+                write!(writer, "{}", "=>".blue().bold())?;
             }
 
             Ok(())
