@@ -29,5 +29,6 @@ tar = "0.4"
 tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
 toml = "0.5"
 tracing = "0.1"
+tracing-core = "0.1"
 tracing-futures = "0.1"
 tracing-subscriber = {version = "0.2", features = ["fmt", "chrono"]}
