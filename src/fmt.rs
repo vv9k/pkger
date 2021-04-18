@@ -82,15 +82,13 @@ pub fn setup_tracing(opts: &Opts) {
 }
 
 /// Fields visitor factory
-struct PkgerFields {
-    hide_fields: bool,
-}
+struct PkgerFields;
 
 impl<'writer> MakeVisitor<&'writer mut dyn fmt::Write> for PkgerFields {
     type Visitor = PkgerFieldsVisitor<'writer>;
 
     fn make_visitor(&self, target: &'writer mut dyn fmt::Write) -> Self::Visitor {
-        PkgerFieldsVisitor::new(target, self.hide_fields)
+        PkgerFieldsVisitor::new(target)
     }
 }
 
@@ -98,36 +96,30 @@ impl<'writer> MakeVisitor<&'writer mut dyn fmt::Write> for PkgerFields {
 struct PkgerFieldsVisitor<'writer> {
     writer: &'writer mut dyn fmt::Write,
     err: Option<fmt::Error>,
-    hide_fields: bool,
 }
 impl<'writer> PkgerFieldsVisitor<'writer> {
-    pub fn new(writer: &'writer mut dyn fmt::Write, hide_fields: bool) -> Self {
-        Self {
-            writer,
-            err: None,
-            hide_fields,
-        }
+    pub fn new(writer: &'writer mut dyn fmt::Write) -> Self {
+        Self { writer, err: None }
     }
 }
 
 impl<'writer> Visit for PkgerFieldsVisitor<'writer> {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         if field.name() == "message" {
-            if let Err(e) = write!(self.writer, "{:?}", value) {
+            let dbg = format!("{:?}", value);
+            if let Err(e) = write!(self.writer, "{}", dbg.bright_white()) {
                 self.err = Some(e);
             }
         } else {
-            if !self.hide_fields {
-                let value = format!("{:#?}", value);
-                let field = format!("{}", field);
-                if let Err(e) = write!(
-                    self.writer,
-                    "{}={}",
-                    field.truecolor(0xa1, 0xa1, 0xa1),
-                    value.truecolor(0x26, 0xbd, 0xb0).italic(),
-                ) {
-                    self.err = Some(e);
-                }
+            let value = format!("{:#?}", value);
+            let field = format!("{}", field);
+            if let Err(e) = write!(
+                self.writer,
+                "{}={}",
+                field.truecolor(0xa1, 0xa1, 0xa1),
+                value.truecolor(0x26, 0xbd, 0xb0).italic(),
+            ) {
+                self.err = Some(e);
             }
         }
     }
@@ -152,7 +144,6 @@ impl<'writer> VisitFmt for PkgerFieldsVisitor<'writer> {
 /// Fields formatter
 struct PkgerFieldsFmt {
     delimiter: &'static str,
-    hide_fields: bool,
 }
 
 impl<'writer> FormatFields<'writer> for PkgerFieldsFmt {
@@ -161,10 +152,7 @@ impl<'writer> FormatFields<'writer> for PkgerFieldsFmt {
         mut writer: &'writer mut dyn fmt::Write,
         fields: R,
     ) -> fmt::Result {
-        let factory = PkgerFields {
-            hide_fields: self.hide_fields,
-        }
-        .delimited(self.delimiter);
+        let factory = PkgerFields {}.delimited(self.delimiter);
         let mut visitor = factory.make_visitor(&mut writer);
         Ok(fields.record(&mut visitor))
     }
@@ -174,15 +162,13 @@ impl From<&FmtFilter> for PkgerFieldsFmt {
     fn from(filter: &FmtFilter) -> Self {
         let delimiter = if filter.hide_fields { "" } else { ", " };
 
-        PkgerFieldsFmt {
-            delimiter,
-            hide_fields: filter.hide_fields,
-        }
+        PkgerFieldsFmt { delimiter }
     }
 }
 
 struct PkgerEventFmt {
     hide_date: bool,
+    hide_fields: bool,
     hide_level: bool,
     hide_spans: bool,
 }
@@ -191,6 +177,7 @@ impl From<&FmtFilter> for PkgerEventFmt {
     fn from(filter: &FmtFilter) -> Self {
         Self {
             hide_date: filter.hide_date,
+            hide_fields: filter.hide_fields,
             hide_level: filter.hide_level,
             hide_spans: filter.hide_spans,
         }
@@ -235,10 +222,12 @@ where
                     .get::<FormattedFields<N>>()
                     .expect("will never be `None`");
 
-                if !fields.is_empty() {
-                    write!(writer, "{}", "{".bold())?;
-                    write!(writer, "{}", fields)?;
-                    write!(writer, "{}", "}".bold())?;
+                if !self.hide_fields {
+                    if !fields.is_empty() {
+                        write!(writer, "{}", "{".bold())?;
+                        write!(writer, "{}", fields)?;
+                        write!(writer, "{}", "}".bold())?;
+                    }
                 }
                 write!(writer, "{}", ":".blue())?;
             }
