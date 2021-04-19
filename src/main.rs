@@ -31,8 +31,8 @@ use std::sync::{Arc, RwLock};
 use tokio::task;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
-const DEFAULT_CONF_FILE: &str = "conf.toml";
-const DEFAULT_STATE_FILE: &str = ".pkger.state";
+static DEFAULT_CONFIG_FILE: &str = ".pkger.toml";
+static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -236,10 +236,17 @@ async fn main() -> Result<()> {
 
     fmt::setup_tracing(&opts);
 
-    let config_path = opts
-        .config
-        .clone()
-        .unwrap_or_else(|| DEFAULT_CONF_FILE.to_string());
+    let config_path = opts.config.clone().unwrap_or_else(|| {
+        match dirs_next::home_dir() {
+            Some(home_dir) => {
+                home_dir.join(DEFAULT_CONFIG_FILE).to_string_lossy().to_string()
+            }
+            None => {
+                warn!(path = %DEFAULT_CONFIG_FILE, "current user has no home directory, using default");
+                DEFAULT_CONFIG_FILE.to_string()
+            }
+        }
+    });
     trace!(config_path = %config_path);
 
     let result = Config::from_path(&config_path);
