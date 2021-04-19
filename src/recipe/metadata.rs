@@ -103,34 +103,62 @@ pub struct Metadata {
     // General
     pub name: String,
     pub version: String,
-    pub arch: String,
-    pub revision: String,
     pub description: String,
     pub license: String,
     pub images: Vec<ImageTarget>,
 
+    pub maintainer: Option<String>,
+    pub arch: Option<String>,
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
-
     /// Git repository as source
     pub git: Option<GitSource>,
-
     /// Whether default dependencies should be installed before the build
     pub skip_default_deps: Option<bool>,
-
-    pub build_depends: Option<Dependencies>,
-    pub depends: Option<Dependencies>,
-    pub obsoletes: Option<Dependencies>,
-    pub conflicts: Option<Dependencies>,
-    pub provides: Option<Dependencies>,
-
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
 
-    // Only Debian based
-    pub maintainer: Option<String>,
+    pub build_depends: Option<Dependencies>,
+
+    pub depends: Option<Dependencies>,
+    pub conflicts: Option<Dependencies>,
+    pub provides: Option<Dependencies>,
+
+    // Only DEB
     pub section: Option<String>,
     pub priority: Option<String>,
+
+    // Only RPM
+    pub release: Option<String>,
+    pub obsoletes: Option<Dependencies>,
+    pub summary: Option<String>,
+}
+
+impl Metadata {
+    pub fn deb_arch(&self) -> &str {
+        if let Some(arch) = &self.arch {
+            match &arch[..] {
+                "amd64" | "x86_64" => "amd64",
+                "x86" | "i386" => "i386",
+                arch => arch,
+                // #TODO: add more...
+            }
+        } else {
+            "all"
+        }
+    }
+    pub fn rpm_arch(&self) -> &str {
+        if let Some(arch) = &self.arch {
+            match &arch[..] {
+                "amd64" | "x86_64" => "x86_64",
+                "x86" | "i386" => "x86",
+                arch => arch,
+                // #TODO: add more...
+            }
+        } else {
+            "noarch"
+        }
+    }
 }
 
 impl TryFrom<MetadataRep> for Metadata {
@@ -172,7 +200,7 @@ impl TryFrom<MetadataRep> for Metadata {
             name: rep.name,
             version: rep.version,
             arch: rep.arch,
-            revision: rep.revision,
+            release: rep.release,
             description: rep.description,
             license: rep.license,
             source: rep.source,
@@ -194,40 +222,44 @@ impl TryFrom<MetadataRep> for Metadata {
             maintainer: rep.maintainer,
             section: rep.section,
             priority: rep.priority,
+            summary: rep.summary,
         })
     }
 }
 
 #[derive(Deserialize, Debug)]
 pub struct MetadataRep {
-    // General
+    // Required
     pub name: String,
     pub version: String,
-    pub arch: String,
-    pub revision: String,
     pub description: String,
     pub license: String,
     pub images: Vec<toml::Value>,
 
+    // Common optional
+    pub maintainer: Option<String>,
+    pub arch: Option<String>,
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
-
     /// Git repository as source
     pub git: Option<toml::Value>,
-
     /// Whether to install default dependencies before build
     pub skip_default_deps: Option<bool>,
-    pub build_depends: Option<Vec<String>>,
-    pub depends: Option<Vec<String>>,
-    pub obsoletes: Option<Vec<String>>,
-    pub conflicts: Option<Vec<String>>,
-    pub provides: Option<Vec<String>>,
-
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
 
-    // Only Debian based
-    pub maintainer: Option<String>,
+    pub build_depends: Option<Vec<String>>,
+
+    pub depends: Option<Vec<String>>,
+    pub conflicts: Option<Vec<String>>,
+    pub provides: Option<Vec<String>>,
+
+    // Only DEB
     pub section: Option<String>,
     pub priority: Option<String>,
+
+    // Only RPM
+    pub release: Option<String>,
+    pub obsoletes: Option<Vec<String>>,
+    pub summary: Option<String>,
 }

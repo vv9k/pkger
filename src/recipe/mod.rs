@@ -98,15 +98,11 @@ impl TryFrom<RecipeRep> for Recipe {
 
 impl Recipe {
     pub fn as_deb_control(&self, image: &str) -> BinaryDebControl {
-        let arch = match &self.metadata.arch[..] {
-            "x86_64" => "amd64",
-            "x86" => "i386",
-            arch => arch,
-        };
+        let arch = self.metadata.deb_arch();
         let maintainer = if let Some(maintainer) = &self.metadata.maintainer {
             maintainer
         } else {
-            "missing"
+            "none"
         };
         let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
             .version(&self.metadata.version)
@@ -136,18 +132,34 @@ impl Recipe {
                 s
             });
 
+        macro_rules! let_some_or {
+            ($field:ident, $default:expr) => {
+                if let Some($field) = &self.metadata.$field {
+                    $field
+                } else {
+                    $default
+                };
+            };
+        }
+        let release = let_some_or!(release, "0");
+        let arch = let_some_or!(arch, "noarch");
+        let summary = let_some_or!(summary, &self.metadata.description);
+
         let mut builder = RpmSpec::builder()
             .name(&self.metadata.name)
-            .build_arch(&self.metadata.arch)
-            .summary(&self.metadata.description)
+            .build_arch(arch)
+            .summary(summary)
             .description(&self.metadata.description)
             .license(&self.metadata.license)
             .version(&self.metadata.version)
-            .release(&self.metadata.revision)
+            .release(release)
             .add_files_entries(files)
             .add_sources_entries(sources)
             .install_script(&install_script)
             .description(&self.metadata.description);
+        if let Some(maintainer) = &self.metadata.maintainer {
+            builder = builder.packager(maintainer);
+        }
 
         if let Some(conflicts) = &self.metadata.conflicts {
             builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
@@ -160,9 +172,6 @@ impl Recipe {
         }
         if let Some(obsoletes) = &self.metadata.obsoletes {
             builder = builder.add_obsoletes_entries(obsoletes.resolve_names(image));
-        }
-        if let Some(build_requires) = &self.metadata.build_depends {
-            builder = builder.add_build_requires_entries(build_requires.resolve_names(image));
         }
 
         builder.build()

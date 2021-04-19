@@ -20,17 +20,13 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
-        let revision = if self.recipe.metadata.revision.is_empty() {
+        let release = if let Some(release) = &self.recipe.metadata.release {
+            release
+        } else {
             "0"
-        } else {
-            &self.recipe.metadata.revision
         };
-        let arch = if self.recipe.metadata.arch.is_empty() {
-            "noarch"
-        } else {
-            &self.recipe.metadata.arch
-        };
-        let buildroot_name = [&name, "-", &revision, ".", &arch].join("");
+        let arch = self.recipe.metadata.rpm_arch();
+        let buildroot_name = [&name, "-", &release, ".", &arch].join("");
         let source_tar = [&name, ".tar.gz"].join("");
 
         let span = info_span!("RPM", package = %buildroot_name);
@@ -128,7 +124,7 @@ impl<'job> BuildContainerCtx<'job> {
             .await?;
 
         self.container
-            .download_files(rpms.join(&self.recipe.metadata.arch).as_path(), output_dir)
+            .download_files(rpms.join(&arch).as_path(), output_dir)
             .instrument(span)
             .await
             .map(|_| output_dir.join(format!("{}.rpm", buildroot_name)))
