@@ -16,6 +16,7 @@ The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*con
    - Below example recipe will be built for 2 images `centos8` and `debian10`. Each image also specifies the target that should be built using it.
    - Special syntax for unique dependencies across OSes is used to correctly install `openssl-devel` on *CentOS 8* and `libssl-dev` on *Debian 10*
    - If `git` is provided as a field, the repository that it points to will be automatically extracted to `$PKGER_OUT_DIR`, otherwise `pkger` will try to fetch `source`.
+   - If `source` starts with a prefix like `http` or `https` the file that if points to will be downloaded. If the file is an archive like `.tar.gz` or `.tar.xz` it will be directly extracted to `$PKGER_BLD_DIR`, otherwise the file will be copied to the directory untouched.
 ```toml
 [metadata]
 # required

@@ -57,7 +57,7 @@ pub fn save_tar_gz<T: io::Read>(
 
 pub fn create_tar_archive<'archive, E, P>(entries: E) -> Result<Vec<u8>>
 where
-    E: IntoIterator<Item = (P, &'archive [u8])>,
+    E: Iterator<Item = (P, &'archive [u8])>,
     P: AsRef<Path>,
 {
     let span = info_span!("create-TAR-archive");
