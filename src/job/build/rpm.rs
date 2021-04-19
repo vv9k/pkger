@@ -95,8 +95,8 @@ impl<'job> BuildContainerCtx<'job> {
         let spec = span.in_scope(|| {
             self.recipe
                 .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
-                .render_owned()
-        })?;
+                .render()
+        });
 
         let spec_file = [&self.recipe.metadata.name, ".spec"].join("");
         debug!(parent: &span, spec_file = %spec_file, spec = %spec);

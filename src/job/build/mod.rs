@@ -380,6 +380,8 @@ impl<'job> BuildContainerCtx<'job> {
                         ));
                     }
                 }
+            } else {
+                info!("no config steps to run");
             }
 
             info!("executing build scripts");
@@ -408,6 +410,8 @@ impl<'job> BuildContainerCtx<'job> {
 
                     self.checked_exec(&cmd.cmd).await?;
                 }
+            } else {
+                info!("no install steps to run");
             }
 
             Ok(())
