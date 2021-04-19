@@ -90,7 +90,6 @@ jobs:
         run: echo ::set-output name=PKGER_ARCHIVE::pkger-${{steps.set_version.outputs.PKGER_VERSION}}-${{ matrix.target}}
       - run: cargo build --release
         name: Release build
-        run: brew install help2man
       - name: Install help2man ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
