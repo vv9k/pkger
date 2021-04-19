@@ -32,6 +32,49 @@ impl AsRef<str> for BuildTarget {
 }
 
 #[derive(Clone, Debug)]
+pub struct GitSource {
+    url: String,
+    // defaults to master
+    branch: String,
+}
+impl TryFrom<toml::Value> for GitSource {
+    type Error = Error;
+    fn try_from(value: toml::Value) -> Result<Self> {
+        if let Some(url) = value.get("url") {
+            Ok(GitSource::new(
+                url.to_string(),
+                value.get("branch").map(toml::Value::to_string),
+            ))
+        } else if value.is_str() {
+            Ok(GitSource::new(value.to_string(), None::<&str>))
+        } else {
+            Err(anyhow!(
+                "git source entry missing url `{}`",
+                value.to_string()
+            ))
+        }
+    }
+}
+impl GitSource {
+    pub fn new<U, B>(url: U, branch: Option<B>) -> Self
+    where
+        U: Into<String>,
+        B: Into<String>,
+    {
+        Self {
+            url: url.into(),
+            branch: branch.map(B::into).unwrap_or("master".to_string()),
+        }
+    }
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+    pub fn branch(&self) -> &str {
+        &self.branch
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct ImageTarget {
     pub image: String,
     pub target: BuildTarget,
@@ -68,7 +111,7 @@ pub struct Metadata {
     pub images: Vec<ImageTarget>,
 
     // Git repository as source
-    pub git: Option<String>,
+    pub git: Option<GitSource>,
 
     // Whether default dependencies should be installed before the build
     pub skip_default_deps: Option<bool>,
@@ -132,7 +175,13 @@ impl TryFrom<MetadataRep> for Metadata {
             license: rep.license,
             source: rep.source,
             images,
-            git: rep.git,
+            git: {
+                if let Some(val) = rep.git {
+                    GitSource::try_from(val).map(|git| Some(git))?
+                } else {
+                    None
+                }
+            },
             depends,
             skip_default_deps: rep.skip_default_deps,
             build_depends,
@@ -160,7 +209,7 @@ pub struct MetadataRep {
     pub images: Vec<toml::Value>,
 
     /// Git repository as source
-    pub git: Option<String>,
+    pub git: Option<toml::Value>,
 
     /// Whether to install default dependencies before build
     pub skip_default_deps: Option<bool>,

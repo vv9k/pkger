@@ -85,6 +85,10 @@ impl Ctx for BuildCtx {
                 self.container_bld_dir.to_string_lossy().to_string(),
             ];
 
+            if self.recipe.metadata.git.is_some() {
+                container_ctx.clone_git_to_bld_dir().await?;
+            }
+
             container_ctx.create_dirs(&dirs[..]).await?;
 
             cleanup!(container_ctx);
@@ -188,6 +192,7 @@ impl BuildCtx {
                 self.is_running.clone(),
                 self.target.clone(),
                 self.container_out_dir.as_path(),
+                self.container_bld_dir.as_path(),
             );
 
             ctx.start_container().await.map(|_| ctx)
@@ -284,8 +289,9 @@ pub struct BuildContainerCtx<'job> {
     pub opts: ContainerOptions,
     pub recipe: &'job Recipe,
     pub image: &'job Image,
-    pub container_out_dir: &'job Path,
     pub target: BuildTarget,
+    pub container_out_dir: &'job Path,
+    pub container_bld_dir: &'job Path,
 }
 
 impl<'job> BuildContainerCtx<'job> {
@@ -298,14 +304,16 @@ impl<'job> BuildContainerCtx<'job> {
         is_running: Arc<AtomicBool>,
         target: BuildTarget,
         container_out_dir: &'job Path,
+        container_bld_dir: &'job Path,
     ) -> BuildContainerCtx<'job> {
         BuildContainerCtx {
             container: DockerContainer::new(docker, Some(is_running)),
             opts,
             recipe,
             image,
-            container_out_dir,
             target,
+            container_out_dir,
+            container_bld_dir,
         }
     }
 
@@ -335,7 +343,7 @@ impl<'job> BuildContainerCtx<'job> {
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("default-deps");
         async move {
-            let mut deps = vec!["tar", "git"];
+            let mut deps = vec!["tar"];
             match self.target {
                 BuildTarget::Rpm => {
                     deps.push("rpm-build");
@@ -346,6 +354,9 @@ impl<'job> BuildContainerCtx<'job> {
                 BuildTarget::Gzip => {
                     deps.push("gzip");
                 }
+            }
+            if self.recipe.metadata.git.is_some() {
+                deps.push("git");
             }
 
             let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
@@ -466,6 +477,27 @@ impl<'job> BuildContainerCtx<'job> {
                 .try_concat()
                 .await
                 .map_err(|e| anyhow!("failed to archive output directory - {}", e))
+        }
+        .instrument(span)
+        .await
+    }
+
+    pub async fn clone_git_to_bld_dir(&self) -> Result<()> {
+        let span = info_span!("clone-git");
+        async move {
+            if let Some(git) = &self.recipe.metadata.git {
+                info!(repo = %git.url(), branch = %git.branch(), out_dir = %self.container_bld_dir.display(), "cloning git source repository to build directory");
+                self.checked_exec(&format!(
+                    "git clone --single-branch --branch {} --recurse-submodules -- {} {}",
+                    git.branch(),
+                    git.url(),
+                    self.container_bld_dir.display()
+                ))
+                .await
+                .map(|_| ())
+            } else {
+                Err(anyhow!("git repository missing from metadata"))
+            }
         }
         .instrument(span)
         .await

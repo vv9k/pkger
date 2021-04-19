@@ -15,11 +15,12 @@ The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*con
    - **pkger** will install all dependencies listed in `build_depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution. Default dependencies like `gzip` or `git` might be installed depending on the target job type. To skip installation of default dependencies add `skip_default_deps = true` to `[metadata]`
    - Below example recipe will be built for 2 images `centos8` and `debian10`. Each image also specifies the target that should be built using it.
    - Special syntax for unique dependencies across OSes is used to correctly install `openssl-devel` on *CentOS 8* and `libssl-dev` on *Debian 10*
+   - If `git` is provided as a field, the repository that it points to will be automatically extracted to `$PKGER_OUT_DIR`, otherwise `pkger` will try to fetch `source`.
 ```toml
 [metadata]
 # required
 name = "pkger"
-version = "0.0.5"
+version = "0.1.0"
 description = "pkger"
 images = [
 	{ name = "centos8" , target = "rpm" },
@@ -30,7 +31,9 @@ arch = "x86_64"
 license = "MIT"
 revision = "0"
 source = ""
-git = "https://github.com/wojciechkepka/pkger.git"
+git = "https://github.com/wojciechkepka/pkger.git" # will default to branch = "master"
+# or specify a branch like this:
+# git = { url = "https://github.com/wojciechkepka/pkger.git", branch = "dev" }
 build_depends = ["curl", "gcc", "pkg-config", "debian10:{libssl-dev},centos8:{openssl-devel}"]
 skip_default_deps = true
 depends = []

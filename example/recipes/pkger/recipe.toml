@@ -19,7 +19,6 @@ images = [
 steps = [
 	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
 	"sh /tmp/install_rust.sh -y --default-toolchain stable",
-    "git clone https://github.com/wojciechkepka/pkger.git $PKGER_BLD_DIR"
 ]
 
 [build]
