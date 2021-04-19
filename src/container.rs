@@ -185,21 +185,21 @@ impl<'job> DockerContainer<'job> {
 
     pub async fn download_files(&self, source: &Path, dest: &Path) -> Result<()> {
         let span = info_span!("container-download-files", id = %self.id(), source = %source.display(), destination = %dest.display());
-        trace!(parent: &span, "fetching");
+        let cloned_span = span.clone();
 
-        let files = self
-            .inner()
-            .copy_from(source)
-            .try_concat()
-            .instrument(span.clone())
-            .await?;
+        async move {
+            trace!("fetching");
+            let files = self.inner().copy_from(source).try_concat().await?;
 
-        let mut archive = tar::Archive::new(&files[..]);
+            let mut archive = tar::Archive::new(&files[..]);
 
-        span.in_scope(|| {
-            unpack_archive(&mut archive, dest)
-                .map_err(|e| anyhow!("failed to unpack archive - {}", e))
-        })
+            cloned_span.in_scope(|| {
+                unpack_archive(&mut archive, dest)
+                    .map_err(|e| anyhow!("failed to unpack archive - {}", e))
+            })
+        }
+        .instrument(span)
+        .await
     }
 
     async fn check_ctrlc(&self) -> Result<()> {
