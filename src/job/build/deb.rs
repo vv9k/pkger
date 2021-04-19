@@ -39,10 +39,7 @@ impl<'job> BuildContainerCtx<'job> {
 
         self.create_dirs(&dirs[..]).instrument(span.clone()).await?;
 
-        let control = self
-            .recipe
-            .as_deb_control(&image_state.image)
-            .render_owned()?;
+        let control = self.recipe.as_deb_control(&image_state.image).render();
         debug!(parent: &span, control = %control);
 
         let entries = vec![("./control", control.as_bytes())];
