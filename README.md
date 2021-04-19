@@ -19,28 +19,49 @@ The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*con
    - If `source` starts with a prefix like `http` or `https` the file that if points to will be downloaded. If the file is an archive like `.tar.gz` or `.tar.xz` it will be directly extracted to `$PKGER_BLD_DIR`, otherwise the file will be copied to the directory untouched.
 ```toml
 [metadata]
-# required
+#### required common fields
 name = "pkger"
 version = "0.1.0"
-description = "pkger"
+description = "A package building tool utilizing Docker"
+license = "MIT"
 images = [
 	{ name = "centos8" , target = "rpm" },
 	{ name = "debian10", target = "deb" }
 ]
-# optional
-arch = "x86_64" 
-license = "MIT"
-revision = "0"
-source = ""
+
+
+#### optional common
+source = "" # remote source or file system location
+
 git = "https://github.com/wojciechkepka/pkger.git" # will default to branch = "master"
 # or specify a branch like this:
 # git = { url = "https://github.com/wojciechkepka/pkger.git", branch = "dev" }
-build_depends = ["curl", "gcc", "pkg-config", "debian10:{libssl-dev},centos8:{openssl-devel}"]
-skip_default_deps = true
+
+maintainer = "Wojciech Kępka <wojciech@wkepka.dev>" # defaults to `none` for DEB build as it's required
+arch = "x86_64" # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
+skip_default_deps = true # skip installing default dependencies, it might break the builds
+exclude = ["share", "info"] # directories to exclude from final package
+
+build_depends = [ # dependencies to install before build phase
+ "curl",
+ "gcc",
+ "pkg-config",
+ "debian10:{libssl-dev},centos8:{openssl-devel}" # custom syntax to install packages with different names
+                                                 # on different images
+]
+
 depends = []
-exclude = ["share", "info"]
-provides = ["pkger"]
-# and more...
+conflicts = []
+provides = []
+
+#### optional DEB fields
+section = ""
+priority = ""
+
+#### RPM fields
+release = "1" # defaults to 0
+obsoletes = []
+summary = "shorter description" # if not provided defaults to value of `description`
 ```
  - ### configure (Optional)
  - Optional configuration steps. If provided the steps will be executed before the build phase.

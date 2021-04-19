@@ -20,11 +20,7 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
-        let arch = if self.recipe.metadata.arch.is_empty() {
-            "all"
-        } else {
-            &self.recipe.metadata.arch
-        };
+        let arch = self.recipe.metadata.deb_arch();
         let package_name = [&name, ".", &arch].join("");
 
         let span = info_span!("DEB", package = %package_name);
