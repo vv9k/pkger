@@ -367,14 +367,12 @@ impl<'job> BuildContainerCtx<'job> {
             }
             if self.recipe.metadata.git.is_some() {
                 deps.push("git");
-            } else {
-                if let Some(src) = &self.recipe.metadata.source {
-                    if src.starts_with("http") {
-                        deps.push("curl");
-                    }
-                    if src.ends_with(".zip") {
-                        deps.push("zip");
-                    }
+            } else if let Some(src) = &self.recipe.metadata.source {
+                if src.starts_with("http") {
+                    deps.push("curl");
+                }
+                if src.ends_with(".zip") {
+                    deps.push("zip");
                 }
             }
 
