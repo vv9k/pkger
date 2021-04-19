@@ -63,7 +63,7 @@ impl GitSource {
     {
         Self {
             url: url.into(),
-            branch: branch.map(B::into).unwrap_or("master".to_string()),
+            branch: branch.map(B::into).unwrap_or_else(|| "master".to_string()),
         }
     }
     pub fn url(&self) -> &str {
@@ -177,7 +177,7 @@ impl TryFrom<MetadataRep> for Metadata {
             images,
             git: {
                 if let Some(val) = rep.git {
-                    GitSource::try_from(val).map(|git| Some(git))?
+                    GitSource::try_from(val).map(Some)?
                 } else {
                     None
                 }
