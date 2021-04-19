@@ -46,7 +46,7 @@ impl<'job> BuildContainerCtx<'job> {
         debug!(parent: &span, control = %control);
 
         let entries = vec![("./control", control.as_bytes())];
-        let control_tar = span.in_scope(|| create_tar_archive(entries))?;
+        let control_tar = span.in_scope(|| create_tar_archive(entries.into_iter()))?;
         let control_tar_path = tmp_dir.join([&name, "-control.tar"].join(""));
 
         trace!(parent: &span, "copy control archive to container");

@@ -102,7 +102,7 @@ impl<'job> BuildContainerCtx<'job> {
         debug!(parent: &span, spec_file = %spec_file, spec = %spec);
 
         let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
-        let spec_tar = span.in_scope(|| create_tar_archive(entries))?;
+        let spec_tar = span.in_scope(|| create_tar_archive(entries.into_iter()))?;
 
         let spec_tar_path = specs.join([&name, "-spec.tar"].join(""));
 

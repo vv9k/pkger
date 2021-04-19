@@ -4,8 +4,8 @@ mod rpm;
 use crate::container::{DockerContainer, Output};
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
-use crate::recipe::{BuildTarget, Recipe};
-use crate::util::save_tar_gz;
+use crate::recipe::{BuildTarget, GitSource, Recipe};
+use crate::util::{create_tar_archive, save_tar_gz};
 use crate::Config;
 use crate::Result;
 
@@ -38,6 +38,7 @@ pub struct BuildCtx {
     docker: Docker,
     container_bld_dir: PathBuf,
     container_out_dir: PathBuf,
+    container_tmp_dir: PathBuf,
     out_dir: PathBuf,
     target: BuildTarget,
     config: Arc<Config>,
@@ -83,13 +84,14 @@ impl Ctx for BuildCtx {
             let dirs = vec![
                 self.container_out_dir.to_string_lossy().to_string(),
                 self.container_bld_dir.to_string_lossy().to_string(),
+                self.container_tmp_dir.to_string_lossy().to_string(),
             ];
 
-            if self.recipe.metadata.git.is_some() {
-                container_ctx.clone_git_to_bld_dir().await?;
-            }
-
             container_ctx.create_dirs(&dirs[..]).await?;
+
+            cleanup!(container_ctx);
+
+            container_ctx.fetch_source().await?;
 
             cleanup!(container_ctx);
 
@@ -141,6 +143,9 @@ impl BuildCtx {
         ));
         let container_out_dir =
             PathBuf::from(format!("/tmp/{}-out-{}", &recipe.metadata.name, &timestamp,));
+
+        let container_tmp_dir =
+            PathBuf::from(format!("/tmp/{}-tmp-{}", &recipe.metadata.name, &timestamp,));
         trace!(id = %id, "creating new build context");
 
         BuildCtx {
@@ -150,6 +155,7 @@ impl BuildCtx {
             docker,
             container_bld_dir,
             container_out_dir,
+            container_tmp_dir,
             out_dir: PathBuf::from(&config.output_dir),
             target,
             config,
@@ -193,6 +199,7 @@ impl BuildCtx {
                 self.target.clone(),
                 self.container_out_dir.as_path(),
                 self.container_bld_dir.as_path(),
+                self.container_tmp_dir.as_path(),
             );
 
             ctx.start_container().await.map(|_| ctx)
@@ -292,6 +299,7 @@ pub struct BuildContainerCtx<'job> {
     pub target: BuildTarget,
     pub container_out_dir: &'job Path,
     pub container_bld_dir: &'job Path,
+    pub container_tmp_dir: &'job Path,
 }
 
 impl<'job> BuildContainerCtx<'job> {
@@ -305,6 +313,7 @@ impl<'job> BuildContainerCtx<'job> {
         target: BuildTarget,
         container_out_dir: &'job Path,
         container_bld_dir: &'job Path,
+        container_tmp_dir: &'job Path,
     ) -> BuildContainerCtx<'job> {
         BuildContainerCtx {
             container: DockerContainer::new(docker, Some(is_running)),
@@ -314,6 +323,7 @@ impl<'job> BuildContainerCtx<'job> {
             target,
             container_out_dir,
             container_bld_dir,
+            container_tmp_dir,
         }
     }
 
@@ -357,6 +367,15 @@ impl<'job> BuildContainerCtx<'job> {
             }
             if self.recipe.metadata.git.is_some() {
                 deps.push("git");
+            } else {
+                if let Some(src) = &self.recipe.metadata.source {
+                    if src.starts_with("http") {
+                        deps.push("curl");
+                    }
+                    if src.ends_with(".zip") {
+                        deps.push("zip");
+                    }
+                }
             }
 
             let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
@@ -482,22 +501,90 @@ impl<'job> BuildContainerCtx<'job> {
         .await
     }
 
-    pub async fn clone_git_to_bld_dir(&self) -> Result<()> {
+    pub async fn clone_git_to_bld_dir(&self, repo: &GitSource) -> Result<()> {
         let span = info_span!("clone-git");
         async move {
-            if let Some(git) = &self.recipe.metadata.git {
-                info!(repo = %git.url(), branch = %git.branch(), out_dir = %self.container_bld_dir.display(), "cloning git source repository to build directory");
+                info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %self.container_bld_dir.display(), "cloning git source repository to build directory");
                 self.checked_exec(&format!(
                     "git clone --single-branch --branch {} --recurse-submodules -- {} {}",
-                    git.branch(),
-                    git.url(),
+                    repo.branch(),
+                    repo.url(),
                     self.container_bld_dir.display()
                 ))
                 .await
                 .map(|_| ())
-            } else {
-                Err(anyhow!("git repository missing from metadata"))
+        }
+        .instrument(span)
+        .await
+    }
+
+    pub async fn get_http_source(&self, source: &str, dest: &Path) -> Result<()> {
+        let span = info_span!("download-http");
+        async move {
+            info!(url = %source, destination = %dest.display(), "fetching");
+            self.checked_exec(&format!("cd {} && curl -LO {}", dest.display(), source,))
+                .await
+                .map(|_| ())
+        }
+        .instrument(span)
+        .await
+    }
+
+    pub async fn copy_files_into(&self, files: &[&Path], dest: &Path) -> Result<()> {
+        let span = info_span!("copy-files-into");
+        let mut entries = Vec::new();
+        for f in files {
+            debug!(parent: &span, entry = %f.display(), "adding");
+            entries.push((*f, fs::read(f)?));
+        }
+
+        let archive =
+            span.in_scope(|| create_tar_archive(entries.iter().map(|(p, b)| (*p, &b[..]))))?;
+
+        self.container
+            .inner()
+            .copy_file_into(dest, &archive)
+            .instrument(span.clone())
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn fetch_source(&self) -> Result<()> {
+        let span = info_span!("fetch");
+        async move {
+            if let Some(repo) = &self.recipe.metadata.git {
+                self.clone_git_to_bld_dir(repo).await?;
+            } else if let Some(source) = &self.recipe.metadata.source {
+                if source.starts_with("http") {
+                    self.get_http_source(source.as_str(), self.container_tmp_dir)
+                        .await?;
+                } else {
+                    let src_path = PathBuf::from(source);
+                    self.copy_files_into(&[src_path.as_path()], self.container_tmp_dir)
+                        .await?;
+                }
+                self.checked_exec(&format!(
+                    r#"
+                        cd {};
+                        for file in $(ls .);
+                        do
+                            if [[ $file == *.tar* ]]
+                            then
+                                tar xvf $file -C {1}
+                            elif [[ $file == *.zip ]]
+                            then
+                                unzip -v $file -d {1}
+                            else
+                                cp -v $file {1}
+                            fi
+                        done"#,
+                    self.container_tmp_dir.display(),
+                    self.container_bld_dir.display(),
+                ))
+                .await?;
             }
+            Ok(())
         }
         .instrument(span)
         .await

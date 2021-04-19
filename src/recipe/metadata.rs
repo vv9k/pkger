@@ -107,13 +107,15 @@ pub struct Metadata {
     pub revision: String,
     pub description: String,
     pub license: String,
-    pub source: String,
     pub images: Vec<ImageTarget>,
 
-    // Git repository as source
+    /// http/https or file system source pointing to a tar.gz or tar.xz package
+    pub source: Option<String>,
+
+    /// Git repository as source
     pub git: Option<GitSource>,
 
-    // Whether default dependencies should be installed before the build
+    /// Whether default dependencies should be installed before the build
     pub skip_default_deps: Option<bool>,
 
     pub build_depends: Option<Dependencies>,
@@ -122,7 +124,7 @@ pub struct Metadata {
     pub conflicts: Option<Dependencies>,
     pub provides: Option<Dependencies>,
 
-    // Directories to exclude when creating the package
+    /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
 
     // Only Debian based
@@ -205,8 +207,10 @@ pub struct MetadataRep {
     pub revision: String,
     pub description: String,
     pub license: String,
-    pub source: String,
     pub images: Vec<toml::Value>,
+
+    /// http/https or file system source pointing to a tar.gz or tar.xz package
+    pub source: Option<String>,
 
     /// Git repository as source
     pub git: Option<toml::Value>,
