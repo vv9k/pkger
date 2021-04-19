@@ -3,11 +3,11 @@ name = "pkger"
 description = "pkger"
 arch = "x86_64"
 license = "MIT"
-version = "0.0.5"
+version = "0.1.0"
 revision = "0"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-build_depends = ["curl", "gcc", "pkg-config", "centos8{openssl-devel},debian10{libssl-dev}"]
+build_depends = ["curl", "gcc", "pkg-config", "centos8{openssl-devel},debian10{libssl-dev}", "git"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
@@ -15,10 +15,20 @@ images = [
     { name = "debian10", target = "deb" }
 ]
 
-[build]
+[configure]
 steps = [
 	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
 	"sh /tmp/install_rust.sh -y --default-toolchain stable",
-	"mkdir -p /opt/pkger/bin",
-	"/root/.cargo/bin/cargo build --target-dir $PKGER_BLD_DIR",
+    "git clone https://github.com/wojciechkepka/pkger.git $PKGER_BLD_DIR"
+]
+
+[build]
+steps = [
+	"cd $PKGER_BLD_DIR && $HOME/.cargo/bin/cargo build --color=never",
+]
+
+[install]
+steps = [
+    "mkdir -p $PKGER_OUT_DIR/usr/bin",
+    "install -m755 $PKGER_BLD_DIR/target/debug/pkger $PKGER_OUT_DIR/usr/bin/"
 ]
