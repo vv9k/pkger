@@ -1,4 +1,17 @@
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "*.md"
+      - "LICENSE"
+    branches:
+      - master
+  pull_request:
+    paths-ignore:
+      - "*.md"
+      - "LICENSE"
+    branches:
+      - master
 
 name: pkger CI
 
