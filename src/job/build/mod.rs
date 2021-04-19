@@ -360,16 +360,17 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("exec-scripts");
         async move {
             if let Some(config_script) = &self.recipe.configure_script {
-                info!("executing config scripts");
+                let script_span = info_span!("configure");
+                info!(parent: &script_span, "executing configure scripts");
                 for cmd in &config_script.steps {
                     if !cmd.images.is_empty() {
-                        trace!(images = ?cmd.images, "only execute on");
+                        trace!(parent: &script_span, images = ?cmd.images, "only execute on");
                         if !cmd.images.contains(&self.image.name) {
-                            trace!(image = %self.image.name, "not found, skipping");
+                            trace!(parent: &script_span, image = %self.image.name, "not found, skipping");
                             continue;
                         }
                     }
-                    let out = self.checked_exec(&cmd.cmd).await?;
+                    let out = self.checked_exec(&cmd.cmd).instrument(script_span.clone()).await?;
 
                     if out.exit_code != 0 {
                         return Err(anyhow!(
@@ -381,34 +382,36 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
             } else {
-                info!("no config steps to run");
+                info!("no configure steps to run");
             }
 
-            info!("executing build scripts");
+            let script_span = info_span!("build");
+            info!(parent: &script_span, "executing build scripts");
             for cmd in &self.recipe.build_script.steps {
                 if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
+                    trace!(parent: &script_span, images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
-                        trace!(image = %self.image.name, "not found, skipping");
+                        trace!(parent: &script_span, image = %self.image.name, "not found, skipping");
                         continue;
                     }
                 }
 
-                self.checked_exec(&cmd.cmd).await?;
+                self.checked_exec(&cmd.cmd).instrument(script_span.clone()).await?;
             }
 
             if let Some(install_script) = &self.recipe.install_script {
-                info!("executing install scripts");
+                let script_span = info_span!("install");
+                info!(parent: &script_span, "executing install scripts");
                 for cmd in &install_script.steps {
                     if !cmd.images.is_empty() {
-                        trace!(images = ?cmd.images, "only execute on");
+                        trace!(parent: &script_span, images = ?cmd.images, "only execute on");
                         if !cmd.images.contains(&self.image.name) {
-                            trace!(image = %self.image.name, "not found, skipping");
+                            trace!(parent: &script_span, image = %self.image.name, "not found, skipping");
                             continue;
                         }
                     }
 
-                    self.checked_exec(&cmd.cmd).await?;
+                    self.checked_exec(&cmd.cmd).instrument(script_span.clone()).await?;
                 }
             } else {
                 info!("no install steps to run");
