@@ -11,21 +11,36 @@ use tracing_subscriber::field::{Visit, VisitOutput};
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFields};
 use tracing_subscriber::registry::LookupSpan;
 
-#[derive(Debug, Default)]
-struct FmtFilter {
+static DEFAULT_FIELD_DELIM: &str = ", ";
+
+#[derive(Debug)]
+struct FmtFilter<'delim> {
     hide_date: bool,
     hide_fields: bool,
     hide_level: bool,
     hide_spans: bool,
+    delimiter: &'delim str,
 }
 
-impl From<String> for FmtFilter {
+impl<'delim> Default for FmtFilter<'delim> {
+    fn default() -> Self {
+        Self {
+            hide_date: false,
+            hide_fields: false,
+            hide_level: false,
+            hide_spans: false,
+            delimiter: DEFAULT_FIELD_DELIM,
+        }
+    }
+}
+
+impl<'delim> From<String> for FmtFilter<'delim> {
     fn from(filter_string: String) -> Self {
         FmtFilter::from(filter_string.as_str())
     }
 }
 
-impl<'a> From<&'a str> for FmtFilter {
+impl<'a, 'delim> From<&'a str> for FmtFilter<'delim> {
     fn from(filter_str: &'a str) -> Self {
         let mut filter = Self::default();
 
@@ -106,7 +121,7 @@ impl<'writer> PkgerFieldsVisitor<'writer> {
 impl<'writer> Visit for PkgerFieldsVisitor<'writer> {
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         if field.name() == "message" {
-            let dbg = format!("{:?}", value);
+            let dbg = format!(" {:?}", value);
             if let Err(e) = write!(self.writer, "{}", dbg.bold()) {
                 self.err = Some(e);
             }
@@ -142,11 +157,11 @@ impl<'writer> VisitFmt for PkgerFieldsVisitor<'writer> {
 }
 
 /// Fields formatter
-struct PkgerFieldsFmt {
-    delimiter: &'static str,
+struct PkgerFieldsFmt<'delim> {
+    delimiter: &'delim str,
 }
 
-impl<'writer> FormatFields<'writer> for PkgerFieldsFmt {
+impl<'writer, 'delim> FormatFields<'writer> for PkgerFieldsFmt<'delim> {
     fn format_fields<R: RecordFields>(
         &self,
         mut writer: &'writer mut dyn fmt::Write,
@@ -159,11 +174,11 @@ impl<'writer> FormatFields<'writer> for PkgerFieldsFmt {
     }
 }
 
-impl From<&FmtFilter> for PkgerFieldsFmt {
-    fn from(filter: &FmtFilter) -> Self {
-        let delimiter = if filter.hide_fields { "" } else { ", " };
-
-        PkgerFieldsFmt { delimiter }
+impl<'delim> From<&FmtFilter<'delim>> for PkgerFieldsFmt<'delim> {
+    fn from(filter: &FmtFilter<'delim>) -> Self {
+        PkgerFieldsFmt {
+            delimiter: filter.delimiter,
+        }
     }
 }
 
@@ -174,7 +189,7 @@ struct PkgerEventFmt {
     hide_spans: bool,
 }
 
-impl From<&FmtFilter> for PkgerEventFmt {
+impl<'delim> From<&FmtFilter<'delim>> for PkgerEventFmt {
     fn from(filter: &FmtFilter) -> Self {
         Self {
             hide_date: filter.hide_date,
@@ -229,7 +244,7 @@ where
                     write!(writer, "{}", fields)?;
                     write!(writer, "{}", "}".bold())?;
                 }
-                write!(writer, "{}", "=>".blue().bold())?;
+                write!(writer, "{}", "~>".blue().bold())?;
             }
 
             Ok(())
