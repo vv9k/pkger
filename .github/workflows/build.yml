@@ -19,6 +19,7 @@ jobs:
 
   test:
     name: Test Suite
+    needs: check_linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -33,6 +34,7 @@ jobs:
 
   fmt:
     name: Rustfmt
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -49,6 +51,7 @@ jobs:
 
   clippy:
     name: Clippy
+    needs: fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
