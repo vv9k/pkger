@@ -6,7 +6,7 @@ use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 pub use envs::Env;
-pub use metadata::{BuildTarget, Metadata, MetadataRep};
+pub use metadata::{BuildTarget, GitSource, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
 
 use serde::Deserialize;
@@ -40,10 +40,11 @@ impl Recipes {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
-                    match RecipeRep::try_from(entry) {
-                        Ok(recipe) => {
+                    match RecipeRep::try_from(entry).map(Recipe::try_from) {
+                        Ok(result) => {
+                            let recipe = result?;
                             trace!(recipe = ?recipe);
-                            recipes.0.insert(filename, Recipe::try_from(recipe)?);
+                            recipes.0.insert(filename, recipe);
                         }
                         Err(e) => warn!(recipe = %filename, reason = %e, "failed to read recipe"),
                     }
