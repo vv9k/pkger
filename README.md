@@ -1,7 +1,9 @@
 # pkger 📦
 [![Build Status](https://github.com/wojciechkepka/pkger/workflows/pkger%20CI/badge.svg)](https://github.com/wojciechkepka/pkger/actions?query=workflow%3A%22pkger+CI%22)
 
-**pkger** is a tool that automates building *RPMs*, *DEBs* and other packages on multiple *Linux* distributions, versions and architectures.
+**pkger** is a tool that automates building *RPMs*, *DEBs* and other packages on multiple *Linux* distributions, versions and architectures with the help of Docker.
+
+![Example output](https://github.com/wojciechkepka/pkger/blob/master/assets/example_output.png)
 
 ## How it works
 
