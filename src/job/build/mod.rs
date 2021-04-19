@@ -521,6 +521,7 @@ impl<'job> BuildContainerCtx<'job> {
         async move {
             info!("installing dependencies");
             let pkg_mngr = state.os.package_manager();
+            let pkg_mngr_name = pkg_mngr.as_ref();
 
             if deps.is_empty() {
                 trace!("no dependencies to install");
@@ -529,6 +530,13 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!(deps = ?deps, "resolved dependency names");
             let deps = deps.join(" ");
+
+            if pkg_mngr_name.starts_with("apt") {
+                self.checked_exec(
+                    &[pkg_mngr_name, &pkg_mngr.update_repos_args().join(" ")].join(" "),
+                )
+                .await?;
+            }
 
             let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
             trace!(command = %cmd, "installing with");
