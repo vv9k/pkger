@@ -38,10 +38,10 @@ exclude = ["share", "info"]
 provides = ["pkger"]
 # and more...
 ```
- - ### config (Optional)
+ - ### configure (Optional)
  - Optional configuration steps. If provided the steps will be executed before the build phase.
 ```toml
-[config] # optional
+[configure] # optional
 steps = [
 	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
 	"sh /tmp/install_rust.sh -y --default-toolchain stable",
