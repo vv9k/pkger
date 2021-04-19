@@ -31,8 +31,8 @@ pub struct Opts {
     #[clap(long)]
     /// Filter string that instruments the formatter to hide some fields from output. Each
     /// character of the string corresponds to a field. Available fields to hide are: D - Date, F -
-    /// Fields, S - Spans. All characters can be upper or lower case, the order doesn't matter,
-    /// duplicates and errors are silently ignored.
+    /// Fields, L - Levels S - Spans. All characters can be upper or lower case, the order doesn't
+    /// matter, duplicates and errors are silently ignored.
     pub hide: Option<String>,
 }
 
