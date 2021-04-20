@@ -141,10 +141,10 @@ If an option is available as both configuration parameter and cli argument **pkg
 To install **pkger** clone and build this repository with `cargo build --release`.
 
 To use **pkger** you need a [docker daemon listening on a tcp or unix port](https://success.docker.com/article/how-do-i-enable-the-remote-api-for-dockerd).
-After that run:
- - `pkger -d $docker_address -c $config_file [RECIPES]`
- - Substitute `$docker_address` with address like `http://0.0.0.0:2376` or unix socket `unix:///run/docker.sock`
- - Substitute `$config_file` with path to the config file. If `-c` is not provided **pkger** will look for the configuration file in the default location - `$HOME/.pkger.toml`. If the user has no home directory then as the last resort it will try to use `.pkger.toml` in current working directory as config path.
+
+To build a package use
+ - `pkger build [RECIPES]`
+ - If `-c` is not provided **pkger** will look for the configuration file in the default location - `$HOME/.pkger.toml`. If the user has no home directory then as the last resort it will try to use `.pkger.toml` in current working directory as config path.
  - Add any amount of recipes whitespace separated at the end. If no recipe name is provided, all recipes will be queued for a build.
 
 By default **pkger** will display basic output as hierhical log with level set to `INFO`. To debug run with `-d` or `--debug` option. To surpress all output except for errors add `-q` or `--quiet`. To manually set log level set `RUST_LOG` env variable to a value like `pkger=debug` with debug replaced with the desired log level.
