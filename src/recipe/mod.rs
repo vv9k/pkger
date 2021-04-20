@@ -123,12 +123,18 @@ impl Recipe {
         builder.build()
     }
 
-    pub fn as_rpm_spec(&self, sources: &[String], files: &[String], image: &str) -> RpmSpec {
+    pub fn as_rpm_spec(
+        &self,
+        sources: &[String],
+        files: &[String],
+        dirs: &[String],
+        image: &str,
+    ) -> RpmSpec {
         let install_script = sources
             .iter()
             .enumerate()
             .fold(String::new(), |mut s, (i, _)| {
-                s.push_str(&format!("tar xvf %{{SOURCE{}}} -C %{{buildroot}}", i));
+                s.push_str(&format!("tar xvf %{{SOURCE{}}} -C %{{buildroot}}\n", i));
                 s
             });
 
@@ -154,6 +160,7 @@ impl Recipe {
             .version(&self.metadata.version)
             .release(release)
             .add_files_entries(files)
+            .add_dir_files_entries(dirs)
             .add_sources_entries(sources)
             .install_script(&install_script)
             .description(&self.metadata.description);
