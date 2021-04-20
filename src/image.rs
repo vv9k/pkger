@@ -21,9 +21,10 @@ pub struct Images {
 impl Images {
     /// Initializes an instance of Images without loading them from filesystem
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        let mut images = Images::default();
-        images.path = path.as_ref().to_path_buf();
-        images
+        Images {
+            path: path.as_ref().to_path_buf(),
+            ..Default::default()
+        }
     }
 
     pub fn load(&mut self) -> Result<()> {

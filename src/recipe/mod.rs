@@ -27,9 +27,10 @@ pub struct Recipes {
 
 impl Recipes {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        let mut recipes = Recipes::default();
-        recipes.path = path.as_ref().to_path_buf();
-        recipes
+        Recipes {
+            path: path.as_ref().to_path_buf(),
+            ..Default::default()
+        }
     }
 
     pub fn load(&mut self) -> Result<()> {
