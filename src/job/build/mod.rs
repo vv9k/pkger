@@ -563,20 +563,20 @@ impl<'job> BuildContainerCtx<'job> {
                         .await?;
                 }
                 self.checked_exec(&format!(
-                    r#"
+                    r#"bash -c "
                         cd {};
-                        for file in $(ls .);
+                        for file in *;
                         do
-                            if [[ $file == *.tar* ]]
+                            if [[ \$file == *.tar* ]]
                             then
-                                tar xvf $file -C {1}
-                            elif [[ $file == *.zip ]]
+                                tar xvf \$file -C {1}
+                            elif [[ \$file == *.zip ]]
                             then
-                                unzip -v $file -d {1}
+                                unzip -v \$file -d {1}
                             else
-                                cp -v $file {1}
+                                cp -v \$file {1}
                             fi
-                        done"#,
+                        done""#,
                     self.container_tmp_dir.display(),
                     self.container_bld_dir.display(),
                 ))
