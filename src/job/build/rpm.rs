@@ -73,7 +73,22 @@ impl<'job> BuildContainerCtx<'job> {
         trace!(parent: &span, "find source file paths");
         let files = self
             .checked_exec(&format!(
-                r#"cd {} && find . -type f -name "*""#,
+                r#"cd {} && find . -type f -maxdepth 1 -name "*""#,
+                self.container_out_dir.display()
+            ))
+            .instrument(span.clone())
+            .await
+            .map(|out| {
+                out.stdout
+                    .join("")
+                    .split_ascii_whitespace()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.trim_start_matches('.').to_string())
+                    .collect::<Vec<_>>()
+            })?;
+        let dirs = self
+            .checked_exec(&format!(
+                r#"cd {} && find . -type d -maxdepth 1 -name "*""#, //rpmbuild automatically includes all child files and dirs
                 self.container_out_dir.display()
             ))
             .instrument(span.clone())
@@ -90,7 +105,7 @@ impl<'job> BuildContainerCtx<'job> {
 
         let spec = span.in_scope(|| {
             self.recipe
-                .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
+                .as_rpm_spec(&[source_tar], &files[..], &dirs[..], &image_state.image)
                 .render()
         });
 
