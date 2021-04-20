@@ -245,7 +245,7 @@ dependencies = [
 [[package]]
 name = "deb-control"
 version = "0.2.0"
-source = "git+https://github.com/wojciechkepka/deb-control-rs?branch=master#1f670e117414c37d76e02bea052ef50cfe6f4a0a"
+source = "git+https://github.com/wojciechkepka/deb-control-rs?branch=master#b4bd465d28438d949c2f3a08e701ea2bb5a7c5c6"
 dependencies = [
  "paste",
  "pkgspec",
