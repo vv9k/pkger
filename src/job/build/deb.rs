@@ -67,8 +67,15 @@ impl<'job> BuildContainerCtx<'job> {
         .instrument(span.clone())
         .await?;
 
+        let dpkg_deb_opts = if image_state.os.os_ver().parse::<u8>().unwrap_or_default() < 10 {
+            "--build"
+        } else {
+            "--build --root-owner-group"
+        };
+
         self.checked_exec(&format!(
-            "dpkg-deb --build --root-owner-group {}",
+            "dpkg-deb {} {}",
+            dpkg_deb_opts,
             base_dir.display()
         ))
         .instrument(span.clone())
