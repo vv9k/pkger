@@ -1,4 +1,4 @@
-use crate::opts::Opts;
+use crate::opts::PkgerOpts;
 
 use chrono::Utc;
 use colored::Colorize;
@@ -58,7 +58,7 @@ impl<'a, 'delim> From<&'a str> for FmtFilter<'delim> {
     }
 }
 
-pub fn setup_tracing(opts: &Opts) {
+pub fn setup_tracing(opts: &PkgerOpts) {
     let span = info_span!("setup-tracing");
     let _enter = span.enter();
 

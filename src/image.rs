@@ -13,29 +13,38 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info_span, trace, warn, Instrument};
 
 #[derive(Debug, Default)]
-pub struct Images(HashMap<String, Image>);
+pub struct Images {
+    inner: HashMap<String, Image>,
+    path: PathBuf,
+}
 
 impl Images {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = path.as_ref();
-        let span = info_span!("init-images", path = %path.display());
+    /// Initializes an instance of Images without loading them from filesystem
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        let mut images = Images::default();
+        images.path = path.as_ref().to_path_buf();
+        images
+    }
+
+    pub fn load(&mut self) -> Result<()> {
+        let span = info_span!("load-images", path = %self.path.display());
         let _enter = span.enter();
 
-        let mut images = Images::default();
-
-        if !path.is_dir() {
-            warn!("images path is not a directory");
-            return Ok(images);
+        if !self.path.is_dir() {
+            return Err(anyhow!(
+                "images path `{}` is not a directory",
+                self.path.display()
+            ));
         }
 
-        for entry in fs::read_dir(path)? {
+        for entry in fs::read_dir(self.path.as_path())? {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
                     match Image::new(entry.path()) {
                         Ok(image) => {
                             trace!(image = ?image);
-                            images.0.insert(filename, image);
+                            self.inner.insert(filename, image);
                         }
                         Err(e) => {
                             warn!(image = %filename, reason = %e, "failed to read image from path")
@@ -46,11 +55,11 @@ impl Images {
             }
         }
 
-        Ok(images)
+        Ok(())
     }
 
     pub fn images(&self) -> &HashMap<String, Image> {
-        &self.0
+        &self.inner
     }
 }
 

@@ -16,13 +16,12 @@ mod util;
 use crate::docker::DockerConnectionPool;
 use crate::image::{Images, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
-use crate::opts::Opts;
+use crate::opts::{BuildOpts, PkgerCmd, PkgerOpts};
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
 use std::process;
@@ -57,12 +56,11 @@ struct Pkger {
     is_running: Arc<AtomicBool>,
 }
 
-impl TryFrom<Config> for Pkger {
-    type Error = Error;
-    fn try_from(config: Config) -> Result<Self> {
-        let images = Images::new(config.images_dir.clone())?;
-        let recipes = Recipes::new(config.recipes_dir.clone())?;
-        Ok(Pkger {
+impl From<Config> for Pkger {
+    fn from(config: Config) -> Self {
+        let images = Images::new(config.images_dir.as_str());
+        let recipes = Recipes::new(config.recipes_dir.as_str());
+        let pkger = Pkger {
             config: Arc::new(config),
             images: Arc::new(images),
             images_filter: Arc::new(vec![]),
@@ -72,13 +70,28 @@ impl TryFrom<Config> for Pkger {
                 ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
             )),
             is_running: Arc::new(AtomicBool::new(true)),
-        })
+        };
+        let is_running = pkger.is_running.clone();
+        set_ctrlc_handler(is_running);
+        pkger
     }
 }
 
 impl Pkger {
-    fn process_opts(&mut self, opts: &Opts) -> Result<()> {
-        let span = info_span!("process-opts");
+    async fn process_opts(&mut self, opts: &PkgerOpts) -> Result<()> {
+        match &opts.command {
+            PkgerCmd::Build(build_opts) => {
+                self.load_images();
+                self.load_recipes();
+                self.process_build_opts(&build_opts)?;
+                self.process_tasks().await;
+                self.save_images_state();
+                Ok(())
+            }
+        }
+    }
+    fn process_build_opts(&mut self, opts: &BuildOpts) -> Result<()> {
+        let span = info_span!("process-build-opts");
         let _enter = span.enter();
 
         if !opts.recipes.is_empty() {
@@ -227,15 +240,62 @@ impl Pkger {
             error!(reason = %e, "failed to save image state");
         }
     }
+
+    fn load_images(&mut self) {
+        if let Some(images) = Arc::get_mut(&mut self.images) {
+            if let Err(e) = images.load() {
+                error!(
+                    reason = %e,
+                    "failed to load images"
+                );
+                process::exit(1);
+            }
+        } else {
+            error!(
+                reason = "couldn't get mutable reference to images",
+                "failed to load images"
+            );
+            process::exit(1);
+        }
+    }
+
+    fn load_recipes(&mut self) {
+        if let Some(recipes) = Arc::get_mut(&mut self.recipes) {
+            if let Err(e) = recipes.load() {
+                error!(
+                    reason = %e,
+                    "failed to load recipes"
+                );
+                process::exit(1);
+            }
+        } else {
+            error!(
+                reason = "couldn't get mutable reference to recipes",
+                "failed to load recipes"
+            );
+            process::exit(1);
+        }
+    }
+}
+
+fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
+    if let Err(e) = ctrlc::set_handler(move || {
+        warn!("got ctrl-c");
+        is_running.store(false, Ordering::SeqCst);
+    }) {
+        error!(reason = %e, "failed to set ctrl-c handler");
+    };
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let opts = Opts::from_args();
-    trace!(opts = ?opts);
+    let opts = PkgerOpts::from_args();
 
     fmt::setup_tracing(&opts);
 
+    trace!(opts = ?opts);
+
+    // config
     let config_path = opts.config.clone().unwrap_or_else(|| {
         match dirs_next::home_dir() {
             Some(home_dir) => {
@@ -248,7 +308,6 @@ async fn main() -> Result<()> {
         }
     });
     trace!(config_path = %config_path);
-
     let result = Config::from_path(&config_path);
     if let Err(e) = &result {
         error!(reason = %e, config_path = %config_path, "failed to read config file");
@@ -257,29 +316,10 @@ async fn main() -> Result<()> {
     let config = result.unwrap();
     trace!(config = ?config);
 
-    let result = Pkger::try_from(config);
-    if let Err(e) = &result {
-        error!(reason = %e, "failed to initialize pkger from config");
+    let mut pkger = Pkger::from(config);
+    if let Err(e) = pkger.process_opts(&opts).await {
+        error!(reason = %e, "execution failed");
         process::exit(1);
     }
-    let mut pkger = result.unwrap();
-
-    if let Err(e) = pkger.process_opts(&opts) {
-        error!(reason = %e, "failed to process opts");
-        process::exit(1);
-    }
-
-    let is_running = pkger.is_running.clone();
-
-    if let Err(e) = ctrlc::set_handler(move || {
-        warn!("got ctrl-c");
-        is_running.store(false, Ordering::SeqCst);
-    }) {
-        error!(reason = %e, "failed to set ctrl-c handler");
-    };
-
-    pkger.process_tasks().await;
-    pkger.save_images_state();
-
     Ok(())
 }
