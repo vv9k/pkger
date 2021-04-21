@@ -1,7 +1,7 @@
 use crate::deps::Dependencies;
 use crate::{Error, Result};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::convert::{AsRef, TryFrom};
 
 #[derive(Clone, Debug)]
@@ -227,7 +227,7 @@ impl TryFrom<MetadataRep> for Metadata {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct MetadataRep {
     // Required
     pub name: String,
