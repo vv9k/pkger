@@ -30,24 +30,8 @@ jobs:
         with:
           command: check
 
-  test:
-    name: Test Suite
-    needs: check_linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-
   fmt:
     name: Rustfmt
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -64,7 +48,6 @@ jobs:
 
   clippy:
     name: Clippy
-    needs: fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -78,3 +61,18 @@ jobs:
         with:
           command: clippy
           args: -- -Dclippy::all
+
+  test:
+    name: Test Suite
+    needs: [check_linux, fmt, clippy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
