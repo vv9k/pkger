@@ -398,7 +398,7 @@ impl<'job> BuildContainerCtx<'job> {
                             continue;
                         }
                     }
-                    let out = self.checked_exec(&cmd.cmd).instrument(script_span.clone()).await?;
+                    let out = self.checked_exec(&cmd.cmd, None).instrument(script_span.clone()).await?;
 
                     if out.exit_code != 0 {
                         return Err(anyhow!(
@@ -424,7 +424,7 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
-                self.checked_exec(&cmd.cmd).instrument(script_span.clone()).await?;
+                self.checked_exec(&cmd.cmd, Some(self.container_bld_dir)).instrument(script_span.clone()).await?;
             }
 
             if let Some(install_script) = &self.recipe.install_script {
@@ -439,7 +439,7 @@ impl<'job> BuildContainerCtx<'job> {
                         }
                     }
 
-                    self.checked_exec(&cmd.cmd).instrument(script_span.clone()).await?;
+                    self.checked_exec(&cmd.cmd, Some(self.container_out_dir)).instrument(script_span.clone()).await?;
                 }
             } else {
                 info!("no install steps to run");
@@ -476,7 +476,7 @@ impl<'job> BuildContainerCtx<'job> {
             let dirs_joined = dirs_joined.trim();
             trace!(directories = %dirs_joined);
 
-            self.checked_exec(&format!("mkdir -pv {}", dirs_joined))
+            self.checked_exec(&format!("mkdir -pv {}", dirs_joined), None)
                 .await
                 .map(|_| ())
         }
@@ -508,7 +508,7 @@ impl<'job> BuildContainerCtx<'job> {
                     repo.branch(),
                     repo.url(),
                     self.container_bld_dir.display()
-                ))
+                ), None)
                 .await
                 .map(|_| ())
         }
@@ -520,7 +520,7 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("download-http");
         async move {
             info!(url = %source, destination = %dest.display(), "fetching");
-            self.checked_exec(&format!("cd {} && curl -LO {}", dest.display(), source,))
+            self.checked_exec(&format!("curl -LO {}", source), Some(dest))
                 .await
                 .map(|_| ())
         }
@@ -562,24 +562,25 @@ impl<'job> BuildContainerCtx<'job> {
                     self.copy_files_into(&[src_path.as_path()], self.container_tmp_dir)
                         .await?;
                 }
-                self.checked_exec(&format!(
-                    r#"bash -c "
-                        cd {};
+                self.checked_exec(
+                    &format!(
+                        r#"bash -c "
                         for file in *;
                         do
                             if [[ \$file == *.tar* ]]
                             then
-                                tar xvf \$file -C {1}
+                                tar xvf \$file -C {0}
                             elif [[ \$file == *.zip ]]
                             then
-                                unzip -v \$file -d {1}
+                                unzip -v \$file -d {0}
                             else
-                                cp -v \$file {1}
+                                cp -v \$file {0}
                             fi
                         done""#,
-                    self.container_tmp_dir.display(),
-                    self.container_bld_dir.display(),
-                ))
+                        self.container_bld_dir.display(),
+                    ),
+                    Some(self.container_tmp_dir),
+                )
                 .await?;
             }
             Ok(())
@@ -614,10 +615,10 @@ impl<'job> BuildContainerCtx<'job> {
         .map(|_| output_dir.join(archive_name))
     }
 
-    async fn checked_exec(&self, cmd: &str) -> Result<Output<String>> {
+    async fn checked_exec(&self, cmd: &str, working_dir: Option<&Path>) -> Result<Output<String>> {
         let span = info_span!("checked-exec");
         async move {
-            let out = self.container.exec(&cmd).await?;
+            let out = self.container.exec(&cmd, working_dir).await?;
             if out.exit_code != 0 {
                 Err(anyhow!(
                     "command `{}` failed with exit code {}\nError:\n{}",
@@ -651,6 +652,7 @@ impl<'job> BuildContainerCtx<'job> {
             if pkg_mngr_name.starts_with("apt") {
                 self.checked_exec(
                     &[pkg_mngr_name, &pkg_mngr.update_repos_args().join(" ")].join(" "),
+                    None,
                 )
                 .await?;
             }
@@ -658,7 +660,7 @@ impl<'job> BuildContainerCtx<'job> {
             let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
             trace!(command = %cmd, "installing with");
 
-            self.checked_exec(&cmd).await.map(|_| ())
+            self.checked_exec(&cmd, None).await.map(|_| ())
         }
         .instrument(span)
         .await

@@ -50,19 +50,21 @@ impl<'job> BuildContainerCtx<'job> {
                 .await?;
 
             trace!("extract control archive");
-            self.checked_exec(&format!(
-                "tar -xvf {} -C {}",
-                control_tar_path.display(),
-                deb_dir.display(),
-            ))
+            self.checked_exec(
+                &format!(
+                    "tar -xvf {} -C {}",
+                    control_tar_path.display(),
+                    deb_dir.display(),
+                ),
+                None,
+            )
             .await?;
 
             trace!("copy source files to build dir");
-            self.checked_exec(&format!(
-                "cd {} && cp -rv . {}",
-                self.container_out_dir.display(),
-                base_dir.display()
-            ))
+            self.checked_exec(
+                &format!("cp -rv . {}", base_dir.display()),
+                Some(self.container_out_dir),
+            )
             .await?;
 
             let dpkg_deb_opts = if image_state.os.os_ver().parse::<u8>().unwrap_or_default() < 10 {
@@ -71,11 +73,10 @@ impl<'job> BuildContainerCtx<'job> {
                 "--build --root-owner-group"
             };
 
-            self.checked_exec(&format!(
-                "dpkg-deb {} {}",
-                dpkg_deb_opts,
-                base_dir.display()
-            ))
+            self.checked_exec(
+                &format!("dpkg-deb {} {}", dpkg_deb_opts, base_dir.display()),
+                None,
+            )
             .await?;
 
             let deb_name = [&name, ".deb"].join("");

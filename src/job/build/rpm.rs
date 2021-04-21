@@ -54,27 +54,29 @@ impl<'job> BuildContainerCtx<'job> {
             self.create_dirs(&dirs[..]).await?;
 
             trace!("copy source files to temporary location");
-            self.checked_exec(&format!(
-                "cp -rv {} {}",
-                self.container_out_dir.display(),
-                tmp_buildroot.display(),
-            ))
+            self.checked_exec(
+                &format!(
+                    "cp -rv {} {}",
+                    self.container_out_dir.display(),
+                    tmp_buildroot.display(),
+                ),
+                None,
+            )
             .await?;
 
             trace!("prepare archived source files");
-            self.checked_exec(&format!(
-                "cd {} && tar -zcvf {} .",
-                tmp_buildroot.display(),
-                source_tar_path.display(),
-            ))
+            self.checked_exec(
+                &format!("tar -zcvf {} .", source_tar_path.display(),),
+                Some(tmp_buildroot.as_path()),
+            )
             .await?;
 
             trace!("find source file paths");
             let files = self
-                .checked_exec(&format!(
-                    r#"cd {} && find . -type f -maxdepth 1 -name "*""#,
-                    self.container_out_dir.display()
-                ))
+                .checked_exec(
+                    r#"find . -type f -maxdepth 1 -name "*""#,
+                    Some(self.container_out_dir),
+                )
                 .await
                 .map(|out| {
                     out.stdout
@@ -85,10 +87,10 @@ impl<'job> BuildContainerCtx<'job> {
                         .collect::<Vec<_>>()
                 })?;
             let dirs = self
-                .checked_exec(&format!(
-                    r#"cd {} && find . -type d -maxdepth 1 -name "*""#, //rpmbuild automatically includes all child files and dirs
-                    self.container_out_dir.display()
-                ))
+                .checked_exec(
+                    r#"find . -type d -maxdepth 1 -name "*""#, //rpmbuild automatically includes all child files and dirs
+                    Some(self.container_out_dir),
+                )
                 .await
                 .map(|out| {
                     out.stdout
@@ -121,16 +123,22 @@ impl<'job> BuildContainerCtx<'job> {
                 .await?;
 
             trace!("extract spec archive");
-            self.checked_exec(&format!(
-                "tar -xvf {} -C {}",
-                spec_tar_path.display(),
-                specs.display(),
-            ))
+            self.checked_exec(
+                &format!(
+                    "tar -xvf {} -C {}",
+                    spec_tar_path.display(),
+                    specs.display(),
+                ),
+                None,
+            )
             .await?;
 
             trace!("rpmbuild");
-            self.checked_exec(&format!("rpmbuild -bb {}", specs.join(spec_file).display(),))
-                .await?;
+            self.checked_exec(
+                &format!("rpmbuild -bb {}", specs.join(spec_file).display()),
+                None,
+            )
+            .await?;
 
             self.container
                 .download_files(rpms.join(&arch).as_path(), output_dir)
