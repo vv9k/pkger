@@ -84,17 +84,17 @@ steps = [
 ```toml
 [build] # required
 steps = [
-	"mkdir -p $PKGER_OUT_DIR/usr/bin",
-	"cargo build .",
+	"$HOME/.cargo/bin/cargo build .",
 ]
 ```
  - ### install (Optional)
    - Optional installation steps. If provided the steps will be executed after the build phase.
+   - Working directory will be set to `$PKGER_OUT_DIR` by default so you can use relative paths during install
 
 ```toml
 [install] # optional
 steps = [
-    "install -m755 pkger $PKGER_OUT_DIR/usr/bin/pkger"
+    "install -m755 pkger usr/bin/pkger"
 ]
 ```
  - ### Env (Optional)

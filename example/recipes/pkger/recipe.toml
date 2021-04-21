@@ -23,11 +23,11 @@ steps = [
 
 [build]
 steps = [
-	"cd $PKGER_BLD_DIR && $HOME/.cargo/bin/cargo build --color=never",
+	"$HOME/.cargo/bin/cargo build --color=never",
 ]
 
 [install]
 steps = [
-    "mkdir -p $PKGER_OUT_DIR/usr/bin",
-    "install -m755 $PKGER_BLD_DIR/target/debug/pkger $PKGER_OUT_DIR/usr/bin/"
+    "mkdir -p usr/bin",
+    "install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/"
 ]

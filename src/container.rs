@@ -110,15 +110,25 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn exec<S: AsRef<str>>(&self, cmd: S) -> Result<Output<String>> {
+    pub async fn exec<C, W>(&self, cmd: C, dir: Option<W>) -> Result<Output<String>>
+    where
+        C: AsRef<str>,
+        W: AsRef<Path>,
+    {
         let span = info_span!("container-exec", id = %self.id());
         async move {
-            debug!(cmd = %cmd.as_ref(), "executing");
+            let dir = if let Some(dir) = dir {
+                dir.as_ref().to_string_lossy().to_string()
+            } else {
+                "/".to_string()
+            };
+            debug!(cmd = %cmd.as_ref(), working_dir = %dir, "executing");
 
             let opts = ExecContainerOptions::builder()
                 .cmd(vec!["/bin/sh", "-c", cmd.as_ref()])
                 .attach_stdout(true)
                 .attach_stderr(true)
+                .working_dir(dir)
                 .build();
 
             let exec = Exec::create(&self.docker, self.id(), &opts).await?;
