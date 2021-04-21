@@ -64,7 +64,7 @@ jobs:
 
   test:
     name: Test Suite
-    needs: [check fmt clippy]
+    needs: [check_linux, fmt, clippy]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
