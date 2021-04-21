@@ -11,7 +11,6 @@ use rpmspec::RpmSpec;
 
 use serde::Deserialize;
 use std::convert::TryFrom;
-use std::env;
 use std::fs::{self, DirEntry};
 use std::path::Path;
 use std::{collections::HashMap, path::PathBuf};
@@ -34,9 +33,9 @@ impl Recipes {
     }
 
     pub fn load(&mut self) -> Result<()> {
-        let path = env::current_dir()?.join(self.path.as_path());
+        let path = self.path.as_path();
 
-        let span = info_span!("init-recipes", path = %path.display());
+        let span = info_span!("load-recipes", path = %path.display());
         let _enter = span.enter();
 
         if !path.is_dir() {
