@@ -9,31 +9,37 @@ pub use envs::Env;
 pub use metadata::{BuildTarget, GitSource, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
 
-use serde::Deserialize;
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
-use std::env;
 use std::fs::{self, DirEntry};
 use std::path::Path;
+use std::{collections::HashMap, path::PathBuf};
 use tracing::{info_span, trace, warn};
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
 
 #[derive(Clone, Debug, Default)]
-pub struct Recipes(HashMap<String, Recipe>);
+pub struct Recipes {
+    inner: HashMap<String, Recipe>,
+    path: PathBuf,
+}
 
 impl Recipes {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = env::current_dir()?.join(path.as_ref());
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        Recipes {
+            path: path.as_ref().to_path_buf(),
+            ..Default::default()
+        }
+    }
 
-        let span = info_span!("init-recipes", path = %path.display());
+    pub fn load(&mut self) -> Result<()> {
+        let path = self.path.as_path();
+
+        let span = info_span!("load-recipes", path = %path.display());
         let _enter = span.enter();
 
-        let mut recipes = Recipes::default();
-
         if !path.is_dir() {
-            warn!("recipes path is not a directory");
-            return Ok(recipes);
+            return Err(anyhow!("recipes path is not a directory"));
         }
 
         for entry in fs::read_dir(path)? {
@@ -44,7 +50,7 @@ impl Recipes {
                         Ok(result) => {
                             let recipe = result?;
                             trace!(recipe = ?recipe);
-                            recipes.0.insert(filename, recipe);
+                            self.inner.insert(filename, recipe);
                         }
                         Err(e) => warn!(recipe = %filename, reason = %e, "failed to read recipe"),
                     }
@@ -53,15 +59,15 @@ impl Recipes {
             }
         }
 
-        Ok(recipes)
+        Ok(())
     }
 
     pub fn inner_ref(&self) -> &HashMap<String, Recipe> {
-        &self.0
+        &self.inner
     }
 
     pub fn inner_ref_mut(&mut self) -> &mut HashMap<String, Recipe> {
-        &mut self.0
+        &mut self.inner
     }
 }
 
@@ -185,7 +191,7 @@ impl Recipe {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct RecipeRep {
     pub metadata: MetadataRep,
     pub env: Option<toml::value::Table>,
@@ -243,7 +249,7 @@ macro_rules! impl_step_rep {
             }
         }
 
-        #[derive(Deserialize, Debug)]
+        #[derive(Deserialize, Serialize, Debug)]
         pub struct $ty_rep {
             pub steps: Vec<String>,
         }

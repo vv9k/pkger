@@ -18,13 +18,21 @@ impl From<Option<TomlTable>> for Env {
     }
 }
 
+#[allow(dead_code)]
 impl Env {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<String>
     where
         K: Into<String>,
         V: Into<String>,
     {
         self.0.insert(key.into(), value.into())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     #[allow(dead_code)]
