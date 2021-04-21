@@ -155,6 +155,28 @@ To decide what parts of events are displayed use the `--hide` flag that takes a 
  - `l` hides the level
  - `s` hides the spans entirely
 
+To generate a recipe declaratively from CLI use subcommand `gen-recipe`. By default it requires only the name of the package and prints the recipe to stdout. If `output_dir` is provided **pkger** will create a directory with the name of the package and a `recipe.toml` containing generated recipe.
+
+Example generated recipe printed to stdout:
+```
+> pkger gen-recipe test --arch x86_64 --description "A very interesting package..." \
+                        --provides test-bin --version 1.0.0 --build-depends curl make \
+                        -- license MIT
+[metadata]
+name = "test"
+version = "1.0.0"
+description = "A very interesting package..."
+license = "MIT"
+images = []
+arch = "x86_64"
+build_depends = ["curl", "make"]
+provides = ["test-bin"]
+
+[build]
+steps = []
+
+```
+
 ## Example
 
  - Example configuration and recipe can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)

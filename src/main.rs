@@ -16,10 +16,11 @@ mod util;
 use crate::docker::DockerConnectionPool;
 use crate::image::{Images, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
-use crate::opts::{BuildOpts, PkgerCmd, PkgerOpts};
-use crate::recipe::Recipes;
+use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
+use crate::recipe::{BuildRep, Recipes};
 
 pub use anyhow::{Error, Result};
+use recipe::{MetadataRep, RecipeRep};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -78,8 +79,8 @@ impl From<Config> for Pkger {
 }
 
 impl Pkger {
-    async fn process_opts(&mut self, opts: &PkgerOpts) -> Result<()> {
-        match &opts.command {
+    async fn process_opts(&mut self, opts: PkgerOpts) -> Result<()> {
+        match opts.command {
             PkgerCmd::Build(build_opts) => {
                 self.load_images();
                 self.load_recipes();
@@ -88,6 +89,7 @@ impl Pkger {
                 self.save_images_state();
                 Ok(())
             }
+            PkgerCmd::GenRecipe(gen_recipe_opts) => self.gen_recipe(gen_recipe_opts),
         }
     }
     fn process_build_opts(&mut self, opts: &BuildOpts) -> Result<()> {
@@ -276,6 +278,82 @@ impl Pkger {
             process::exit(1);
         }
     }
+
+    fn gen_recipe(&self, opts: Box<GenRecipeOpts>) -> Result<()> {
+        let span = info_span!("gen-recipe");
+        let _enter = span.enter();
+        trace!(opts = ?opts);
+
+        let git = if let Some(url) = opts.git_url {
+            let mut git_src = toml::value::Table::new();
+            git_src.insert("url".to_string(), toml::Value::String(url));
+            if let Some(branch) = opts.git_branch {
+                git_src.insert("branch".to_string(), toml::Value::String(branch));
+            }
+            Some(toml::Value::Table(git_src))
+        } else {
+            None
+        };
+
+        let mut env = toml::value::Map::new();
+        if let Some(env_str) = opts.env {
+            for kv in env_str.split(',') {
+                let mut kv_split = kv.split('=');
+                if let Some(k) = kv_split.next() {
+                    if let Some(v) = kv_split.next() {
+                        if let Some(entry) =
+                            env.insert(k.to_string(), toml::Value::String(v.to_string()))
+                        {
+                            warn!(key = k, old = %entry.to_string(), new = v, "key already exists, overwriting")
+                        }
+                    } else {
+                        warn!(entry = ?kv, "env entry missing a `=`");
+                    }
+                } else {
+                    warn!(entry = kv, "env entry missing a key or `=`");
+                }
+            }
+        }
+        let metadata = MetadataRep {
+            name: opts.name,
+            version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
+            description: opts.description.unwrap_or_else(|| "missing".to_string()),
+            license: opts.license.unwrap_or_else(|| "missing".to_string()),
+            images: vec![],
+            maintainer: opts.maintainer,
+            arch: opts.arch,
+            source: opts.source,
+            git,
+            skip_default_deps: opts.skip_default_deps,
+            exclude: opts.exclude,
+            build_depends: opts.build_depends,
+            depends: opts.depends,
+            conflicts: opts.conflicts,
+            provides: opts.provides,
+            section: opts.section,
+            priority: opts.priority,
+            release: opts.release,
+            obsoletes: opts.obsoletes,
+            summary: opts.summary,
+        };
+
+        let recipe = RecipeRep {
+            metadata,
+            env: if env.is_empty() { None } else { Some(env) },
+            configure: None,
+            build: BuildRep { steps: vec![] },
+            install: None,
+        };
+
+        let rendered = toml::to_string(&recipe)?;
+
+        if let Some(output_dir) = opts.output_dir {
+            fs::write(output_dir.as_path(), rendered)?;
+        } else {
+            println!("{}", rendered);
+        }
+        Ok(())
+    }
 }
 
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
@@ -317,7 +395,7 @@ async fn main() -> Result<()> {
     trace!(config = ?config);
 
     let mut pkger = Pkger::from(config);
-    if let Err(e) = pkger.process_opts(&opts).await {
+    if let Err(e) = pkger.process_opts(opts).await {
         error!(reason = %e, "execution failed");
         process::exit(1);
     }

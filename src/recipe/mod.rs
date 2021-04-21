@@ -9,7 +9,7 @@ pub use envs::Env;
 pub use metadata::{BuildTarget, GitSource, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
 use std::path::Path;
@@ -191,7 +191,7 @@ impl Recipe {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct RecipeRep {
     pub metadata: MetadataRep,
     pub env: Option<toml::value::Table>,
@@ -249,7 +249,7 @@ macro_rules! impl_step_rep {
             }
         }
 
-        #[derive(Deserialize, Debug)]
+        #[derive(Deserialize, Serialize, Debug)]
         pub struct $ty_rep {
             pub steps: Vec<String>,
         }
