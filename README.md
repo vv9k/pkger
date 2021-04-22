@@ -73,7 +73,7 @@ steps = [
     "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 ]
 
-# This settings apply to build and install as well
+# This settings can be applied to build and install as well
 working_dir = "/tmp" # optionally overwrite default working directory on each step
 shell = "/bin/bash" # optionally change default `/bin/sh`
 ```
@@ -174,7 +174,7 @@ images = []
 steps = []
 ```
 
-Or a more complex one, all of the metadata fields can be added using declarative syntax
+Or a more complex one, all of the metadata fields can be added using declarative syntax:
 ```
 > pkger gen-recipe test --arch x86_64 --description "A very interesting package..." \
                         --provides test-bin --version 1.0.0 --build-depends curl make \
