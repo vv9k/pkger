@@ -207,12 +207,7 @@ impl ImageState {
         let span = info_span!("check-image-exists", image = %self.image, id = %self.id);
         async move {
             info!("checking if image exists in Docker");
-            let image = docker.images().get(&self.id);
-            if image.inspect().await.is_ok() {
-                true
-            } else {
-                false
-            }
+            docker.images().get(&self.id).inspect().await.is_ok()
         }
         .instrument(span)
         .await
