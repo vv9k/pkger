@@ -22,7 +22,7 @@ use std::str;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use tracing::{debug, info, info_span, trace, Instrument};
+use tracing::{debug, info, info_span, trace, warn, Instrument};
 
 macro_rules! cleanup {
     ($ctx:ident) => {
@@ -99,6 +99,10 @@ impl Ctx for BuildCtx {
             cleanup!(container_ctx);
 
             container_ctx.execute_scripts().await?;
+
+            cleanup!(container_ctx);
+
+            container_ctx.exclude_paths().await?;
 
             cleanup!(container_ctx);
 
@@ -390,6 +394,39 @@ impl<'job> BuildContainerCtx<'job> {
             } else {
                 Ok(out)
             }
+        }
+        .instrument(span)
+        .await
+    }
+
+    pub async fn exclude_paths(&self) -> Result<()> {
+        let span = info_span!("exclude-paths");
+        async move {
+            if let Some(exclude) = &self.recipe.metadata.exclude {
+                let exclude_paths = exclude
+                .iter()
+                .map(PathBuf::from)
+                .filter(|p| {
+                    if p.is_absolute() {
+                        warn!(path = %p.display(), "absolute paths are not allowed in excludes");
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .map(|p| p.to_string_lossy().to_string())
+                .collect::<Vec<_>>();
+                info!(exclude_dirs = ?exclude_paths);
+
+                self.checked_exec(
+                    &format!("rm -rvf {}", exclude_paths.join(" ")),
+                    Some(self.container_out_dir),
+                    None,
+                )
+                .await?;
+            }
+
+            Ok(())
         }
         .instrument(span)
         .await
