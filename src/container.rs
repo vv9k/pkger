@@ -12,7 +12,8 @@ use std::sync::Arc;
 use tracing::{debug, error, info, info_span, trace, Instrument};
 
 /// Length of significant characters of a container ID.
-const CONTAINER_ID_LEN: usize = 12;
+static CONTAINER_ID_LEN: usize = 12;
+static DEFAULT_SHELL: &str = "/bin/sh";
 
 pub fn convert_id(id: &str) -> &str {
     &id[..CONTAINER_ID_LEN]
@@ -110,15 +111,26 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn exec<C, W>(&self, cmd: C, dir: Option<W>) -> Result<Output<String>>
+    pub async fn exec<C, W, S>(
+        &self,
+        cmd: C,
+        dir: Option<W>,
+        shell: Option<S>,
+    ) -> Result<Output<String>>
     where
         C: AsRef<str>,
         W: AsRef<Path>,
+        S: AsRef<str>,
     {
         let span = info_span!("container-exec", id = %self.id());
         async move {
-            debug!(cmd = %cmd.as_ref(), "executing");
-            let sh_cmd = vec!["/bin/sh", "-c", cmd.as_ref()];
+            let shell = if let Some(shell) = shell {
+                shell.as_ref().to_string()
+            } else {
+                DEFAULT_SHELL.to_string()
+            };
+            debug!(shell = %shell, command = %cmd.as_ref(), "executing");
+            let sh_cmd = vec![shell.as_str(), "-c", cmd.as_ref()];
 
             let opts = if let Some(dir) = dir {
                 let dir = dir.as_ref().to_string_lossy().to_string();

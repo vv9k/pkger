@@ -395,6 +395,11 @@ impl<'job> BuildContainerCtx<'job> {
                 } else {
                     None
                 };
+                let shell = if let Some(shell) = &config_script.shell {
+                    Some(shell.as_str())
+                } else {
+                    None
+                };
                 for cmd in &config_script.steps {
                     if !cmd.images.is_empty() {
                         trace!(parent: &script_span, images = ?cmd.images, "only execute on");
@@ -403,7 +408,7 @@ impl<'job> BuildContainerCtx<'job> {
                             continue;
                         }
                     }
-                    let out = self.checked_exec(&cmd.cmd, working_dir).instrument(script_span.clone()).await?;
+                    let out = self.checked_exec(&cmd.cmd, working_dir, shell).instrument(script_span.clone()).await?;
 
                     if out.exit_code != 0 {
                         return Err(anyhow!(
@@ -424,6 +429,11 @@ impl<'job> BuildContainerCtx<'job> {
             } else {
                 Some(self.container_bld_dir)
             };
+                let shell = if let Some(shell) = &self.recipe.build_script.shell {
+                    Some(shell.as_str())
+                } else {
+                    None
+                };
             info!(parent: &script_span, "executing build scripts");
             for cmd in &self.recipe.build_script.steps {
                 if !cmd.images.is_empty() {
@@ -434,7 +444,7 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
-                self.checked_exec(&cmd.cmd, working_dir).instrument(script_span.clone()).await?;
+                self.checked_exec(&cmd.cmd, working_dir, shell).instrument(script_span.clone()).await?;
             }
 
             if let Some(install_script) = &self.recipe.install_script {
@@ -443,6 +453,11 @@ impl<'job> BuildContainerCtx<'job> {
                     Some(dir.as_path())
                 } else {
                     Some(self.container_out_dir)
+                };
+                let shell = if let Some(shell) = &install_script.shell {
+                    Some(shell.as_str())
+                } else {
+                    None
                 };
                 info!(parent: &script_span, "executing install scripts");
                 for cmd in &install_script.steps {
@@ -454,7 +469,7 @@ impl<'job> BuildContainerCtx<'job> {
                         }
                     }
 
-                    self.checked_exec(&cmd.cmd, working_dir).instrument(script_span.clone()).await?;
+                    self.checked_exec(&cmd.cmd, working_dir, shell).instrument(script_span.clone()).await?;
                 }
             } else {
                 info!("no install steps to run");
@@ -491,7 +506,7 @@ impl<'job> BuildContainerCtx<'job> {
             let dirs_joined = dirs_joined.trim();
             trace!(directories = %dirs_joined);
 
-            self.checked_exec(&format!("mkdir -pv {}", dirs_joined), None)
+            self.checked_exec(&format!("mkdir -pv {}", dirs_joined), None, None)
                 .await
                 .map(|_| ())
         }
@@ -523,7 +538,7 @@ impl<'job> BuildContainerCtx<'job> {
                     repo.branch(),
                     repo.url(),
                     self.container_bld_dir.display()
-                ), None)
+                ), None, None)
                 .await
                 .map(|_| ())
         }
@@ -535,7 +550,7 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("download-http");
         async move {
             info!(url = %source, destination = %dest.display(), "fetching");
-            self.checked_exec(&format!("curl -LO {}", source), Some(dest))
+            self.checked_exec(&format!("curl -LO {}", source), Some(dest), None)
                 .await
                 .map(|_| ())
         }
@@ -579,7 +594,7 @@ impl<'job> BuildContainerCtx<'job> {
                 }
                 self.checked_exec(
                     &format!(
-                        r#"bash -c "
+                        r#"
                         for file in *;
                         do
                             if [[ \$file == *.tar* ]]
@@ -591,10 +606,11 @@ impl<'job> BuildContainerCtx<'job> {
                             else
                                 cp -v \$file {0}
                             fi
-                        done""#,
+                        done"#,
                         self.container_bld_dir.display(),
                     ),
                     Some(self.container_tmp_dir),
+                    Some("/bin/bash"),
                 )
                 .await?;
             }
@@ -630,10 +646,15 @@ impl<'job> BuildContainerCtx<'job> {
         .map(|_| output_dir.join(archive_name))
     }
 
-    async fn checked_exec(&self, cmd: &str, working_dir: Option<&Path>) -> Result<Output<String>> {
+    async fn checked_exec(
+        &self,
+        cmd: &str,
+        working_dir: Option<&Path>,
+        shell: Option<&str>,
+    ) -> Result<Output<String>> {
         let span = info_span!("checked-exec");
         async move {
-            let out = self.container.exec(&cmd, working_dir).await?;
+            let out = self.container.exec(&cmd, working_dir, shell).await?;
             if out.exit_code != 0 {
                 Err(anyhow!(
                     "command `{}` failed with exit code {}\nError:\n{}",
@@ -668,6 +689,7 @@ impl<'job> BuildContainerCtx<'job> {
                 self.checked_exec(
                     &[pkg_mngr_name, &pkg_mngr.update_repos_args().join(" ")].join(" "),
                     None,
+                    None,
                 )
                 .await?;
             }
@@ -675,7 +697,7 @@ impl<'job> BuildContainerCtx<'job> {
             let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
             trace!(command = %cmd, "installing with");
 
-            self.checked_exec(&cmd, None).await.map(|_| ())
+            self.checked_exec(&cmd, None, None).await.map(|_| ())
         }
         .instrument(span)
         .await

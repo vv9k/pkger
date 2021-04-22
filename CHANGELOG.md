@@ -4,3 +4,4 @@
 - Add `gen-recipe` subcommand to declaratively generate recipes [#22](https://github.com/wojciechkepka/pkger/pull/22)
 - Build and install scripts now correctly have a working directory set [#23](https://github.com/wojciechkepka/pkger/pull/23)
 - Allow overwriting default working directory of each script phase [#24](https://github.com/wojciechkepka/pkger/pull/24)
+- Add option to change default shell in recipe scripts [#25](https://github.com/wojciechkepka/pkger)

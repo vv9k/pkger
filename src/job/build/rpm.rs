@@ -61,6 +61,7 @@ impl<'job> BuildContainerCtx<'job> {
                     tmp_buildroot.display(),
                 ),
                 None,
+                None,
             )
             .await?;
 
@@ -68,6 +69,7 @@ impl<'job> BuildContainerCtx<'job> {
             self.checked_exec(
                 &format!("tar -zcvf {} .", source_tar_path.display(),),
                 Some(tmp_buildroot.as_path()),
+                None,
             )
             .await?;
 
@@ -76,6 +78,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .checked_exec(
                     r#"find . -type f -maxdepth 1 -name "*""#,
                     Some(self.container_out_dir),
+                    None,
                 )
                 .await
                 .map(|out| {
@@ -90,6 +93,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .checked_exec(
                     r#"find . -type d -maxdepth 1 -name "*""#, //rpmbuild automatically includes all child files and dirs
                     Some(self.container_out_dir),
+                    None,
                 )
                 .await
                 .map(|out| {
@@ -130,12 +134,14 @@ impl<'job> BuildContainerCtx<'job> {
                     specs.display(),
                 ),
                 None,
+                None,
             )
             .await?;
 
             trace!("rpmbuild");
             self.checked_exec(
                 &format!("rpmbuild -bb {}", specs.join(spec_file).display()),
+                None,
                 None,
             )
             .await?;
