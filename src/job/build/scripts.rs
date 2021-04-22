@@ -30,14 +30,17 @@ impl<'job> BuildContainerCtx<'job> {
 
     async fn run_configure(&self, config_script: &ConfigureScript) -> Result<()> {
         let span = info_span!("configure");
+        trace!(script = ?config_script);
         async move {
             info!("executing configure scripts");
             let working_dir = if let Some(dir) = &config_script.working_dir {
+                trace!(working_dir = %dir.display());
                 Some(dir.as_path())
             } else {
                 None
             };
             let shell = if let Some(shell) = &config_script.shell {
+                trace!(shell = %shell);
                 Some(shell.as_str())
             } else {
                 None

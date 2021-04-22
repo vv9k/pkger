@@ -2,7 +2,7 @@ use crate::job::{Ctx, OneShotCtx};
 use crate::os::Os;
 use crate::Result;
 
-use moby::{ContainerOptions, Docker};
+use moby::{image::ImageDetails, ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::AsRef;
@@ -10,7 +10,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{debug, info_span, trace, warn, Instrument};
+use tracing::{debug, info, info_span, trace, warn, Instrument};
 
 #[derive(Debug, Default)]
 pub struct Images {
@@ -146,6 +146,7 @@ pub struct ImageState {
     pub tag: String,
     pub os: Os,
     pub timestamp: SystemTime,
+    pub details: ImageDetails,
 }
 
 impl ImageState {
@@ -186,13 +187,32 @@ impl ImageState {
             let os = Os::from(os_name, version);
             debug!(os = %os.as_ref(), version = %os.os_ver(), "parsed image info");
 
+            let image_handle = docker.images().get(id);
+            let details = image_handle.inspect().await?;
+
             Ok(ImageState {
                 id: id.to_string(),
                 image: image.to_string(),
                 os,
                 tag: tag.to_string(),
                 timestamp: *timestamp,
+                details,
             })
+        }
+        .instrument(span)
+        .await
+    }
+
+    pub async fn exists(&self, docker: &Docker) -> bool {
+        let span = info_span!("check-image-exists", image = %self.image, id = %self.id);
+        async move {
+            info!("checking if image exists in Docker");
+            let image = docker.images().get(&self.id);
+            if image.inspect().await.is_ok() {
+                true
+            } else {
+                false
+            }
         }
         .instrument(span)
         .await
@@ -260,7 +280,7 @@ impl ImagesState {
                 })
                 .map(|_| ())
         } else {
-            trace!(state_file = %self.state_file.display(), "file exists");
+            trace!(state_file = %self.state_file.display(), "file exists, overwriting");
             match serde_cbor::to_vec(&self) {
                 Ok(d) => fs::write(&self.state_file, d).map_err(|e| {
                     anyhow!(
