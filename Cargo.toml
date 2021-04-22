@@ -1,15 +1,15 @@
 [package]
-authors = ["wojciech.kepka <wojtek.kepka@protonmail.com>"]
-categories = ["command-line-utilities"]
-description = "Building tool inspired by fpm-builder"
-edition = "2018"
-homepage = "https://github.com/wojciechkepka/pkger"
-keywords = ["unix", "linux", "deb", "rpm", "build"]
-license = "MIT"
 name = "pkger"
-readme = "README.md"
-repository = "https://github.com/wojciechkepka/pkger"
 version = "0.1.0"
+description = "Package building tool utilizing Docker"
+authors = ["wojciech.kepka <wojtek.kepka@protonmail.com>"]
+repository = "https://github.com/wojciechkepka/pkger"
+homepage = "https://github.com/wojciechkepka/pkger"
+keywords = ["unix", "linux", "deb", "rpm", "docker"]
+categories = ["command-line-utilities"]
+license = "MIT"
+readme = "README.md"
+edition = "2018"
 
 [dependencies]
 anyhow = "1"
