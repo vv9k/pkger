@@ -22,10 +22,10 @@ working_dir = "/var/lib"
 steps = [
     # ensure correct shell is set
     "echo SHELL=$0",
-    "if [[ $0 == /bin/sh ]]; then exit 0; else echo 'Shell is configure script is not set to properly'; exit 1; fi",
+    "if [ \"$0\" = \"/bin/sh\" ]; then exit 0; else echo 'Shell is configure script is not set to properly'; exit 1; fi",
     # ensure correct CWD is set
     "echo PWD=$PWD",
-    "if [[ $PWD == /var/lib ]]; then exit 0; else echo 'Working directory of configure script is not set properly'; exit 1; fi",
+    "if [ \"$PWD\" = \"/var/lib\" ]; then exit 0; else echo 'Working directory of configure script is not set properly'; exit 1; fi",
 ]
 
 [build]
@@ -79,6 +79,6 @@ steps = [
 steps = [
     # ensure correct CWD is set
     "echo $PWD",
-    "if [[ $PWD == $PKGER_OUT_DIR ]]; then exit 0; else echo 'Working directory of install script is not set properly'; exit 1; fi",
+    "if [ \"$PWD\" = \"$PKGER_OUT_DIR\" ]; then exit 0; else echo 'Working directory of install script is not set properly'; exit 1; fi",
     "mkdir -p share/test/123 info/dir/to/remove",
 ]

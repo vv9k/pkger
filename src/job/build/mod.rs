@@ -184,7 +184,7 @@ impl BuildCtx {
             env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
             trace!(env = ?env);
 
-            let opts = ContainerOptions::builder(&image_state.image)
+            let opts = ContainerOptions::builder(&image_state.id)
                 .name(&self.id)
                 .cmd(vec!["sleep infinity"])
                 .entrypoint(vec!["/bin/sh", "-c"])
@@ -220,7 +220,12 @@ impl BuildCtx {
 
         async move {
             if let Some(state) = self.image.find_cached_state(&self.image_state) {
-                return Ok(state);
+                if state.exists(&self.docker).await {
+                    trace!("exists");
+                    return Ok(state);
+                } else {
+                    warn!("found cached state but image doesn't exist in docker")
+                }
             }
 
             debug!(image = %self.image.name, "building from scratch");
