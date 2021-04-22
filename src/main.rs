@@ -341,7 +341,10 @@ impl Pkger {
             metadata,
             env: if env.is_empty() { None } else { Some(env) },
             configure: None,
-            build: BuildRep { steps: vec![] },
+            build: BuildRep {
+                steps: vec![],
+                working_dir: None,
+            },
             install: None,
         };
 
