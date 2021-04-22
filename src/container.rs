@@ -211,13 +211,27 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
+    pub async fn copy_from(&self, path: &Path) -> Result<Vec<u8>> {
+        let span = info_span!("copy-from", path = %path.display());
+        async move {
+            trace!("copying");
+            self.inner()
+                .copy_from(path)
+                .try_concat()
+                .await
+                .map_err(|e| anyhow!("failed to copy from container - {}", e))
+        }
+        .instrument(span)
+        .await
+    }
+
     pub async fn download_files(&self, source: &Path, dest: &Path) -> Result<()> {
         let span = info_span!("container-download-files", id = %self.id(), source = %source.display(), destination = %dest.display());
         let cloned_span = span.clone();
 
         async move {
             trace!("fetching");
-            let files = self.inner().copy_from(source).try_concat().await?;
+            let files = self.copy_from(source).await?;
 
             let mut archive = tar::Archive::new(&files[..]);
 

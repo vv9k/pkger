@@ -3,7 +3,6 @@ use crate::recipe::GitSource;
 use crate::util::create_tar_archive;
 use crate::Result;
 
-use futures::TryStreamExt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, Instrument};
@@ -13,12 +12,7 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("archive-output", container_dir = %self.container_out_dir.display());
         async move {
             info!("copying final archive");
-            self.container
-                .inner()
-                .copy_from(self.container_out_dir)
-                .try_concat()
-                .await
-                .map_err(|e| anyhow!("failed to archive output directory - {}", e))
+            self.container.copy_from(self.container_out_dir).await
         }
         .instrument(span)
         .await
