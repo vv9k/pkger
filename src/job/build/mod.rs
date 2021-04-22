@@ -390,6 +390,11 @@ impl<'job> BuildContainerCtx<'job> {
             if let Some(config_script) = &self.recipe.configure_script {
                 let script_span = info_span!("configure");
                 info!(parent: &script_span, "executing configure scripts");
+                let working_dir = if let Some(dir) = &config_script.working_dir {
+                    Some(dir.as_path())
+                } else {
+                    None
+                };
                 for cmd in &config_script.steps {
                     if !cmd.images.is_empty() {
                         trace!(parent: &script_span, images = ?cmd.images, "only execute on");
@@ -398,7 +403,7 @@ impl<'job> BuildContainerCtx<'job> {
                             continue;
                         }
                     }
-                    let out = self.checked_exec(&cmd.cmd, None).instrument(script_span.clone()).await?;
+                    let out = self.checked_exec(&cmd.cmd, working_dir).instrument(script_span.clone()).await?;
 
                     if out.exit_code != 0 {
                         return Err(anyhow!(
@@ -414,6 +419,11 @@ impl<'job> BuildContainerCtx<'job> {
             }
 
             let script_span = info_span!("build");
+            let working_dir = if let Some(dir) = &self.recipe.build_script.working_dir {
+                Some(dir.as_path())
+            } else {
+                Some(self.container_bld_dir)
+            };
             info!(parent: &script_span, "executing build scripts");
             for cmd in &self.recipe.build_script.steps {
                 if !cmd.images.is_empty() {
@@ -424,11 +434,16 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
-                self.checked_exec(&cmd.cmd, Some(self.container_bld_dir)).instrument(script_span.clone()).await?;
+                self.checked_exec(&cmd.cmd, working_dir).instrument(script_span.clone()).await?;
             }
 
             if let Some(install_script) = &self.recipe.install_script {
                 let script_span = info_span!("install");
+                let working_dir = if let Some(dir) = &install_script.working_dir {
+                    Some(dir.as_path())
+                } else {
+                    Some(self.container_out_dir)
+                };
                 info!(parent: &script_span, "executing install scripts");
                 for cmd in &install_script.steps {
                     if !cmd.images.is_empty() {
@@ -439,7 +454,7 @@ impl<'job> BuildContainerCtx<'job> {
                         }
                     }
 
-                    self.checked_exec(&cmd.cmd, Some(self.container_out_dir)).instrument(script_span.clone()).await?;
+                    self.checked_exec(&cmd.cmd, working_dir).instrument(script_span.clone()).await?;
                 }
             } else {
                 info!("no install steps to run");
