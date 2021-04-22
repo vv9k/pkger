@@ -222,6 +222,7 @@ macro_rules! impl_step_rep {
         pub struct $ty {
             pub steps: Vec<Cmd>,
             pub working_dir: Option<PathBuf>,
+            pub shell: Option<String>,
         }
 
         impl TryFrom<$ty_rep> for $ty {
@@ -237,6 +238,7 @@ macro_rules! impl_step_rep {
                 Ok(Self {
                     steps,
                     working_dir: rep.working_dir,
+                    shell: rep.shell,
                 })
             }
         }
@@ -253,10 +255,11 @@ macro_rules! impl_step_rep {
             }
         }
 
-        #[derive(Deserialize, Serialize, Debug)]
+        #[derive(Deserialize, Serialize, Debug, Default)]
         pub struct $ty_rep {
             pub steps: Vec<String>,
             pub working_dir: Option<PathBuf>,
+            pub shell: Option<String>,
         }
     };
 }

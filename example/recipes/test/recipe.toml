@@ -7,6 +7,7 @@ version = "0.1.0"
 revision = "0"
 skip_default_deps = true
 exclude = ["share", "info"]
+build_depends = ["bash"]
 provides = []
 images = [
     { name = "debian10" },
@@ -19,32 +20,40 @@ ENV_VAR_TEST = "test.com:1010"
 [configure]
 working_dir = "/var/lib"
 steps = [
+    # ensure correct shell is set
+    "echo SHELL=$0",
+    "if [[ $0 == /bin/sh ]]; then exit 0; else echo 'Shell is configure script is not set to properly'; exit 1; fi",
     # ensure correct CWD is set
-    "echo $PWD",
-    "bash -c \"if [[ '$PWD' =~ /var/lib ]]; then exit 0; else echo 'Working directory of configure script is not set properly'; exit 1; fi\"",
+    "echo PWD=$PWD",
+    "if [[ $PWD == /var/lib ]]; then exit 0; else echo 'Working directory of configure script is not set properly'; exit 1; fi",
 ]
 
 [build]
+shell = "/bin/bash"
 steps = [
+    # ensure correct shell is set
+    "echo SHELL=$0",
+    "if [[ $0 == /bin/bash ]]; then exit 0; else echo 'Shell is configure script is not set to properly'; exit 1; fi",
+
     # ensure correct CWD is set
-    "echo $PWD",
-    "bash -c \"if [[ '$PWD' =~ '$PKGER_BLD_DIR' ]]; then exit 0; else echo 'Working directory of build script is not set properly'; exit 1; fi\"",
+    "echo PWD=$PWD",
+    "if [[ $PWD == $PKGER_BLD_DIR ]]; then exit 0; else echo 'Working directory of build script is not set properly'; exit 1; fi",
 
 	# ENV VARS
 	"echo 'Testing environment variables'",
 	# test if env variables from recipe work correctly
     "echo ENV_VAR_TEST=$ENV_VAR_TEST",
-	"bash -c \"if [[ ! '$ENV_VAR_TEST' =~ /test[.]com[:]1010/ ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi\"",
+	"if [[ ! '$ENV_VAR_TEST' =~ /test[.]com[:]1010/ ]]; then exit 0; else echo 'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi",
 	"echo 'Testing pkger env variables'",
 	# test if pkger env variables work correctly
 	"echo PKGER_OS=$PKGER_OS",
-	"bash -c \"if [[ '$PKGER_OS' =~ debian|centos ]]; then exit 0; else echo 'Environment variable PKGER_OS is not set properly'; exit 1; fi\"",
+	"if [[ $PKGER_OS =~ debian|centos ]]; then exit 0; else echo 'Environment variable PKGER_OS is not set properly'; exit 1; fi",
 	"echo PKGER_OS_VERSION=$PKGER_OS_VERSION",
-	"bash -c \"if [[ '$PKGER_OS_VERSION' =~ 10|8 ]]; then exit 0; else echo 'Environment variable PKGER_OS_VERSION is not set properly'; exit 1; fi\"",
+	"if [[ $PKGER_OS_VERSION =~ 10|8 ]]; then exit 0; else echo 'Environment variable PKGER_OS_VERSION is not set properly'; exit 1; fi",
 	"echo PKGER_BLD_DIR=$PKGER_BLD_DIR",
-	"bash -c \"if [[ '$PKGER_BLD_DIR' =~ /tmp/test-pkger-build-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi\"",
+	"if [[ $PKGER_BLD_DIR =~ /tmp/test-pkger-build-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi",
 	"echo PKGER_OUT_DIR=$PKGER_OUT_DIR",
-	"bash -c \"if [[ '$PKGER_OUT_DIR' =~ /tmp/test-pkger-out-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi\"",
+	"if [[ $PKGER_OUT_DIR =~ /tmp/test-pkger-out-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi",
 
 	# SYNTAX
 	"echo 'Testing pkger command syntax'",
@@ -70,5 +79,5 @@ steps = [
 steps = [
     # ensure correct CWD is set
     "echo $PWD",
-    "bash -c \"if [[ '$PWD' =~ '$PKGER_OUT_DIR' ]]; then exit 0; else echo 'Working directory of install script is not set properly'; exit 1; fi\"",
+    "if [[ $PWD == $PKGER_OUT_DIR ]]; then exit 0; else echo 'Working directory of install script is not set properly'; exit 1; fi",
 ]

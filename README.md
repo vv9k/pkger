@@ -69,11 +69,12 @@ summary = "shorter description" # if not provided defaults to value of `descript
  - Optional configuration steps. If provided the steps will be executed before the build phase.
 ```toml
 [configure] # optional
-working_dir = "/opt" # optionally overwrite default working directory on each step
 steps = [
-	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
-	"sh /tmp/install_rust.sh -y --default-toolchain stable",
+    "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 ]
+# This settings apply to build and install as well
+working_dir = "/tmp" # optionally overwrite default working directory on each step
+shell = "/bin/bash" # optionally change default `/bin/sh`
 ```
  - ### build
    - All build steps presented as a list of strings
