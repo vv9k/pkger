@@ -3,8 +3,7 @@ use crate::job::build::BuildContainerCtx;
 use crate::util::create_tar_archive;
 use crate::Result;
 
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
 impl<'job> BuildContainerCtx<'job> {

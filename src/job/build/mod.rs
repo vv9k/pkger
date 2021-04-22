@@ -1,16 +1,19 @@
 mod deb;
+mod deps;
+mod gzip;
+mod remote;
 mod rpm;
+mod scripts;
 
 use crate::container::{DockerContainer, Output};
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
-use crate::recipe::{BuildTarget, GitSource, Recipe};
-use crate::util::{create_tar_archive, save_tar_gz};
+use crate::recipe::{BuildTarget, Recipe};
 use crate::Config;
 use crate::Result;
 
 use async_trait::async_trait;
-use futures::{StreamExt, TryStreamExt};
+use futures::StreamExt;
 use moby::{image::ImageBuildChunk, BuildOptions, ContainerOptions, Docker};
 use std::fs;
 use std::path::Path;
@@ -335,152 +338,6 @@ impl<'job> BuildContainerCtx<'job> {
         self.container.spawn(&self.opts).await
     }
 
-    pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("recipe-deps");
-        async move {
-            let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
-                deps.resolve_names(&state.image)
-            } else {
-                vec![]
-            };
-
-            self._install_deps(&deps, &state).await
-        }
-        .instrument(span)
-        .await
-    }
-
-    pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
-        let span = info_span!("default-deps");
-        async move {
-            let mut deps = vec!["tar"];
-            match self.target {
-                BuildTarget::Rpm => {
-                    deps.push("rpm-build");
-                }
-                BuildTarget::Deb => {
-                    deps.push("dpkg");
-                }
-                BuildTarget::Gzip => {
-                    deps.push("gzip");
-                }
-            }
-            if self.recipe.metadata.git.is_some() {
-                deps.push("git");
-            } else if let Some(src) = &self.recipe.metadata.source {
-                if src.starts_with("http") {
-                    deps.push("curl");
-                }
-                if src.ends_with(".zip") {
-                    deps.push("zip");
-                }
-            }
-
-            let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
-
-            self._install_deps(&deps, &state).await
-        }
-        .instrument(span)
-        .await
-    }
-
-    pub async fn execute_scripts(&self) -> Result<()> {
-        let span = info_span!("exec-scripts");
-        async move {
-            if let Some(config_script) = &self.recipe.configure_script {
-                let script_span = info_span!("configure");
-                info!(parent: &script_span, "executing configure scripts");
-                let working_dir = if let Some(dir) = &config_script.working_dir {
-                    Some(dir.as_path())
-                } else {
-                    None
-                };
-                let shell = if let Some(shell) = &config_script.shell {
-                    Some(shell.as_str())
-                } else {
-                    None
-                };
-                for cmd in &config_script.steps {
-                    if !cmd.images.is_empty() {
-                        trace!(parent: &script_span, images = ?cmd.images, "only execute on");
-                        if !cmd.images.contains(&self.image.name) {
-                            trace!(parent: &script_span, image = %self.image.name, "not found, skipping");
-                            continue;
-                        }
-                    }
-                    let out = self.checked_exec(&cmd.cmd, working_dir, shell).instrument(script_span.clone()).await?;
-
-                    if out.exit_code != 0 {
-                        return Err(anyhow!(
-                            "command `{}` failed with exit code {}\nError:\n{}",
-                            &cmd.cmd,
-                            out.exit_code,
-                            out.stderr.join("\n")
-                        ));
-                    }
-                }
-            } else {
-                info!("no configure steps to run");
-            }
-
-            let script_span = info_span!("build");
-            let working_dir = if let Some(dir) = &self.recipe.build_script.working_dir {
-                Some(dir.as_path())
-            } else {
-                Some(self.container_bld_dir)
-            };
-                let shell = if let Some(shell) = &self.recipe.build_script.shell {
-                    Some(shell.as_str())
-                } else {
-                    None
-                };
-            info!(parent: &script_span, "executing build scripts");
-            for cmd in &self.recipe.build_script.steps {
-                if !cmd.images.is_empty() {
-                    trace!(parent: &script_span, images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&self.image.name) {
-                        trace!(parent: &script_span, image = %self.image.name, "not found, skipping");
-                        continue;
-                    }
-                }
-
-                self.checked_exec(&cmd.cmd, working_dir, shell).instrument(script_span.clone()).await?;
-            }
-
-            if let Some(install_script) = &self.recipe.install_script {
-                let script_span = info_span!("install");
-                let working_dir = if let Some(dir) = &install_script.working_dir {
-                    Some(dir.as_path())
-                } else {
-                    Some(self.container_out_dir)
-                };
-                let shell = if let Some(shell) = &install_script.shell {
-                    Some(shell.as_str())
-                } else {
-                    None
-                };
-                info!(parent: &script_span, "executing install scripts");
-                for cmd in &install_script.steps {
-                    if !cmd.images.is_empty() {
-                        trace!(parent: &script_span, images = ?cmd.images, "only execute on");
-                        if !cmd.images.contains(&self.image.name) {
-                            trace!(parent: &script_span, image = %self.image.name, "not found, skipping");
-                            continue;
-                        }
-                    }
-
-                    self.checked_exec(&cmd.cmd, working_dir, shell).instrument(script_span.clone()).await?;
-                }
-            } else {
-                info!("no install steps to run");
-            }
-
-            Ok(())
-        }
-        .instrument(span)
-        .await
-    }
-
     pub async fn create_package(
         &self,
         image_state: &ImageState,
@@ -514,138 +371,6 @@ impl<'job> BuildContainerCtx<'job> {
         .await
     }
 
-    pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
-        let span = info_span!("archive-output", container_dir = %self.container_out_dir.display());
-        async move {
-            info!("copying final archive");
-            self.container
-                .inner()
-                .copy_from(self.container_out_dir)
-                .try_concat()
-                .await
-                .map_err(|e| anyhow!("failed to archive output directory - {}", e))
-        }
-        .instrument(span)
-        .await
-    }
-
-    pub async fn clone_git_to_bld_dir(&self, repo: &GitSource) -> Result<()> {
-        let span = info_span!("clone-git");
-        async move {
-                info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %self.container_bld_dir.display(), "cloning git source repository to build directory");
-                self.checked_exec(&format!(
-                    "git clone --single-branch --branch {} --recurse-submodules -- {} {}",
-                    repo.branch(),
-                    repo.url(),
-                    self.container_bld_dir.display()
-                ), None, None)
-                .await
-                .map(|_| ())
-        }
-        .instrument(span)
-        .await
-    }
-
-    pub async fn get_http_source(&self, source: &str, dest: &Path) -> Result<()> {
-        let span = info_span!("download-http");
-        async move {
-            info!(url = %source, destination = %dest.display(), "fetching");
-            self.checked_exec(&format!("curl -LO {}", source), Some(dest), None)
-                .await
-                .map(|_| ())
-        }
-        .instrument(span)
-        .await
-    }
-
-    pub async fn copy_files_into(&self, files: &[&Path], dest: &Path) -> Result<()> {
-        let span = info_span!("copy-files-into");
-        let mut entries = Vec::new();
-        for f in files {
-            debug!(parent: &span, entry = %f.display(), "adding");
-            entries.push((*f, fs::read(f)?));
-        }
-
-        let archive =
-            span.in_scope(|| create_tar_archive(entries.iter().map(|(p, b)| (*p, &b[..]))))?;
-
-        self.container
-            .inner()
-            .copy_file_into(dest, &archive)
-            .instrument(span.clone())
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn fetch_source(&self) -> Result<()> {
-        let span = info_span!("fetch");
-        async move {
-            if let Some(repo) = &self.recipe.metadata.git {
-                self.clone_git_to_bld_dir(repo).await?;
-            } else if let Some(source) = &self.recipe.metadata.source {
-                if source.starts_with("http") {
-                    self.get_http_source(source.as_str(), self.container_tmp_dir)
-                        .await?;
-                } else {
-                    let src_path = PathBuf::from(source);
-                    self.copy_files_into(&[src_path.as_path()], self.container_tmp_dir)
-                        .await?;
-                }
-                self.checked_exec(
-                    &format!(
-                        r#"
-                        for file in *;
-                        do
-                            if [[ \$file == *.tar* ]]
-                            then
-                                tar xvf \$file -C {0}
-                            elif [[ \$file == *.zip ]]
-                            then
-                                unzip -v \$file -d {0}
-                            else
-                                cp -v \$file {0}
-                            fi
-                        done"#,
-                        self.container_bld_dir.display(),
-                    ),
-                    Some(self.container_tmp_dir),
-                    Some("/bin/bash"),
-                )
-                .await?;
-            }
-            Ok(())
-        }
-        .instrument(span)
-        .await
-    }
-
-    /// Creates a final GZIP package and saves it to `output_dir` returning the path of the final
-    /// archive as String.
-    async fn build_gzip(&self, output_dir: &Path) -> Result<PathBuf> {
-        let span = info_span!("GZIP");
-        info!(parent: &span, "building GZIP package");
-        let package = self
-            .container
-            .inner()
-            .copy_from(self.container_out_dir)
-            .try_concat()
-            .instrument(span.clone())
-            .await?;
-
-        let archive = tar::Archive::new(&package[..]);
-        let archive_name = format!(
-            "{}-{}.tar.gz",
-            &self.recipe.metadata.name, &self.recipe.metadata.version
-        );
-
-        span.in_scope(|| {
-            save_tar_gz(archive, &archive_name, output_dir)
-                .map_err(|e| anyhow!("failed to save package as tar.gz - {}", e))
-        })
-        .map(|_| output_dir.join(archive_name))
-    }
-
     async fn checked_exec(
         &self,
         cmd: &str,
@@ -665,39 +390,6 @@ impl<'job> BuildContainerCtx<'job> {
             } else {
                 Ok(out)
             }
-        }
-        .instrument(span)
-        .await
-    }
-
-    async fn _install_deps(&self, deps: &[String], state: &ImageState) -> Result<()> {
-        let span = info_span!("install-deps");
-        async move {
-            info!("installing dependencies");
-            let pkg_mngr = state.os.package_manager();
-            let pkg_mngr_name = pkg_mngr.as_ref();
-
-            if deps.is_empty() {
-                trace!("no dependencies to install");
-                return Ok(());
-            }
-
-            trace!(deps = ?deps, "resolved dependency names");
-            let deps = deps.join(" ");
-
-            if pkg_mngr_name.starts_with("apt") {
-                self.checked_exec(
-                    &[pkg_mngr_name, &pkg_mngr.update_repos_args().join(" ")].join(" "),
-                    None,
-                    None,
-                )
-                .await?;
-            }
-
-            let cmd = [pkg_mngr.as_ref(), &pkg_mngr.install_args().join(" "), &deps].join(" ");
-            trace!(command = %cmd, "installing with");
-
-            self.checked_exec(&cmd, None, None).await.map(|_| ())
         }
         .instrument(span)
         .await
