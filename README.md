@@ -72,6 +72,7 @@ summary = "shorter description" # if not provided defaults to value of `descript
 steps = [
     "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 ]
+
 # This settings apply to build and install as well
 working_dir = "/tmp" # optionally overwrite default working directory on each step
 shell = "/bin/bash" # optionally change default `/bin/sh`
@@ -86,7 +87,7 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
 ```toml
 [build] # required
 steps = [
-	"$HOME/.cargo/bin/cargo build .",
+	"$HOME/.cargo/bin/cargo build --release .",
 ]
 ```
  - ### install (Optional)
@@ -96,7 +97,7 @@ steps = [
 ```toml
 [install] # optional
 steps = [
-    "install -m755 pkger usr/bin/pkger"
+    "install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger"
 ]
 ```
  - ### Env (Optional)
@@ -159,11 +160,25 @@ To decide what parts of events are displayed use the `--hide` flag that takes a 
 
 To generate a recipe declaratively from CLI use subcommand `gen-recipe`. By default it requires only the name of the package and prints the recipe to stdout. If `output_dir` is provided **pkger** will create a directory with the name of the package and a `recipe.toml` containing generated recipe.
 
-Example generated recipe printed to stdout:
+Example generated recipe with no options printed to stdout:
+```
+> pkger gen-recipe blank
+[metadata]
+name = "blank"
+version = "1.0.0"
+description = "missing"
+license = "missing"
+images = []
+
+[build]
+steps = []
+```
+
+Or a more complex one, all of the metadata fields can be added using declarative syntax
 ```
 > pkger gen-recipe test --arch x86_64 --description "A very interesting package..." \
                         --provides test-bin --version 1.0.0 --build-depends curl make \
-                        -- license MIT
+                        --license MIT
 [metadata]
 name = "test"
 version = "1.0.0"
@@ -176,38 +191,11 @@ provides = ["test-bin"]
 
 [build]
 steps = []
-
 ```
 
 ## Example
 
- - Example configuration and recipe can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)
- - Example file structure:
-```
-example_structure/
-├── conf.toml
-├── images
-│   ├── centos8
-│   │   └── Dockerfile
-│   └── debian10
-│       ├── Dockerfile
-│       └── some_archive.tar.gz
-├── out
-│   ├── centos
-│   │   └── 8
-│   │       ├── curl_7.67.0-0.rpm
-│   │       └── nginx_1.17.6-0.rpm
-│   └── debian
-│       └── 10
-│           ├── curl_7.67.0-0.deb
-│           └── nginx_1.17.6-0.deb
-├── pkger
-└── recipes
-    ├── curl
-    │   └── recipe.toml
-    └── nginx
-        └── recipe.toml
-```
+ - Example configuration, recipes and images can be found in [`example` directory of `master` branch](https://github.com/wojciechkepka/pkger/tree/master/example)
 
 ## License
 [MIT](https://github.com/wojciechkepka/pkger/blob/master/LICENSE)
