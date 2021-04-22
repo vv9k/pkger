@@ -72,17 +72,19 @@ impl Ctx for BuildCtx {
 
             cleanup!(container_ctx);
 
-            let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
+            if &image_state.tag != "cached" {
+                let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
 
-            if !skip_deps {
-                container_ctx.install_pkger_deps(&image_state).await?;
+                if !skip_deps {
+                    container_ctx.install_pkger_deps(&image_state).await?;
+
+                    cleanup!(container_ctx);
+                }
+
+                container_ctx.install_recipe_deps(&image_state).await?;
 
                 cleanup!(container_ctx);
             }
-
-            container_ctx.install_recipe_deps(&image_state).await?;
-
-            cleanup!(container_ctx);
 
             let dirs = vec![
                 self.container_out_dir.to_string_lossy().to_string(),
@@ -115,6 +117,20 @@ impl Ctx for BuildCtx {
             let _bytes = container_ctx.archive_output_dir().await?;
 
             cleanup!(container_ctx);
+
+            if &image_state.tag != "cached" {
+                let mut deps = deps::pkger_deps(&self.target, &self.recipe);
+                deps.extend(container_ctx.recipe_deps(&image_state));
+                let new_state = container_ctx
+                    .cache_image(&self.docker, &image_state, &deps)
+                    .await?;
+                info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
+
+                if let Ok(mut state) = self.image_state.write() {
+                    trace!("saving image state");
+                    (*state).update(&self.image.name, &new_state)
+                }
+            }
 
             container_ctx.container.remove().await?;
 
