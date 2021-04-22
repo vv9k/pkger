@@ -57,6 +57,7 @@ impl<'job> BuildContainerCtx<'job> {
                     deb_dir.display(),
                 ),
                 None,
+                None,
             )
             .await?;
 
@@ -64,6 +65,7 @@ impl<'job> BuildContainerCtx<'job> {
             self.checked_exec(
                 &format!("cp -rv . {}", base_dir.display()),
                 Some(self.container_out_dir),
+                None,
             )
             .await?;
 
@@ -75,6 +77,7 @@ impl<'job> BuildContainerCtx<'job> {
 
             self.checked_exec(
                 &format!("dpkg-deb {} {}", dpkg_deb_opts, base_dir.display()),
+                None,
                 None,
             )
             .await?;

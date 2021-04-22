@@ -17,7 +17,7 @@ use crate::docker::DockerConnectionPool;
 use crate::image::{Images, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
 use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
-use crate::recipe::{BuildRep, Recipes};
+use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
 use recipe::{MetadataRep, RecipeRep};
@@ -341,10 +341,7 @@ impl Pkger {
             metadata,
             env: if env.is_empty() { None } else { Some(env) },
             configure: None,
-            build: BuildRep {
-                steps: vec![],
-                working_dir: None,
-            },
+            build: Default::default(),
             install: None,
         };
 
