@@ -1,55 +1,38 @@
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::recipe::BuildTarget;
+use crate::recipe::{BuildTarget, Recipe};
 use crate::Result;
 
+use std::collections::HashSet;
 use tracing::{info, info_span, trace, Instrument};
 
 impl<'job> BuildContainerCtx<'job> {
+    pub fn recipe_deps(&self, state: &ImageState) -> HashSet<String> {
+        if let Some(deps) = &self.recipe.metadata.build_depends {
+            deps.resolve_names(&state.image)
+        } else {
+            HashSet::new()
+        }
+    }
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("recipe-deps");
-        async move {
-            let deps = if let Some(deps) = &self.recipe.metadata.build_depends {
-                deps.resolve_names(&state.image)
-            } else {
-                vec![]
-            };
+        let deps = self.recipe_deps(&state).into_iter().collect::<Vec<_>>();
 
-            self._install_deps(&deps, &state).await
-        }
-        .instrument(span)
-        .await
+        async move { self._install_deps(&deps, &state).await }
+            .instrument(span)
+            .await
     }
 
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("default-deps");
         async move {
-            let mut deps = vec!["tar"];
-            match self.target {
-                BuildTarget::Rpm => {
-                    deps.push("rpm-build");
-                }
-                BuildTarget::Deb => {
-                    deps.push("dpkg");
-                }
-                BuildTarget::Gzip => {
-                    deps.push("gzip");
-                }
-            }
-            if self.recipe.metadata.git.is_some() {
-                deps.push("git");
-            } else if let Some(src) = &self.recipe.metadata.source {
-                if src.starts_with("http") {
-                    deps.push("curl");
-                }
-                if src.ends_with(".zip") {
-                    deps.push("zip");
-                }
-            }
-
-            let deps = deps.into_iter().map(str::to_string).collect::<Vec<_>>();
-
-            self._install_deps(&deps, &state).await
+            self._install_deps(
+                &pkger_deps(&self.target, &self.recipe)
+                    .into_iter()
+                    .collect::<Vec<_>>()[..],
+                &state,
+            )
+            .await
         }
         .instrument(span)
         .await
@@ -87,4 +70,32 @@ impl<'job> BuildContainerCtx<'job> {
         .instrument(span)
         .await
     }
+}
+
+pub fn pkger_deps(target: &BuildTarget, recipe: &Recipe) -> HashSet<String> {
+    let mut deps = HashSet::new();
+    deps.insert("tar".to_string());
+    match target {
+        BuildTarget::Rpm => {
+            deps.insert("rpm-build".to_string());
+        }
+        BuildTarget::Deb => {
+            deps.insert("dpkg".to_string());
+        }
+        BuildTarget::Gzip => {
+            deps.insert("gzip".to_string());
+        }
+    }
+    if recipe.metadata.git.is_some() {
+        deps.insert("git".to_string());
+    } else if let Some(src) = &recipe.metadata.source {
+        if src.starts_with("http") {
+            deps.insert("curl".to_string());
+        }
+        if src.ends_with(".zip") {
+            deps.insert("zip".to_string());
+        }
+    }
+
+    deps
 }

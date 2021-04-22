@@ -2,6 +2,7 @@
 use crate::Result;
 use anyhow::anyhow;
 
+use std::collections::HashSet;
 use std::iter::IntoIterator;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -90,15 +91,15 @@ impl Dependencies {
         &self.inner
     }
 
-    /// Renders a list of names appropriate for specified image
-    pub fn resolve_names(&self, image: &str) -> Vec<String> {
-        let mut deps = Vec::with_capacity(self.inner.len());
+    /// Renders a HashSet of names appropriate for specified image
+    pub fn resolve_names(&self, image: &str) -> HashSet<String> {
+        let mut deps = HashSet::with_capacity(self.inner.len());
 
         for dep in self.inner.iter() {
             if let Some(special_name) = dep.get_name(image) {
-                deps.push(special_name.to_string());
+                deps.insert(special_name.to_string());
             } else if let Some(name) = &dep.name {
-                deps.push(name.to_string());
+                deps.insert(name.to_string());
             }
         }
 
@@ -150,11 +151,10 @@ mod tests {
 
     #[test]
     fn resolves_names() {
-        let expect = vec![
-            "libssl-dev".to_string(),
-            "gcc".to_string(),
-            "libcurl-devel".to_string(),
-        ];
+        let mut expect = HashSet::new();
+        expect.insert("libssl-dev".to_string());
+        expect.insert("gcc".to_string());
+        expect.insert("libcurl-devel".to_string());
         let input = vec![
             "openssl-devel, cent8{libssl-dev}".to_string(),
             "gcc".to_string(),
