@@ -76,3 +76,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+      - uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --release -- -d -c example/conf.toml build test
