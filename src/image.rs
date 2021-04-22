@@ -4,7 +4,7 @@ use crate::Result;
 
 use moby::{image::ImageDetails, ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
@@ -103,6 +103,7 @@ impl Image {
                         }
                         let file = file.unwrap();
                         let path = file.path();
+                        trace!(path = %path.display(), "checking");
                         let metadata = fs::metadata(path.as_path());
                         if let Err(e) = metadata {
                             warn!(
@@ -124,8 +125,7 @@ impl Image {
                         }
                         let mod_time = mod_time.unwrap();
                         if mod_time > state.timestamp {
-                            trace!(path = %path.display(),
-                             mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
+                            trace!(mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
                             return None;
                         }
                     }
@@ -147,6 +147,7 @@ pub struct ImageState {
     pub os: Os,
     pub timestamp: SystemTime,
     pub details: ImageDetails,
+    pub deps: HashSet<String>,
 }
 
 impl ImageState {
@@ -156,6 +157,7 @@ impl ImageState {
         tag: &str,
         timestamp: &SystemTime,
         docker: &Docker,
+        deps: &HashSet<String>,
     ) -> Result<ImageState> {
         let name = format!(
             "{}-{}",
@@ -197,6 +199,7 @@ impl ImageState {
                 tag: tag.to_string(),
                 timestamp: *timestamp,
                 details,
+                deps: deps.clone(),
             })
         }
         .instrument(span)
