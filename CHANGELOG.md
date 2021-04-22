@@ -7,3 +7,4 @@
 - Add option to change default shell in recipe scripts [#26](https://github.com/wojciechkepka/pkger/pull/26)
 - Excluding paths from final package now works [#36](https://github.com/wojciechkepka/pkger/pull/36)
 - Actually check if image should be rebuilt in docker [#37](https://github.com/wojciechkepka/pkger/pull/37)
+- Cache images with dependencies installed, a lot of data saved on pulled dependencies [#38](https://github.com/wojciechkepka/pkger/pull/38)
