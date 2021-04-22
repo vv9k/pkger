@@ -30,8 +30,8 @@ impl<'job> BuildContainerCtx<'job> {
 
     async fn run_configure(&self, config_script: &ConfigureScript) -> Result<()> {
         let span = info_span!("configure");
-        trace!(script = ?config_script);
         async move {
+            trace!(script = ?config_script);
             info!("executing configure scripts");
             let working_dir = if let Some(dir) = &config_script.working_dir {
                 trace!(working_dir = %dir.display());
@@ -65,17 +65,20 @@ impl<'job> BuildContainerCtx<'job> {
     async fn run_build(&self, build_script: &BuildScript) -> Result<()> {
         let span = info_span!("build");
         async move {
+            trace!(script = ?build_script);
+            info!("executing build scripts");
             let working_dir = if let Some(dir) = &build_script.working_dir {
+                trace!(working_dir = %dir.display());
                 Some(dir.as_path())
             } else {
                 Some(self.container_bld_dir)
             };
             let shell = if let Some(shell) = &build_script.shell {
+                trace!(shell = %shell);
                 Some(shell.as_str())
             } else {
                 None
             };
-            info!("executing build scripts");
             for cmd in &build_script.steps {
                 if !cmd.images.is_empty() {
                     trace!(images = ?cmd.images, "only execute on");
@@ -97,17 +100,20 @@ impl<'job> BuildContainerCtx<'job> {
     async fn run_install(&self, install_script: &InstallScript) -> Result<()> {
         let span = info_span!("install");
         async move {
+            trace!(script = ?install_script);
+            info!("executing install scripts");
             let working_dir = if let Some(dir) = &install_script.working_dir {
+                trace!(working_dir = %dir.display());
                 Some(dir.as_path())
             } else {
                 Some(self.container_out_dir)
             };
             let shell = if let Some(shell) = &install_script.shell {
+                trace!(shell = %shell);
                 Some(shell.as_str())
             } else {
                 None
             };
-            info!("executing install scripts");
             for cmd in &install_script.steps {
                 if !cmd.images.is_empty() {
                     trace!(images = ?cmd.images, "only execute on");
