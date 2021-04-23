@@ -243,7 +243,7 @@ macro_rules! impl_step_rep {
             fn try_from(rep: $ty_rep) -> Result<Self> {
                 let mut steps = Vec::with_capacity(rep.steps.len());
 
-                for result in rep.steps.into_iter().map(|it| Cmd::new(it.as_str())) {
+                for result in rep.steps.into_iter().map(|it| Cmd::try_from(&it)) {
                     steps.push(result?);
                 }
 
@@ -269,7 +269,7 @@ macro_rules! impl_step_rep {
 
         #[derive(Deserialize, Serialize, Debug, Default)]
         pub struct $ty_rep {
-            pub steps: Vec<String>,
+            pub steps: Vec<toml::Value>,
             pub working_dir: Option<PathBuf>,
             pub shell: Option<String>,
         }
