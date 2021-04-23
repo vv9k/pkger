@@ -175,27 +175,27 @@ impl TryFrom<MetadataRep> for Metadata {
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
         let build_depends = if let Some(deps) = rep.build_depends {
-            Some(Dependencies::new(&deps)?)
+            Some(Dependencies::try_from(deps)?)
         } else {
             None
         };
         let depends = if let Some(deps) = rep.depends {
-            Some(Dependencies::new(&deps)?)
+            Some(Dependencies::try_from(deps)?)
         } else {
             None
         };
         let obsoletes = if let Some(deps) = rep.obsoletes {
-            Some(Dependencies::new(&deps)?)
+            Some(Dependencies::try_from(deps)?)
         } else {
             None
         };
         let conflicts = if let Some(deps) = rep.conflicts {
-            Some(Dependencies::new(&deps)?)
+            Some(Dependencies::try_from(deps)?)
         } else {
             None
         };
         let provides = if let Some(deps) = rep.provides {
-            Some(Dependencies::new(&deps)?)
+            Some(Dependencies::try_from(deps)?)
         } else {
             None
         };

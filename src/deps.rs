@@ -2,6 +2,7 @@
 use crate::Result;
 
 use std::collections::{HashMap, HashSet};
+use std::convert::TryFrom;
 
 pub static COMMON_DEPS_KEY: &str = "all";
 
@@ -23,8 +24,9 @@ impl Default for Dependencies {
     }
 }
 
-impl Dependencies {
-    pub fn new(deps: &toml::Value) -> Result<Self> {
+impl TryFrom<toml::Value> for Dependencies {
+    type Error = crate::Error;
+    fn try_from(deps: toml::Value) -> Result<Self> {
         if let toml::Value::Table(table) = deps {
             let mut deps = Self::default();
             for (image, image_deps) in table {
@@ -64,7 +66,9 @@ impl Dependencies {
             ))
         }
     }
+}
 
+impl Dependencies {
     pub fn resolve_names(&self, image: &str) -> HashSet<String> {
         // it's ok to unwrap here, the new function adds an empty hashset on initialization
         let mut deps = self.inner.get(COMMON_DEPS_KEY).unwrap().clone();
@@ -100,7 +104,7 @@ mod tests {
             let input: toml::Value = toml::from_str($inp).unwrap();
             dbg!(&input);
             let input = input.as_table().unwrap().get("build_depends").unwrap();
-            let got = Dependencies::new(input).unwrap();
+            let got = Dependencies::try_from(*input).unwrap();
 
             $(
             let mut $image = HashSet::new();
