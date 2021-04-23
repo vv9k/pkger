@@ -72,7 +72,7 @@ impl Ctx for BuildCtx {
 
             cleanup!(container_ctx);
 
-            let image_state = if &image_state.tag != image::CACHED {
+            let image_state = if image_state.tag != image::CACHED {
                 let mut deps = deps::pkger_deps(&self.target, &self.recipe);
                 deps.extend(container_ctx.recipe_deps(&image_state));
                 let new_state = container_ctx
