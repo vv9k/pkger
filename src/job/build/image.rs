@@ -1,14 +1,16 @@
-use crate::image::{self, ImageState};
+use crate::image::{self, Image, ImageState, ImagesState};
 use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
 use crate::os::Os;
+use crate::recipe::RecipeTarget;
 use crate::Result;
 
 use futures::StreamExt;
 use moby::{image::ImageBuildChunk, BuildOptions, Docker};
 use std::collections::HashSet;
 use std::fs;
+use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempdir::TempDir;
 use tracing::{debug, info, info_span, trace, warn, Instrument};
@@ -19,6 +21,7 @@ pub static LATEST: &str = "latest";
 impl BuildCtx {
     pub async fn image_build(&mut self) -> Result<ImageState> {
         let span = info_span!("image-build");
+        let cloned_span = span.clone();
 
         async move {
             let mut deps = if let Some(deps) = &self.recipe.metadata.build_depends {
@@ -29,10 +32,10 @@ impl BuildCtx {
             deps.extend(deps::pkger_deps(&self.build_target, &self.recipe));
             trace!(resolved_deps = ?deps);
 
-            if let Some(state) = self
-                .image
-                .find_cached_state(&self.target, &self.image_state)
-            {
+            let result = cloned_span
+                .in_scope(|| find_cached_state(&self.image, &self.target, &self.image_state));
+
+            if let Some(state) = result {
                 macro_rules! if_state_exists_ret {
                     () => {
                         if state.exists(&self.docker).await {
@@ -195,4 +198,62 @@ RUN {} {} {} >/dev/null"#,
         .instrument(span)
         .await
     }
+}
+
+/// Checks whether any of the files located at the path of this Image changed since last build.
+/// If shouldn't be rebuilt returns previous `ImageState`.
+pub fn find_cached_state(
+    image: &Image,
+    target: &RecipeTarget,
+    state: &Arc<RwLock<ImagesState>>,
+) -> Option<ImageState> {
+    let span = info_span!("find-image-cache");
+    let _enter = span.enter();
+
+    trace!(recipe = ?target);
+
+    trace!("checking if image should be rebuilt");
+    if let Ok(states) = state.read() {
+        if let Some(state) = (*states).images.get(&target) {
+            if let Ok(entries) = fs::read_dir(image.path.as_path()) {
+                for file in entries {
+                    if let Err(e) = file {
+                        warn!(reason = %e, "error while loading file");
+                        continue;
+                    }
+                    let file = file.unwrap();
+                    let path = file.path();
+                    trace!(path = %path.display(), "checking");
+                    let metadata = fs::metadata(path.as_path());
+                    if let Err(e) = metadata {
+                        warn!(
+                            path = %path.display(),
+                            reason = %e,
+                            "failed to read metadata",
+                        );
+                        continue;
+                    }
+                    let metadata = metadata.unwrap();
+                    let mod_time = metadata.modified();
+                    if let Err(e) = &mod_time {
+                        warn!(
+                            path = %path.display(),
+                            reason = %e,
+                            "failed to check modification time",
+                        );
+                        continue;
+                    }
+                    let mod_time = mod_time.unwrap();
+                    if mod_time > state.timestamp {
+                        trace!(mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
+                        return None;
+                    }
+                }
+            }
+            let state = state.to_owned();
+            trace!(image_state = ?state, "found cached state");
+            return Some(state);
+        }
+    }
+    None
 }
