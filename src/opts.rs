@@ -15,6 +15,9 @@ pub struct PkgerOpts {
     #[clap(short, long)]
     /// Enable debug output.
     pub debug: bool,
+    #[clap(short, long)]
+    /// Enable trace output.
+    pub trace: bool,
     #[clap(long)]
     /// Filter string that instruments the formatter to hide some fields from output. Each
     /// character of the string corresponds to a field. Available fields to hide are: D - Date, F -

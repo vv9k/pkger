@@ -20,15 +20,13 @@ pub fn setup_tracing(opts: &PkgerOpts) {
     let _enter = span.enter();
 
     let filter = if let Some(filter) = env::var_os("RUST_LOG") {
-        if opts.quiet {
-            "".to_string()
-        } else {
-            filter.to_string_lossy().to_string()
-        }
+        filter.to_string_lossy().to_string()
     } else if opts.quiet {
         "pkger=error".to_string()
-    } else if opts.debug {
+    } else if opts.trace {
         "pkger=trace".to_string()
+    } else if opts.debug {
+        "pkger=debug".to_string()
     } else {
         "pkger=info".to_string()
     };
