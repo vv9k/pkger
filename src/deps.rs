@@ -103,8 +103,8 @@ mod tests {
         );+) => {
             let input: toml::Value = toml::from_str($inp).unwrap();
             dbg!(&input);
-            let input = input.as_table().unwrap().get("build_depends").unwrap();
-            let got = Dependencies::try_from(*input).unwrap();
+            let input = input.as_table().unwrap().get("build_depends").unwrap().clone();
+            let got = Dependencies::try_from(input).unwrap();
 
             $(
             let mut $image = HashSet::new();
