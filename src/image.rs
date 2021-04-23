@@ -169,24 +169,7 @@ impl ImageState {
         );
         let span = info_span!("create-image-state", image = %name);
         async move {
-            let out = OneShotCtx::new(
-                docker,
-                &ContainerOptions::builder(image)
-                    .name(&name)
-                    .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
-                    .build(),
-                true,
-                false,
-            )
-            .run()
-            .await
-            .map_err(|e| anyhow!("failed to check image os - {}", e))?;
-
-            let out = String::from_utf8_lossy(&out.stdout);
-
-            let os_name = extract_key(&out, "ID");
-            let version = extract_key(&out, "VERSION_ID");
-            let os = Os::from(os_name, version);
+            let os = find_os(id, docker).await?;
             debug!(os = %os.as_ref(), version = %os.os_ver(), "parsed image info");
 
             let image_handle = docker.images().get(id);
@@ -215,6 +198,31 @@ impl ImageState {
         .instrument(span)
         .await
     }
+}
+
+pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
+    let span = info_span!("find-os");
+    async move {
+        let out = OneShotCtx::new(
+            docker,
+            &ContainerOptions::builder(&image_id)
+                .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
+                .build(),
+            true,
+            false,
+        )
+        .run()
+        .await
+        .map_err(|e| anyhow!("failed to check image os - {}", e))?;
+
+        let out = String::from_utf8_lossy(&out.stdout);
+
+        let os_name = extract_key(&out, "ID");
+        let version = extract_key(&out, "VERSION_ID");
+        Ok(Os::from(os_name, version))
+    }
+    .instrument(span)
+    .await
 }
 
 fn extract_key(out: &str, key: &str) -> Option<String> {
