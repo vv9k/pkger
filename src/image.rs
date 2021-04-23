@@ -11,7 +11,6 @@ use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, info_span, trace, warn, Instrument};
 
@@ -87,64 +86,6 @@ impl Image {
             name: path.file_name().unwrap().to_string_lossy().to_string(),
             path,
         })
-    }
-
-    /// Checks whether any of the files located at the path of this Image changed since last build.
-    /// If shouldn't be rebuilt returns previous `ImageState`.
-    pub fn find_cached_state(
-        &self,
-        target: &RecipeTarget,
-        state: &Arc<RwLock<ImagesState>>,
-    ) -> Option<ImageState> {
-        let span = info_span!("find-image-cache");
-        let _enter = span.enter();
-
-        trace!(recipe = ?target);
-
-        trace!("checking if image should be rebuilt");
-        if let Ok(states) = state.read() {
-            if let Some(state) = (*states).images.get(&target) {
-                if let Ok(entries) = fs::read_dir(self.path.as_path()) {
-                    for file in entries {
-                        if let Err(e) = file {
-                            warn!(reason = %e, "error while loading file");
-                            continue;
-                        }
-                        let file = file.unwrap();
-                        let path = file.path();
-                        trace!(path = %path.display(), "checking");
-                        let metadata = fs::metadata(path.as_path());
-                        if let Err(e) = metadata {
-                            warn!(
-                                path = %path.display(),
-                                reason = %e,
-                                "failed to read metadata",
-                            );
-                            continue;
-                        }
-                        let metadata = metadata.unwrap();
-                        let mod_time = metadata.modified();
-                        if let Err(e) = &mod_time {
-                            warn!(
-                                path = %path.display(),
-                                reason = %e,
-                                "failed to check modification time",
-                            );
-                            continue;
-                        }
-                        let mod_time = mod_time.unwrap();
-                        if mod_time > state.timestamp {
-                            trace!(mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
-                            return None;
-                        }
-                    }
-                }
-                let state = state.to_owned();
-                trace!(image_state = ?state, "found cached state");
-                return Some(state);
-            }
-        }
-        None
     }
 }
 
