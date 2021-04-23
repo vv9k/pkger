@@ -5,9 +5,10 @@ arch = "x86_64"
 license = "MIT"
 version = "0.1.0"
 revision = "0"
+maintainer = "Wojciech Kępka <wojciech@wkepka.dev>"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-build_depends = ["curl", "gcc", "pkg-config", "centos8{openssl-devel},debian10{libssl-dev}", "git"]
+build_depends = ["debian10{curl}", "gcc", "pkg-config", "centos8{openssl-devel},debian10{libssl-dev}", "git", "centos8{cargo}"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
@@ -17,13 +18,14 @@ images = [
 
 [configure]
 steps = [
-	"curl -o /tmp/install_rust.sh https://sh.rustup.rs",
-	"sh /tmp/install_rust.sh -y --default-toolchain stable",
+    "pkger%:debian10 curl -o /tmp/install_rust.sh https://sh.rustup.rs",
+	"pkger%:debian10 sh /tmp/install_rust.sh -y --default-toolchain stable",
 ]
 
 [build]
 steps = [
-	"$HOME/.cargo/bin/cargo build --color=never",
+	"pkger%:centos8 cargo build --color=never",
+	"pkger%:debian10 $HOME/.cargo/bin/cargo build --color=never",
 ]
 
 [install]
