@@ -4,7 +4,7 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::convert::{AsRef, TryFrom};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 pub enum BuildTarget {
     Rpm,
     Deb,
@@ -74,10 +74,19 @@ impl GitSource {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 pub struct ImageTarget {
     pub image: String,
     pub target: BuildTarget,
+}
+
+impl ImageTarget {
+    pub fn new<I: Into<String>>(image: I, target: &BuildTarget) -> Self {
+        Self {
+            image: image.into(),
+            target: target.clone(),
+        }
+    }
 }
 
 impl TryFrom<toml::Value> for ImageTarget {

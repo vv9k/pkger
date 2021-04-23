@@ -6,7 +6,7 @@ use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 pub use envs::Env;
-pub use metadata::{BuildTarget, GitSource, Metadata, MetadataRep};
+pub use metadata::{BuildTarget, GitSource, ImageTarget, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
 
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,18 @@ use std::{collections::HashMap, path::PathBuf};
 use tracing::{info_span, trace, warn};
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
+
+#[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
+pub struct RecipeTarget {
+    name: String,
+    image_target: ImageTarget,
+}
+
+impl RecipeTarget {
+    pub fn new(name: String, image_target: ImageTarget) -> Self {
+        Self { name, image_target }
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct Recipes {
