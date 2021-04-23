@@ -314,6 +314,18 @@ impl Pkger {
                 }
             }
         }
+
+        macro_rules! vec_as_deps {
+            ($it:expr) => {{
+                let vec = $it.into_iter().map(toml::Value::from).collect::<Vec<_>>();
+                if vec.is_empty() {
+                    None
+                } else {
+                    Some(toml::Value::Array(vec))
+                }
+            }};
+        }
+
         let metadata = MetadataRep {
             name: opts.name,
             version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
@@ -326,14 +338,14 @@ impl Pkger {
             git,
             skip_default_deps: opts.skip_default_deps,
             exclude: opts.exclude,
-            build_depends: opts.build_depends,
-            depends: opts.depends,
-            conflicts: opts.conflicts,
-            provides: opts.provides,
+            build_depends: vec_as_deps!(opts.build_depends),
+            depends: vec_as_deps!(opts.depends),
+            conflicts: vec_as_deps!(opts.conflicts),
+            provides: vec_as_deps!(opts.provides),
             section: opts.section,
             priority: opts.priority,
             release: opts.release,
-            obsoletes: opts.obsoletes,
+            obsoletes: vec_as_deps!(opts.obsoletes),
             summary: opts.summary,
         };
 
