@@ -55,24 +55,17 @@ steps = [
 	"echo PKGER_OUT_DIR=$PKGER_OUT_DIR",
 	"if [[ $PKGER_OUT_DIR =~ /tmp/test-pkger-out-[0-9]* ]]; then exit 0; else echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi",
 
-	# SYNTAX
 	"echo 'Testing pkger command syntax'",
 	# test if pkger commands work correctly
-	"pkger%:centos8 touch /tmp/only_centos",
+	{ images = ["centos8"],  cmd = "touch /tmp/only_centos" },
 	# assure the file exists on centos8
-	"pkger%:centos8 if [ ! -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos should exist on image centos8'; exit 1; fi",
+	{ images = ["centos8"],  cmd = "if [ ! -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos should exist on image centos8'; exit 1; fi" },
 	# assure the file doesn't exist on debian10
-	"pkger%:debian10 if [ -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos shouldnt exist on image debian10'; exit 1; fi",
+	{ images = ["debian10"], cmd = "if [ -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos shouldnt exist on image debian10'; exit 1; fi" },
 
-	# multiple images with whitespace
-	"pkger%:{centos8, debian10} touch /tmp/pkger_group_whitespace_test",
+	{ images = ["centos8", "debian10"], cmd = "touch /tmp/pkger_group" },
 	# assure the file exists on both images
-	"pkger%:{centos8, debian10} if [ ! -f '/tmp/pkger_group_whitespace_test' ]; then echo 'File /tmp/pkger_group_whitespace_test should exist on image both centos8 and debian10'; exit 1; fi",
-
-	# multiple images without whitespace
-	"pkger%:{centos8,debian10} touch /tmp/pkger_group_no_whitespace",
-	# assure the file exists on both images
-	"pkger%:{centos8,debian10} if [ ! -f '/tmp/pkger_group_no_whitespace' ]; then echo 'File /tmp/pkger_group_no_whitespace should exist on image both centos8 and debian10'; exit 1; fi",
+	{ images = ["centos8", "debian10"], cmd = "if [ ! -f '/tmp/pkger_group' ]; then echo 'File /tmp/pkger_group should exist on image both centos8 and debian10'; exit 1; fi" },
 ]
 
 [install]

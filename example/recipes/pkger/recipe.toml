@@ -22,14 +22,14 @@ debian10 = ["curl", "libssl-dev"]
 
 [configure]
 steps = [
-    "pkger%:debian10 curl -o /tmp/install_rust.sh https://sh.rustup.rs",
-	"pkger%:debian10 sh /tmp/install_rust.sh -y --default-toolchain stable",
+    {cmd = "curl -o /tmp/install_rust.sh https://sh.rustup.rs", images = ["debian10"]},
+	{cmd = "sh /tmp/install_rust.sh -y --default-toolchain stable", images = ["debian10"]}
 ]
 
 [build]
 steps = [
-	"pkger%:centos8 cargo build --color=never",
-	"pkger%:debian10 $HOME/.cargo/bin/cargo build --color=never",
+	{cmd = "cargo build --color=never", images = ["centos8"]},
+	{cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"]}
 ]
 
 [install]
