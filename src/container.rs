@@ -26,7 +26,9 @@ pub struct Output<T> {
     pub exit_code: u64,
 }
 
+/// Wrapper type that allows easier manipulation of Docker containers
 pub struct DockerContainer<'job> {
+    /// Whether the main process is still running or got an exit signal
     is_running: Arc<AtomicBool>,
     container: Container<'job>,
     docker: &'job Docker,

@@ -14,21 +14,54 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, info_span, trace, warn, Instrument};
 
+//####################################################################################################
+
+/// Finds out the operating system and version of the image with id `image_id`
+pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
+    let span = info_span!("find-os");
+    async move {
+        let out = OneShotCtx::new(
+            docker,
+            &ContainerOptions::builder(&image_id)
+                .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
+                .build(),
+            true,
+            false,
+        )
+        .run()
+        .await
+        .map_err(|e| anyhow!("failed to check image os - {}", e))?;
+
+        let out = String::from_utf8_lossy(&out.stdout);
+
+        let os_name = extract_key(&out, "ID");
+        let version = extract_key(&out, "VERSION_ID");
+        Ok(Os::from(os_name, version))
+    }
+    .instrument(span)
+    .await
+}
+
+//####################################################################################################
+
 #[derive(Debug, Default)]
-pub struct Images {
-    inner: HashMap<String, Image>,
+/// A wrapper type that contains multiple images found on the filesystem
+pub struct FsImages {
+    inner: HashMap<String, FsImage>,
     path: PathBuf,
 }
 
-impl Images {
+impl FsImages {
     /// Initializes an instance of Images without loading them from filesystem
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        Images {
+        FsImages {
             path: path.as_ref().to_path_buf(),
             ..Default::default()
         }
     }
 
+    /// Loads the images from the filesystem by reading each entry in the path and ignoring invalid
+    /// entries.
     pub fn load(&mut self) -> Result<()> {
         let span = info_span!("load-images", path = %self.path.display());
         let _enter = span.enter();
@@ -44,7 +77,7 @@ impl Images {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
-                    match Image::new(entry.path()) {
+                    match FsImage::new(entry.path()) {
                         Ok(image) => {
                             trace!(image = ?image);
                             self.inner.insert(filename, image);
@@ -61,19 +94,23 @@ impl Images {
         Ok(())
     }
 
-    pub fn images(&self) -> &HashMap<String, Image> {
+    pub fn images(&self) -> &HashMap<String, FsImage> {
         &self.inner
     }
 }
 
+//####################################################################################################
+
 #[derive(Clone, Debug)]
-pub struct Image {
+/// A representation of an image on the filesystem
+pub struct FsImage {
     pub name: String,
     pub path: PathBuf,
 }
 
-impl Image {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Image> {
+impl FsImage {
+    /// Creates a new FsImage from the given path
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<FsImage> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
             return Err(anyhow!(
@@ -81,7 +118,7 @@ impl Image {
                 path.display()
             ));
         }
-        Ok(Image {
+        Ok(FsImage {
             // we can unwrap here because we know the Dockerfile exists
             name: path.file_name().unwrap().to_string_lossy().to_string(),
             path,
@@ -89,7 +126,10 @@ impl Image {
     }
 }
 
+//####################################################################################################
+
 #[derive(Deserialize, Clone, Debug, Serialize)]
+/// Saved state of an image that contains all the metadata of the image
 pub struct ImageState {
     pub id: String,
     pub image: String,
@@ -139,6 +179,7 @@ impl ImageState {
         .await
     }
 
+    /// Verifies if a given image exists in docker, on connection error returns false
     pub async fn exists(&self, docker: &Docker) -> bool {
         let span = info_span!("check-image-exists", image = %self.image, id = %self.id);
         async move {
@@ -150,42 +191,7 @@ impl ImageState {
     }
 }
 
-pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
-    let span = info_span!("find-os");
-    async move {
-        let out = OneShotCtx::new(
-            docker,
-            &ContainerOptions::builder(&image_id)
-                .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
-                .build(),
-            true,
-            false,
-        )
-        .run()
-        .await
-        .map_err(|e| anyhow!("failed to check image os - {}", e))?;
-
-        let out = String::from_utf8_lossy(&out.stdout);
-
-        let os_name = extract_key(&out, "ID");
-        let version = extract_key(&out, "VERSION_ID");
-        Ok(Os::from(os_name, version))
-    }
-    .instrument(span)
-    .await
-}
-
-fn extract_key(out: &str, key: &str) -> Option<String> {
-    let key = [key, "="].join("");
-    if let Some(line) = out.lines().find(|line| line.starts_with(&key)) {
-        let line = line.strip_prefix(&key).unwrap();
-        if line.starts_with('"') {
-            return Some(line.trim_matches('"').to_string());
-        }
-        return Some(line.to_string());
-    }
-    None
-}
+//####################################################################################################
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct ImagesState {
@@ -206,6 +212,7 @@ impl Default for ImagesState {
 }
 
 impl ImagesState {
+    /// Tries to initialize images state from the given path
     pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
         if !state_file.as_ref().exists() {
             File::create(state_file.as_ref())?;
@@ -219,10 +226,12 @@ impl ImagesState {
         Ok(serde_cbor::from_slice(&contents)?)
     }
 
+    /// Updates the target image with a new state
     pub fn update(&mut self, target: &RecipeTarget, state: &ImageState) {
         self.images.insert(target.clone(), state.clone());
     }
 
+    /// Saves the images state to the filesystem
     pub fn save(&self) -> Result<()> {
         if !Path::new(&self.state_file).exists() {
             trace!(state_file = %self.state_file.display(), "doesn't exist, creating");
@@ -249,4 +258,18 @@ impl ImagesState {
             }
         }
     }
+}
+
+//####################################################################################################
+
+fn extract_key(out: &str, key: &str) -> Option<String> {
+    let key = [key, "="].join("");
+    if let Some(line) = out.lines().find(|line| line.starts_with(&key)) {
+        let line = line.strip_prefix(&key).unwrap();
+        if line.starts_with('"') {
+            return Some(line.trim_matches('"').to_string());
+        }
+        return Some(line.to_string());
+    }
+    None
 }

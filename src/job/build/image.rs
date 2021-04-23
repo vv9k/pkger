@@ -1,4 +1,4 @@
-use crate::image::{self, Image, ImageState, ImagesState};
+use crate::image::{self, FsImage, ImageState, ImagesState};
 use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
@@ -203,7 +203,7 @@ RUN {} {} {} >/dev/null"#,
 /// Checks whether any of the files located at the path of this Image changed since last build.
 /// If shouldn't be rebuilt returns previous `ImageState`.
 pub fn find_cached_state(
-    image: &Image,
+    image: &FsImage,
     target: &RecipeTarget,
     state: &Arc<RwLock<ImagesState>>,
 ) -> Option<ImageState> {

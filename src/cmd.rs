@@ -5,11 +5,21 @@ use anyhow::anyhow;
 const CMD_PREFIX: &str = "pkger%:";
 
 #[derive(Clone, Debug)]
+/// Wrapper type for steps parsed from a recipe. Is used to easily distinguish on which images the
+/// commands should be executed.
 pub struct Cmd {
     pub cmd: String,
     pub images: Vec<String>,
 }
+
 impl Cmd {
+    /// Parses a command from a string. If a command begins with [`CMD_PREFIX`](CMD_PREFIX) the images
+    /// that follow the prefix will be added to `images` field of `Cmd`.
+    ///
+    /// Some examples:
+    ///  'pkger%:centos8 echo test'  => execute only on centos8
+    ///  'pkger%:{centos8, debian10} echo test'  => execute only on centos8 and debian10
+    ///  'echo test'  => execute on all
     pub fn new(cmd: &str) -> Result<Self> {
         if let Some(cmd) = cmd.strip_prefix(CMD_PREFIX) {
             Self::parse_prefixed_command(cmd)
