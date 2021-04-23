@@ -39,6 +39,7 @@ impl BuildCtx {
                 if let Some(new_deps) = &self.recipe.metadata.build_depends {
                     let mut new_deps = new_deps.resolve_names(&state.image);
                     new_deps.extend(deps::pkger_deps(&self.target, &self.recipe));
+                    trace!(resolved = ?new_deps);
                     if new_deps != state.deps {
                         info!(old = ?state.deps, new = ?new_deps, "dependencies changed");
                     } else {

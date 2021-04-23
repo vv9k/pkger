@@ -15,9 +15,9 @@ pub struct Dependency {
 }
 
 impl Dependency {
-    pub fn new(name: &str, names: Vec<(String, String)>) -> Self {
+    pub fn new(name: Option<&str>, names: Vec<(String, String)>) -> Self {
         Self {
-            name: Some(name.to_string()),
+            name: name.map(str::to_string),
             names,
         }
     }
@@ -39,7 +39,7 @@ impl Dependency {
 
         let elems = dep.split(',').map(str::trim).collect::<Vec<_>>();
         if elems.is_empty() {
-            return Ok(Self::new(dep, names));
+            return Ok(Self::new(Some(dep), names));
         }
 
         for elem in elems {
@@ -111,59 +111,110 @@ impl Dependencies {
 mod tests {
     use super::*;
 
+    macro_rules! dep {
+        ( $name:expr, $($image:expr => $dep:expr),* ) => {
+            Dependency::new(
+                $name,
+                vec![
+                $(
+                    ($image.to_string(), $dep.to_string()),
+                )*]
+            )
+        };
+    }
+
     #[test]
     fn parses_dependency() {
-        let expect = Dependency::new(
-            "openssl-devel",
-            vec![
-                ("cent8".to_string(), "libssl-dev".to_string()),
-                ("deb10".to_string(), "openssl-devel".to_string()),
-            ],
-        );
+        let expect =
+            dep!(Some("openssl-devel"), "cent8" => "libssl-dev", "deb10" => "openssl-devel");
         let out =
             Dependency::parse("cent8{libssl-dev},openssl-devel, deb10{openssl-devel}").unwrap();
         assert_eq!(expect, out);
     }
 
+    macro_rules! test_parse_deps {
+        (input = $($inp:literal),*
+         want = $($deps:expr),* ) => {
+            let expect = Dependencies {
+                inner: vec![
+                    $(
+                        $deps
+                    ),*
+                ]
+            };
+
+            let input = vec![
+                $(
+                    $inp.to_string()
+                ),*
+            ];
+
+            let got = Dependencies::new(input).unwrap();
+            assert_eq!(expect, got);
+        };
+    }
+
     #[test]
     fn parses_depencies() {
-        let expect = Dependencies {
-            inner: vec![
-                Dependency::new(
-                    "openssl-devel",
-                    vec![("cent8".to_string(), "libssl-dev".to_string())],
-                ),
-                Dependency::new("gcc", vec![]),
-                Dependency::new(
-                    "libcurl4-openssl-dev",
-                    vec![("cent8".to_string(), "libcurl-devel".to_string())],
-                ),
-            ],
+        test_parse_deps!(
+            input =
+            want =
+        );
+        test_parse_deps!(
+            input = "debian10{curl}", "wget"
+            want = dep!(None, "debian10" => "curl"),
+                   dep!(Some("wget"),)
+        );
+        test_parse_deps!(
+            input = "debian10{gcc}, other9{gcc-dev}"
+            want = dep!(None, "debian10" => "gcc", "other9" => "gcc-dev")
+        );
+        test_parse_deps!(
+            input = "openssl-devel, cent8{libssl-dev}", "gcc",
+                    "libcurl4-openssl-dev, cent8{libcurl-devel}"
+            want = dep!(Some("openssl-devel"), "cent8" => "libssl-dev"),
+                   dep!(Some("gcc"),),
+                   dep!(Some("libcurl4-openssl-dev"), "cent8" => "libcurl-devel")
+        );
+    }
+    macro_rules! test_resolve_names {
+        ( image = $image:literal
+          input = $($inp:literal),*
+          want = $($deps:literal),*
+         ) => {
+            let mut expect = HashSet::new();
+            $(
+                expect.insert($deps.to_string());
+            )*
+
+            let input = vec![
+                $(
+                    $inp.to_string()
+                ),*
+            ];
+
+            let deps = Dependencies::new(input).unwrap();
+            let got = deps.resolve_names($image);
+
+            assert_eq!(expect, got);
         };
-        let input = vec![
-            "openssl-devel, cent8{libssl-dev}".to_string(),
-            "gcc".to_string(),
-            "libcurl4-openssl-dev, cent8{libcurl-devel}".to_string(),
-        ];
-        let got = Dependencies::new(input).unwrap();
-        assert_eq!(expect, got);
     }
 
     #[test]
     fn resolves_names() {
-        let mut expect = HashSet::new();
-        expect.insert("libssl-dev".to_string());
-        expect.insert("gcc".to_string());
-        expect.insert("libcurl-devel".to_string());
-        let input = vec![
-            "openssl-devel, cent8{libssl-dev}".to_string(),
-            "gcc".to_string(),
-            "libcurl4-openssl-dev, cent8{libcurl-devel}".to_string(),
-        ];
-
-        let deps = Dependencies::new(input).unwrap();
-        let got = deps.resolve_names("cent8");
-
-        assert_eq!(expect, got);
+        test_resolve_names!(
+            image = "cent8"
+            input = "openssl-devel, cent8{libssl-dev}",
+                    "gcc",
+                    "libcurl4-openssl-dev, cent8{libcurl-devel}"
+            want = "libssl-dev", "gcc", "libcurl-devel"
+        );
+        test_resolve_names!(
+            image = "debian10"
+            input = "debian10{curl}",
+                    "gcc",
+                    "libcurl4-openssl-dev, cent8{libcurl-devel}"
+            want = "curl", "gcc", "libcurl4-openssl-dev"
+        );
     }
 }
