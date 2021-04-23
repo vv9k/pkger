@@ -84,52 +84,56 @@ const fn is_valid_name_ch(ch: char) -> bool {
 #[cfg(test)]
 mod command {
     use super::*;
-    #[test]
-    fn parses_single_image_cmd() {
-        let cmd = "pkger%:centos8 echo 'this is a test'";
-        let exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
+
+    macro_rules! test_cmd {
+        (
+            input = $cmd:expr,
+            want = $cmd_out:expr,
+            images = $($image:expr),*) => {
+            let expect_images: Vec<&str> = vec![ $($image),* ];
+            let cmd = Cmd::new($cmd).unwrap();
+            assert_eq!(expect_images, cmd.images);
+            assert_eq!($cmd_out, &cmd.cmd);
+        }
     }
+
     #[test]
-    fn parses_multiple_image_cmd_with_whitespace() {
-        let mut cmd = "pkger%:{centos8, debian10, ubuntu18} echo 'this is a test'";
-        let mut exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8", "debian10", "ubuntu18"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
-
-        cmd = "pkger%:{ centos8, debian10, ubuntu18} echo 'this is a test'";
-        exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8", "debian10", "ubuntu18"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
-
-        cmd = "pkger%:{ centos8, debian10, ubuntu18 } echo 'this is a test'";
-        exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8", "debian10", "ubuntu18"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
-
-        cmd = "pkger%:{ centos8,debian10, ubuntu18 } echo 'this is a test'";
-        exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8", "debian10", "ubuntu18"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
-
-        cmd = "pkger%:{ centos8,debian10,ubuntu18 } echo 'this is a test'";
-        exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8", "debian10", "ubuntu18"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
-    }
-    #[test]
-    fn parses_multiple_image_cmd_without_whitespace() {
-        let cmd = "pkger%:{centos8,debian10,ubuntu18} echo 'this is a test'";
-        let exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, vec!["centos8", "debian10", "ubuntu18"]);
-        assert_eq!(&exec.cmd, "echo 'this is a test'");
-    }
-    #[test]
-    fn parses_normal_cmd() {
-        let cmd = "echo 'this is a test' || exit 1";
-        let exec = Cmd::new(cmd).unwrap();
-        assert_eq!(exec.images, Vec::<&str>::new());
-        assert_eq!(&exec.cmd, "echo 'this is a test' || exit 1");
+    #[rustfmt::skip]
+    fn parses_cmd() {
+        test_cmd!(
+            input  = "echo 'normal cmd'",
+            want   = "echo 'normal cmd'",
+            images =
+        );
+        test_cmd!(
+            input  = "pkger%:{centos8,debian10,ubuntu18} echo 'multiple images'",
+            want   = "echo 'multiple images'",
+            images = "centos8", "debian10", "ubuntu18"
+        );
+        test_cmd!(
+            input  = "pkger%:centos8 echo 'single image'",
+            want   = "echo 'single image'",
+            images = "centos8"
+        );
+        test_cmd!(
+            input  = "pkger%:{centos8, debian10, ubuntu18} echo 'normal whitespace'",
+            want   = "echo 'normal whitespace'",
+            images = "centos8", "debian10", "ubuntu18"
+        );
+        test_cmd!(
+            input  = "pkger%:{ centos8, debian10, ubuntu18} echo 'left padded'",
+            want   = "echo 'left padded'",
+            images = "centos8", "debian10", "ubuntu18"
+        );
+        test_cmd!(
+            input  = "pkger%:{ centos8, debian10, ubuntu18 } echo 'all sides padded'",
+            want   = "echo 'all sides padded'",
+            images = "centos8", "debian10", "ubuntu18"
+        );
+        test_cmd!(
+            input  = "pkger%:{ centos8,debian10,ubuntu18 } echo 'both sides padded'",
+            want   = "echo 'both sides padded'",
+            images = "centos8", "debian10", "ubuntu18"
+        );
     }
 }
