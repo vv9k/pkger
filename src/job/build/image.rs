@@ -1,4 +1,4 @@
-use crate::image::ImageState;
+use crate::image::{self, ImageState};
 use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
@@ -108,9 +108,21 @@ impl<'job> BuildContainerCtx<'job> {
     ) -> Result<ImageState> {
         let span = info_span!("cache-image", image = %state.image);
         async move {
-            let pkg_mngr = state.os.package_manager();
+            let os = if let Os::Unknown = &state.os {
+                image::find_os(&state.id, &docker).await?
+            } else {
+                state.os.clone()
+            };
+            let pkg_mngr = os.package_manager();
             let pkg_mngr_name = pkg_mngr.as_ref();
             let tag = format!("{}:{}", state.image, state.tag);
+
+            if pkg_mngr_name == "" {
+                return Err(anyhow!(
+                    "caching image failed - no package manger found for os `{}`",
+                    os.as_ref()
+                ));
+            }
 
             let deps_joined = deps.iter().map(|s| s.to_string()).collect::<Vec<_>>();
 
