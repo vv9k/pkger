@@ -107,15 +107,14 @@ impl<'job> BuildContainerCtx<'job> {
 
             #[rustfmt::skip]
             let dockerfile = format!(
-                r#"
-FROM {}
+r#"FROM {}
 RUN {} {}
-RUN {} {} {}
-"#,
+RUN {} {} {} >/dev/null"#,
                 tag,
                 pkg_mngr_name, pkg_mngr.update_repos_args().join(" "),
                 pkg_mngr_name, pkg_mngr.install_args().join(" "), deps_joined.join(" ")
             );
+
             trace!(dockerfile = %dockerfile);
 
             let temp = TempDir::new(&format!(
