@@ -9,6 +9,10 @@
 
 **pkger** has 2 concepts - images and recipes. Each recipe is a sort of build mainfest that allows **pkger** to create the final package. Images are directories that contain a `Dockerfile` as well as optional other files that might get included in the image build phase. 
 
+## Images
+
+**pkger** will cache images with dependencies installed for each target to reduce then number of times the dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.
+
 ## Recipe
 
 The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts:
