@@ -68,23 +68,32 @@ impl Ctx for BuildCtx {
 
             let out_dir = self.create_out_dir(&image_state).await?;
 
-            let container_ctx = self.container_spawn(&image_state).await?;
+            let mut container_ctx = self.container_spawn(&image_state).await?;
 
             cleanup!(container_ctx);
 
-            if &image_state.tag != image::CACHED {
-                let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
+            let image_state = if &image_state.tag != image::CACHED {
+                let mut deps = deps::pkger_deps(&self.target, &self.recipe);
+                deps.extend(container_ctx.recipe_deps(&image_state));
+                let new_state = container_ctx
+                    .cache_image(&self.docker, &image_state, &deps)
+                    .await?;
+                info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
 
-                if !skip_deps {
-                    container_ctx.install_pkger_deps(&image_state).await?;
-
-                    cleanup!(container_ctx);
+                if let Ok(mut state) = self.image_state.write() {
+                    trace!("saving image state");
+                    (*state).update(&self.image.name, &new_state)
                 }
 
-                container_ctx.install_recipe_deps(&image_state).await?;
+                container_ctx.container.remove().await?;
+                container_ctx = self.container_spawn(&new_state).await?;
 
-                cleanup!(container_ctx);
-            }
+                new_state
+            } else {
+                image_state
+            };
+
+            cleanup!(container_ctx);
 
             let dirs = vec![
                 self.container_out_dir.to_string_lossy().to_string(),
@@ -117,20 +126,6 @@ impl Ctx for BuildCtx {
             let _bytes = container_ctx.archive_output_dir().await?;
 
             cleanup!(container_ctx);
-
-            if &image_state.tag != image::CACHED {
-                let mut deps = deps::pkger_deps(&self.target, &self.recipe);
-                deps.extend(container_ctx.recipe_deps(&image_state));
-                let new_state = container_ctx
-                    .cache_image(&self.docker, &image_state, &deps)
-                    .await?;
-                info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
-
-                if let Ok(mut state) = self.image_state.write() {
-                    trace!("saving image state");
-                    (*state).update(&self.image.name, &new_state)
-                }
-            }
 
             container_ctx.container.remove().await?;
 
