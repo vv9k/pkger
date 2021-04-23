@@ -237,10 +237,7 @@ impl<'job> DockerContainer<'job> {
 
             let mut archive = tar::Archive::new(&files[..]);
 
-            cloned_span.in_scope(|| {
-                unpack_archive(&mut archive, dest)
-                    .map_err(|e| anyhow!("failed to unpack archive - {}", e))
-            })
+            cloned_span.in_scope(|| unpack_archive(&mut archive, dest))
         }
         .instrument(span)
         .await

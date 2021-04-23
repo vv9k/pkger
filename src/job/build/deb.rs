@@ -33,7 +33,9 @@ impl<'job> BuildContainerCtx<'job> {
             let deb_dir = base_dir.join("DEBIAN");
             let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
 
-            self.create_dirs(&dirs[..]).await?;
+            self.create_dirs(&dirs[..])
+                .await
+                .map_err(|e| anyhow!("failed to create dirs - {}", e))?;
 
             let control = self.recipe.as_deb_control(&image_state.image).render();
             debug!(control = %control);
@@ -46,7 +48,8 @@ impl<'job> BuildContainerCtx<'job> {
             self.container
                 .inner()
                 .copy_file_into(control_tar_path.as_path(), &control_tar)
-                .await?;
+                .await
+                .map_err(|e| anyhow!("failed to copy archive with control file - {}", e))?;
 
             trace!("extract control archive");
             self.checked_exec(
@@ -58,7 +61,8 @@ impl<'job> BuildContainerCtx<'job> {
                 None,
                 None,
             )
-            .await?;
+            .await
+            .map_err(|e| anyhow!("failed to extract archive with control file - {}", e))?;
 
             trace!("copy source files to build dir");
             self.checked_exec(
@@ -66,7 +70,8 @@ impl<'job> BuildContainerCtx<'job> {
                 Some(self.container_out_dir),
                 None,
             )
-            .await?;
+            .await
+            .map_err(|e| anyhow!("failed to copy source files to build directory - {}", e))?;
 
             let dpkg_deb_opts = if image_state.os.os_ver().parse::<u8>().unwrap_or_default() < 10 {
                 "--build"
@@ -79,7 +84,8 @@ impl<'job> BuildContainerCtx<'job> {
                 None,
                 None,
             )
-            .await?;
+            .await
+            .map_err(|e| anyhow!("failed to build deb package - {}", e))?;
 
             let deb_name = [&name, ".deb"].join("");
 
@@ -87,6 +93,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .download_files(debbld_dir.join(&deb_name).as_path(), output_dir)
                 .await
                 .map(|_| output_dir.join(deb_name))
+                .map_err(|e| anyhow!("failed to download files - {}", e))
         }
         .instrument(span)
         .await
