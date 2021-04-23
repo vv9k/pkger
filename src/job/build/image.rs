@@ -117,7 +117,7 @@ impl<'job> BuildContainerCtx<'job> {
             let pkg_mngr_name = pkg_mngr.as_ref();
             let tag = format!("{}:{}", state.image, state.tag);
 
-            if pkg_mngr_name == "" {
+            if pkg_mngr_name.is_empty() {
                 return Err(anyhow!(
                     "caching image failed - no package manger found for os `{}`",
                     os.as_ref()
