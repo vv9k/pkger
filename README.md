@@ -85,14 +85,12 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
  - ### build
    - All build steps presented as a list of strings
    - Steps will be executed with a working directory set to `$PKGER_BLD_DIR`
-   - To execute a command only in a container with specific image/images you can write:
-     - `pkger%:centos8 echo 'test'` for a single image
-     - `pkger%:{centos8,debian10} echo 'test'` or `pkger%:{centos8, debian10} echo 'test'` for multiple images
    - After successfully running all steps **pkger** will assemble the final package from `$PKGER_BLD_DIR` directory
 ```toml
 [build] # required
 steps = [
 	"$HOME/.cargo/bin/cargo build --release .",
+    { images = ["debian10"], cmd = "echo 'hello from Debian'" } # will only be executed on image `debian10`
 ]
 ```
  - ### install (Optional)
