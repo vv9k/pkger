@@ -30,8 +30,8 @@ version = "0.1.0"
 description = "A package building tool utilizing Docker"
 license = "MIT"
 images = [
-	{ name = "centos8" , target = "rpm" },
-	{ name = "debian10", target = "deb" }
+    { name = "centos8" , target = "rpm" },
+    { name = "debian10", target = "deb" }
 ]
 
 
@@ -89,7 +89,7 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
 ```toml
 [build] # required
 steps = [
-	"$HOME/.cargo/bin/cargo build --release .",
+    "$HOME/.cargo/bin/cargo build --release .",
     { images = ["debian10"], cmd = "echo 'hello from Debian'" } # will only be executed on image `debian10`
 ]
 ```
