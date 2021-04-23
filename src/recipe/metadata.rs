@@ -175,27 +175,27 @@ impl TryFrom<MetadataRep> for Metadata {
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
         let build_depends = if let Some(deps) = rep.build_depends {
-            Some(Dependencies::new(deps)?)
+            Some(Dependencies::new(&deps)?)
         } else {
             None
         };
         let depends = if let Some(deps) = rep.depends {
-            Some(Dependencies::new(deps)?)
+            Some(Dependencies::new(&deps)?)
         } else {
             None
         };
         let obsoletes = if let Some(deps) = rep.obsoletes {
-            Some(Dependencies::new(deps)?)
+            Some(Dependencies::new(&deps)?)
         } else {
             None
         };
         let conflicts = if let Some(deps) = rep.conflicts {
-            Some(Dependencies::new(deps)?)
+            Some(Dependencies::new(&deps)?)
         } else {
             None
         };
         let provides = if let Some(deps) = rep.provides {
-            Some(Dependencies::new(deps)?)
+            Some(Dependencies::new(&deps)?)
         } else {
             None
         };
@@ -257,11 +257,10 @@ pub struct MetadataRep {
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
 
-    pub build_depends: Option<Vec<String>>,
-
-    pub depends: Option<Vec<String>>,
-    pub conflicts: Option<Vec<String>>,
-    pub provides: Option<Vec<String>>,
+    pub build_depends: Option<toml::Value>,
+    pub depends: Option<toml::Value>,
+    pub conflicts: Option<toml::Value>,
+    pub provides: Option<toml::Value>,
 
     // Only DEB
     pub section: Option<String>,
@@ -269,6 +268,6 @@ pub struct MetadataRep {
 
     // Only RPM
     pub release: Option<String>,
-    pub obsoletes: Option<Vec<String>>,
+    pub obsoletes: Option<toml::Value>,
     pub summary: Option<String>,
 }

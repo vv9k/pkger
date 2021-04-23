@@ -8,13 +8,17 @@ revision = "0"
 maintainer = "Wojciech Kępka <wojciech@wkepka.dev>"
 source = ""
 git = "https://github.com/wojciechkepka/pkger.git"
-build_depends = ["debian10{curl}", "gcc", "pkg-config", "centos8{openssl-devel},debian10{libssl-dev}", "git", "centos8{cargo}"]
 exclude = ["share", "info"]
 provides = ["pkger"]
 images = [
 	{ name = "centos8", target = "rpm" },
     { name = "debian10", target = "deb" }
 ]
+
+[metadata.build_depends]
+all = ["gcc", "pkg-config", "git"]
+centos8 = ["cargo", "openssl-devel"]
+debian10 = ["curl", "libssl-dev"]
 
 [configure]
 steps = [
