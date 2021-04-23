@@ -14,6 +14,8 @@ impl<'job> BuildContainerCtx<'job> {
             HashSet::new()
         }
     }
+
+    #[allow(dead_code)]
     pub async fn install_recipe_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("recipe-deps");
         let deps = self.recipe_deps(&state).into_iter().collect::<Vec<_>>();
@@ -23,6 +25,7 @@ impl<'job> BuildContainerCtx<'job> {
             .await
     }
 
+    #[allow(dead_code)]
     pub async fn install_pkger_deps(&self, state: &ImageState) -> Result<()> {
         let span = info_span!("default-deps");
         async move {

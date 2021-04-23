@@ -91,7 +91,7 @@ impl<'job> JobCtx<'job> {
                         },
                         Err(e) => e.to_string(),
                     };
-                    JobResult::failure(ctx.id(), start.elapsed(), reason)
+                    JobResult::failure(ctx.id(), duration, reason)
                 } else {
                     JobResult::success(ctx.id(), start.elapsed(), "".to_string())
                 }
