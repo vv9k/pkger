@@ -6,12 +6,15 @@ mod remote;
 mod rpm;
 mod scripts;
 
-use crate::container::{DockerContainer, Output};
 use crate::image::{Image, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
-use crate::recipe::{BuildTarget, Recipe};
+use crate::recipe::{BuildTarget, ImageTarget, Recipe};
 use crate::Config;
 use crate::Result;
+use crate::{
+    container::{DockerContainer, Output},
+    recipe::RecipeTarget,
+};
 
 use async_trait::async_trait;
 use moby::{ContainerOptions, Docker};
@@ -43,7 +46,8 @@ pub struct BuildCtx {
     container_out_dir: PathBuf,
     container_tmp_dir: PathBuf,
     out_dir: PathBuf,
-    target: BuildTarget,
+    build_target: BuildTarget,
+    target: RecipeTarget,
     config: Arc<Config>,
     image_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
@@ -58,7 +62,7 @@ impl Ctx for BuildCtx {
     }
 
     async fn run(&mut self) -> Self::JobResult {
-        let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.target.as_ref());
+        let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.build_target.as_ref());
         async move {
             info!(id = %self.id, "running job" );
             let image_state = self
@@ -73,7 +77,7 @@ impl Ctx for BuildCtx {
             cleanup!(container_ctx);
 
             let image_state = if image_state.tag != image::CACHED {
-                let mut deps = deps::pkger_deps(&self.target, &self.recipe);
+                let mut deps = deps::pkger_deps(&self.build_target, &self.recipe);
                 deps.extend(container_ctx.recipe_deps(&image_state));
                 let new_state = container_ctx
                     .cache_image(&self.docker, &image_state, &deps)
@@ -82,7 +86,7 @@ impl Ctx for BuildCtx {
 
                 if let Ok(mut state) = self.image_state.write() {
                     trace!("saving image state");
-                    (*state).update(&self.image.name, &new_state)
+                    (*state).update(&self.target, &new_state)
                 }
 
                 container_ctx.container.remove().await?;
@@ -142,7 +146,7 @@ impl BuildCtx {
         recipe: Recipe,
         image: Image,
         docker: Docker,
-        target: BuildTarget,
+        build_target: BuildTarget,
         config: Arc<Config>,
         image_state: Arc<RwLock<ImagesState>>,
         is_running: Arc<AtomicBool>,
@@ -166,6 +170,11 @@ impl BuildCtx {
             PathBuf::from(format!("/tmp/{}-tmp-{}", &recipe.metadata.name, &timestamp,));
         trace!(id = %id, "creating new build context");
 
+        let target = RecipeTarget::new(
+            recipe.metadata.name.clone(),
+            ImageTarget::new(&image.name, &build_target),
+        );
+
         BuildCtx {
             id,
             recipe,
@@ -175,6 +184,7 @@ impl BuildCtx {
             container_out_dir,
             container_tmp_dir,
             out_dir: PathBuf::from(&config.output_dir),
+            build_target,
             target,
             config,
             image_state,
@@ -214,7 +224,7 @@ impl BuildCtx {
                 &self.recipe,
                 &self.image,
                 self.is_running.clone(),
-                self.target.clone(),
+                self.build_target.clone(),
                 self.container_out_dir.as_path(),
                 self.container_bld_dir.as_path(),
                 self.container_tmp_dir.as_path(),

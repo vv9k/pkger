@@ -1,6 +1,9 @@
-use crate::job::{Ctx, OneShotCtx};
 use crate::os::Os;
 use crate::Result;
+use crate::{
+    job::{Ctx, OneShotCtx},
+    recipe::RecipeTarget,
+};
 
 use moby::{image::ImageDetails, ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
@@ -88,13 +91,19 @@ impl Image {
 
     /// Checks whether any of the files located at the path of this Image changed since last build.
     /// If shouldn't be rebuilt returns previous `ImageState`.
-    pub fn find_cached_state(&self, state: &Arc<RwLock<ImagesState>>) -> Option<ImageState> {
+    pub fn find_cached_state(
+        &self,
+        target: &RecipeTarget,
+        state: &Arc<RwLock<ImagesState>>,
+    ) -> Option<ImageState> {
         let span = info_span!("find-image-cache");
         let _enter = span.enter();
 
+        trace!(recipe = ?target);
+
         trace!("checking if image should be rebuilt");
         if let Ok(states) = state.read() {
-            if let Some(state) = (*states).images.get(&self.name) {
+            if let Some(state) = (*states).images.get(&target) {
                 if let Ok(entries) = fs::read_dir(self.path.as_path()) {
                     for file in entries {
                         if let Err(e) = file {
@@ -241,7 +250,7 @@ fn extract_key(out: &str, key: &str) -> Option<String> {
 pub struct ImagesState {
     /// Contains historical build data of images. Each key-value pair contains an image name and
     /// [ImageState](ImageState) struct representing the state of the image.
-    pub images: HashMap<String, ImageState>,
+    pub images: HashMap<RecipeTarget, ImageState>,
     /// Path to a file containing image state
     pub state_file: PathBuf,
 }
@@ -269,8 +278,8 @@ impl ImagesState {
         Ok(serde_cbor::from_slice(&contents)?)
     }
 
-    pub fn update(&mut self, image: &str, state: &ImageState) {
-        self.images.insert(image.to_string(), state.clone());
+    pub fn update(&mut self, target: &RecipeTarget, state: &ImageState) {
+        self.images.insert(target.clone(), state.clone());
     }
 
     pub fn save(&self) -> Result<()> {
