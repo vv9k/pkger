@@ -2,6 +2,7 @@ use crate::image::ImageState;
 use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
+use crate::os::Os;
 use crate::Result;
 
 use futures::StreamExt;
@@ -12,12 +13,29 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tempdir::TempDir;
 use tracing::{debug, info, info_span, trace, warn, Instrument};
 
+pub static CACHED: &str = "cached";
+pub static LATEST: &str = "latest";
+
 impl BuildCtx {
     pub async fn image_build(&mut self) -> Result<ImageState> {
         let span = info_span!("image-build");
 
         async move {
             if let Some(state) = self.image.find_cached_state(&self.image_state) {
+                macro_rules! if_state_exists_ret {
+                    () => {
+                        if state.exists(&self.docker).await {
+                            trace!("state exists in docker");
+                            if let Os::Unknown = state.os {
+                                info!("state has an unknown os, rebuilding");
+                            } else {
+                                return Ok(state);
+                            }
+                        } else {
+                            warn!("found cached state but image doesn't exist in docker")
+                        }
+                    };
+                }
                 if let Some(new_deps) = &self.recipe.metadata.build_depends {
                     let mut new_deps = new_deps.resolve_names(&state.image);
                     new_deps.extend(deps::pkger_deps(&self.target, &self.recipe));
@@ -25,27 +43,17 @@ impl BuildCtx {
                         info!(old = ?state.deps, new = ?new_deps, "dependencies changed");
                     } else {
                         trace!("unchanged");
-                        if state.exists(&self.docker).await {
-                            trace!("exists");
-                            return Ok(state);
-                        } else {
-                            warn!("found cached state but image doesn't exist in docker")
-                        }
+                        if_state_exists_ret!();
                     }
                 } else if state.deps.is_empty() && state.exists(&self.docker).await {
-                    if state.exists(&self.docker).await {
-                        trace!("exists");
-                        return Ok(state);
-                    } else {
-                        warn!("found cached state but image doesn't exist in docker")
-                    }
+                    if_state_exists_ret!();
                 }
             }
 
             debug!(image = %self.image.name, "building from scratch");
             let images = self.docker.images();
             let opts = BuildOptions::builder(self.image.path.to_string_lossy().to_string())
-                .tag(&format!("{}:latest", &self.image.name))
+                .tag(&format!("{}:{}", &self.image.name, LATEST))
                 .build();
 
             let mut stream = images.build(&opts);
@@ -66,7 +74,7 @@ impl BuildCtx {
                         let state = ImageState::new(
                             &aux.id,
                             &self.image.name,
-                            "latest",
+                            LATEST,
                             &SystemTime::now(),
                             &self.docker,
                             &Default::default(),
@@ -153,7 +161,7 @@ RUN {} {} {} >/dev/null"#,
                         return ImageState::new(
                             &aux.id,
                             &state.image,
-                            "cached",
+                            CACHED,
                             &SystemTime::now(),
                             &docker,
                             deps,
