@@ -72,7 +72,7 @@ impl Ctx for BuildCtx {
 
             cleanup!(container_ctx);
 
-            if &image_state.tag != "cached" {
+            if &image_state.tag != image::CACHED {
                 let skip_deps = self.recipe.metadata.skip_default_deps.unwrap_or(false);
 
                 if !skip_deps {
@@ -118,7 +118,7 @@ impl Ctx for BuildCtx {
 
             cleanup!(container_ctx);
 
-            if &image_state.tag != "cached" {
+            if &image_state.tag != image::CACHED {
                 let mut deps = deps::pkger_deps(&self.target, &self.recipe);
                 deps.extend(container_ctx.recipe_deps(&image_state));
                 let new_state = container_ctx
