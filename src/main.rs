@@ -216,11 +216,11 @@ impl Pkger {
             }
 
             errors.iter().for_each(|err| match err {
-                JobResult::Failure { id, reason } => {
-                    error!(id = %id, reason = %reason, "job failed");
+                JobResult::Failure { id, duration, reason } => {
+                    error!(id = %id, reason = %reason, duration = %format!("{}s", duration.as_secs_f32()), "job failed");
                 }
-                JobResult::Success { id, output } => {
-                    info!(id = %id, output = %output, "job succeded");
+                JobResult::Success { id, duration, output } => {
+                    info!(id = %id, output = %output, duration = %format!("{}s", duration.as_secs_f32()), "job succeded");
                 }
             });
         }.instrument(span).await
