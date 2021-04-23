@@ -6,7 +6,7 @@ mod remote;
 mod rpm;
 mod scripts;
 
-use crate::image::{Image, ImageState, ImagesState};
+use crate::image::{FsImage, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
 use crate::recipe::{BuildTarget, ImageTarget, Recipe};
 use crate::Config;
@@ -40,7 +40,7 @@ macro_rules! cleanup {
 pub struct BuildCtx {
     id: String,
     recipe: Recipe,
-    image: Image,
+    image: FsImage,
     docker: Docker,
     container_bld_dir: PathBuf,
     container_out_dir: PathBuf,
@@ -144,7 +144,7 @@ impl BuildCtx {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         recipe: Recipe,
-        image: Image,
+        image: FsImage,
         docker: Docker,
         build_target: BuildTarget,
         config: Arc<Config>,
@@ -269,7 +269,7 @@ pub struct BuildContainerCtx<'job> {
     pub container: DockerContainer<'job>,
     pub opts: ContainerOptions,
     pub recipe: &'job Recipe,
-    pub image: &'job Image,
+    pub image: &'job FsImage,
     pub target: BuildTarget,
     pub container_out_dir: &'job Path,
     pub container_bld_dir: &'job Path,
@@ -282,7 +282,7 @@ impl<'job> BuildContainerCtx<'job> {
         docker: &'job Docker,
         opts: ContainerOptions,
         recipe: &'job Recipe,
-        image: &'job Image,
+        image: &'job FsImage,
         is_running: Arc<AtomicBool>,
         target: BuildTarget,
         container_out_dir: &'job Path,

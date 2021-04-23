@@ -13,6 +13,48 @@ use tracing_subscriber::registry::LookupSpan;
 
 static DEFAULT_FIELD_DELIM: &str = ", ";
 
+//####################################################################################################
+
+pub fn setup_tracing(opts: &PkgerOpts) {
+    let span = info_span!("setup-tracing");
+    let _enter = span.enter();
+
+    let filter = if let Some(filter) = env::var_os("RUST_LOG") {
+        if opts.quiet {
+            "".to_string()
+        } else {
+            filter.to_string_lossy().to_string()
+        }
+    } else if opts.quiet {
+        "pkger=error".to_string()
+    } else if opts.debug {
+        "pkger=trace".to_string()
+    } else {
+        "pkger=info".to_string()
+    };
+
+    let fmt_filter = if let Some(filter_str) = &opts.hide {
+        FmtFilter::from(filter_str.as_str())
+    } else {
+        FmtFilter::default()
+    };
+
+    let fields_fmt = PkgerFieldsFmt::from(&fmt_filter);
+    let events_fmt = PkgerEventFmt::from(&fmt_filter);
+
+    tracing_subscriber::fmt::fmt()
+        .with_max_level(Level::TRACE)
+        .with_env_filter(&filter)
+        .fmt_fields(fields_fmt)
+        .event_format(events_fmt)
+        .init();
+
+    trace!(log_filter = %filter);
+    trace!(fmt_filter = ?fmt_filter);
+}
+
+//####################################################################################################
+
 #[derive(Debug)]
 struct FmtFilter<'delim> {
     hide_date: bool,
@@ -58,43 +100,7 @@ impl<'a, 'delim> From<&'a str> for FmtFilter<'delim> {
     }
 }
 
-pub fn setup_tracing(opts: &PkgerOpts) {
-    let span = info_span!("setup-tracing");
-    let _enter = span.enter();
-
-    let filter = if let Some(filter) = env::var_os("RUST_LOG") {
-        if opts.quiet {
-            "".to_string()
-        } else {
-            filter.to_string_lossy().to_string()
-        }
-    } else if opts.quiet {
-        "pkger=error".to_string()
-    } else if opts.debug {
-        "pkger=trace".to_string()
-    } else {
-        "pkger=info".to_string()
-    };
-
-    let fmt_filter = if let Some(filter_str) = &opts.hide {
-        FmtFilter::from(filter_str.as_str())
-    } else {
-        FmtFilter::default()
-    };
-
-    let fields_fmt = PkgerFieldsFmt::from(&fmt_filter);
-    let events_fmt = PkgerEventFmt::from(&fmt_filter);
-
-    tracing_subscriber::fmt::fmt()
-        .with_max_level(Level::TRACE)
-        .with_env_filter(&filter)
-        .fmt_fields(fields_fmt)
-        .event_format(events_fmt)
-        .init();
-
-    trace!(log_filter = %filter);
-    trace!(fmt_filter = ?fmt_filter);
-}
+//####################################################################################################
 
 /// Fields visitor factory
 struct PkgerFields;
@@ -107,11 +113,14 @@ impl<'writer> MakeVisitor<&'writer mut dyn fmt::Write> for PkgerFields {
     }
 }
 
+//####################################################################################################
+
 /// Fields visitor
 struct PkgerFieldsVisitor<'writer> {
     writer: &'writer mut dyn fmt::Write,
     err: Option<fmt::Error>,
 }
+
 impl<'writer> PkgerFieldsVisitor<'writer> {
     pub fn new(writer: &'writer mut dyn fmt::Write) -> Self {
         Self { writer, err: None }
@@ -156,6 +165,8 @@ impl<'writer> VisitFmt for PkgerFieldsVisitor<'writer> {
     }
 }
 
+//####################################################################################################
+
 /// Fields formatter
 struct PkgerFieldsFmt<'delim> {
     delimiter: &'delim str,
@@ -181,6 +192,8 @@ impl<'delim> From<&FmtFilter<'delim>> for PkgerFieldsFmt<'delim> {
         }
     }
 }
+
+//####################################################################################################
 
 struct PkgerEventFmt {
     hide_date: bool,

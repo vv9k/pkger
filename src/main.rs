@@ -14,7 +14,7 @@ mod recipe;
 mod util;
 
 use crate::docker::DockerConnectionPool;
-use crate::image::{Images, ImagesState};
+use crate::image::{FsImages, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
 use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
 use crate::recipe::Recipes;
@@ -49,7 +49,7 @@ impl Config {
 
 struct Pkger {
     config: Arc<Config>,
-    images: Arc<Images>,
+    images: Arc<FsImages>,
     recipes: Arc<Recipes>,
     docker: Arc<DockerConnectionPool>,
     images_filter: Arc<Vec<String>>,
@@ -59,7 +59,7 @@ struct Pkger {
 
 impl From<Config> for Pkger {
     fn from(config: Config) -> Self {
-        let images = Images::new(config.images_dir.as_str());
+        let images = FsImages::new(config.images_dir.as_str());
         let recipes = Recipes::new(config.recipes_dir.as_str());
         let pkger = Pkger {
             config: Arc::new(config),
