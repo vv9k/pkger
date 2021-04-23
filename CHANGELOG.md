@@ -8,3 +8,4 @@
 - Excluding paths from final package now works [#36](https://github.com/wojciechkepka/pkger/pull/36)
 - Actually check if image should be rebuilt in docker [#37](https://github.com/wojciechkepka/pkger/pull/37)
 - Cache images with dependencies installed, a lot of data saved on pulled dependencies [#38](https://github.com/wojciechkepka/pkger/pull/38)
+- Dependencies now use the TOML syntax instead of a custom one [#39](https://github.com/wojciechkepka/pkger/pull/39)

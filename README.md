@@ -20,7 +20,6 @@ The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*con
    - All the metadata and information needed for the build
    - **pkger** will install all dependencies listed in `build_depends`, depending on the OS type and choosing the appropriate package manager for each supported distribution. Default dependencies like `gzip` or `git` might be installed depending on the target job type. To skip installation of default dependencies add `skip_default_deps = true` to `[metadata]`
    - Below example recipe will be built for 2 images `centos8` and `debian10`. Each image also specifies the target that should be built using it.
-   - Special syntax for unique dependencies across OSes is used to correctly install `openssl-devel` on *CentOS 8* and `libssl-dev` on *Debian 10*
    - If `git` is provided as a field, the repository that it points to will be automatically extracted to `$PKGER_OUT_DIR`, otherwise `pkger` will try to fetch `source`.
    - If `source` starts with a prefix like `http` or `https` the file that if points to will be downloaded. If the file is an archive like `.tar.gz` or `.tar.xz` it will be directly extracted to `$PKGER_BLD_DIR`, otherwise the file will be copied to the directory untouched.
 ```toml
@@ -48,14 +47,16 @@ arch = "x86_64" # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automat
 skip_default_deps = true # skip installing default dependencies, it might break the builds
 exclude = ["share", "info"] # directories to exclude from final package
 
-build_depends = [ # dependencies to install before build phase
- "curl",
- "gcc",
- "pkg-config",
- "debian10:{libssl-dev},centos8:{openssl-devel}" # custom syntax to install packages with different names
-                                                 # on different images
-]
+# Can be either a plain array when every image shares the dependencies:
+# build depends = [ "curl", "gcc", "pkg-config" ]
+#
+# Or specified per image as a map:
+[metadata.build_depends]
+all = ["gcc", "pkg-config", "git"]
+centos8 = ["cargo", "openssl-devel"]
+debian10 = ["curl", "libssl-dev"]
 
+# Same applies to this fields
 depends = []
 conflicts = []
 provides = []
@@ -66,7 +67,7 @@ priority = ""
 
 #### RPM fields
 release = "1" # defaults to 0
-obsoletes = []
+obsoletes = [] # acts the same as `build_depends`
 summary = "shorter description" # if not provided defaults to value of `description`
 ```
  - ### configure (Optional)
