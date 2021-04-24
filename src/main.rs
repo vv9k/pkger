@@ -332,21 +332,33 @@ impl Pkger {
             description: opts.description.unwrap_or_else(|| "missing".to_string()),
             license: opts.license.unwrap_or_else(|| "missing".to_string()),
             images: vec![],
+
             maintainer: opts.maintainer,
             arch: opts.arch,
             source: opts.source,
             git,
             skip_default_deps: opts.skip_default_deps,
             exclude: opts.exclude,
+            group: opts.group,
+
             build_depends: vec_as_deps!(opts.build_depends),
             depends: vec_as_deps!(opts.depends),
             conflicts: vec_as_deps!(opts.conflicts),
             provides: vec_as_deps!(opts.provides),
-            section: opts.section,
+
             priority: opts.priority,
+
             release: opts.release,
             obsoletes: vec_as_deps!(opts.obsoletes),
+            epoch: opts.epoch,
+            vendor: opts.vendor,
+            icon: opts.icon,
             summary: opts.summary,
+            pre_script: None,
+            post_script: None,
+            preun_script: None,
+            postun_script: None,
+            config_noreplace: opts.config_noreplace,
         };
 
         let recipe = RecipeRep {
