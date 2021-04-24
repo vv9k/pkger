@@ -60,13 +60,19 @@ impl TryFrom<toml::value::Array> for Dependencies {
     type Error = crate::Error;
     fn try_from(array: toml::value::Array) -> Result<Self> {
         let mut deps = Self::default();
-        deps.inner_mut().insert(
-            COMMON_DEPS_KEY.to_string(),
-            array.iter().fold(HashSet::new(), |mut set, it| {
-                set.insert(it.to_string());
-                set
-            }),
-        );
+        let mut dep_set = HashSet::new();
+        for dep in array {
+            if let toml::Value::String(dep) = dep {
+                dep_set.insert(dep);
+            } else {
+                return Err(anyhow!(
+                    "expected a string as dependency name, found `{:?}`",
+                    dep
+                ));
+            }
+        }
+        deps.inner_mut()
+            .insert(COMMON_DEPS_KEY.to_string(), dep_set);
 
         Ok(deps)
     }
@@ -87,12 +93,17 @@ impl TryFrom<toml::Value> for Dependencies {
 }
 
 impl Dependencies {
-    pub fn resolve_names(&self, image: &str) -> HashSet<String> {
+    pub fn resolve_names(&self, image: &str) -> HashSet<&str> {
         // it's ok to unwrap here, the new function adds an empty hashset on initialization
-        let mut deps = self.inner.get(COMMON_DEPS_KEY).unwrap().clone();
+        let mut deps = HashSet::new();
+        if let Some(common_deps) = self.inner.get(COMMON_DEPS_KEY) {
+            common_deps.iter().for_each(|dep| {
+                deps.insert(dep.as_str());
+            });
+        }
         if let Some(image_deps) = self.inner.get(image) {
             image_deps.iter().for_each(|dep| {
-                deps.insert(dep.clone());
+                deps.insert(dep.as_str());
             });
         }
 
@@ -127,7 +138,7 @@ mod tests {
             $(
             let mut $image = HashSet::new();
                 $(
-            $image.insert($dep.to_string());
+            $image.insert($dep);
                 )+
 
             assert_eq!($image, got.resolve_names(stringify!($image)));

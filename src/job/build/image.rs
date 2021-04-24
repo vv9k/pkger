@@ -35,7 +35,12 @@ impl BuildCtx {
                 .in_scope(|| find_cached_state(&self.image, &self.target, &self.image_state));
 
             if let Some(state) = result {
-                if deps != state.deps {
+                let state_deps = state
+                    .deps
+                    .iter()
+                    .map(|s| s.as_str())
+                    .collect::<HashSet<_>>();
+                if deps != state_deps {
                     info!(old = ?state.deps, new = ?deps, "dependencies changed");
                 } else {
                     trace!("unchanged");
@@ -102,7 +107,7 @@ impl<'job> BuildContainerCtx<'job> {
         &self,
         docker: &Docker,
         state: &ImageState,
-        deps: &HashSet<String>,
+        deps: &HashSet<&str>,
     ) -> Result<ImageState> {
         let span = info_span!("cache-image", image = %state.image);
         async move {
