@@ -119,15 +119,9 @@ impl TryFrom<RecipeRep> for Recipe {
 impl Recipe {
     pub fn as_deb_control(&self, image: &str) -> BinaryDebControl {
         let arch = self.metadata.deb_arch();
-        let maintainer = if let Some(maintainer) = &self.metadata.maintainer {
-            maintainer
-        } else {
-            "none"
-        };
         let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
             .version(&self.metadata.version)
             .description(&self.metadata.description)
-            .maintainer(maintainer)
             .architecture(arch);
 
         if let Some(group) = &self.metadata.group {
@@ -141,6 +135,9 @@ impl Recipe {
         }
         if let Some(provides) = &self.metadata.provides {
             builder = builder.add_provides_entries(provides.resolve_names(image));
+        }
+        if let Some(maintainer) = &self.metadata.maintainer {
+            builder = builder.maintainer(maintainer);
         }
 
         if let Some(deb) = &self.metadata.deb {
