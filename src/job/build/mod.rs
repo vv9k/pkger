@@ -201,8 +201,8 @@ impl BuildCtx {
             let mut env = self.recipe.env.clone();
             env.insert("PKGER_BLD_DIR", self.container_bld_dir.to_string_lossy());
             env.insert("PKGER_OUT_DIR", self.container_out_dir.to_string_lossy());
-            env.insert("PKGER_OS", image_state.os.as_ref());
-            env.insert("PKGER_OS_VERSION", image_state.os.os_ver());
+            env.insert("PKGER_OS", image_state.os.name());
+            env.insert("PKGER_OS_VERSION", image_state.os.version());
             trace!(env = ?env);
 
             let opts = ContainerOptions::builder(&image_state.id)
@@ -239,10 +239,8 @@ impl BuildCtx {
     async fn create_out_dir(&self, image: &ImageState) -> Result<PathBuf> {
         let span = info_span!("create-out-dir");
         async move {
-            let os_ver = image.os.os_ver();
-            let out_dir = self
-                .out_dir
-                .join(format!("{}/{}", image.os.as_ref(), os_ver));
+            let os_ver = image.os.version();
+            let out_dir = self.out_dir.join(format!("{}/{}", image.os.name(), os_ver));
 
             if out_dir.exists() {
                 trace!(dir = %out_dir.display(), "already exists, skipping");

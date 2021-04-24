@@ -1,8 +1,7 @@
-use crate::image::{self, FsImage, ImageState, ImagesState};
+use crate::image::{FsImage, ImageState, ImagesState};
 use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
-use crate::os::Os;
 use crate::recipe::RecipeTarget;
 use crate::Result;
 
@@ -36,26 +35,17 @@ impl BuildCtx {
                 .in_scope(|| find_cached_state(&self.image, &self.target, &self.image_state));
 
             if let Some(state) = result {
-                macro_rules! if_state_exists_ret {
-                    () => {
-                        if state.exists(&self.docker).await {
-                            trace!("state exists in docker");
-                            if let Os::Unknown = state.os {
-                                info!("state has an unknown os, rebuilding");
-                            } else {
-                                return Ok(state);
-                            }
-                        } else {
-                            warn!("found cached state but image doesn't exist in docker")
-                        }
-                    };
-                }
-
                 if deps != state.deps {
                     info!(old = ?state.deps, new = ?deps, "dependencies changed");
                 } else {
                     trace!("unchanged");
-                    if_state_exists_ret!();
+
+                    if state.exists(&self.docker).await {
+                        trace!("state exists in docker");
+                        return Ok(state);
+                    } else {
+                        warn!("found cached state but image doesn't exist in docker")
+                    }
                 }
             }
 
@@ -116,19 +106,14 @@ impl<'job> BuildContainerCtx<'job> {
     ) -> Result<ImageState> {
         let span = info_span!("cache-image", image = %state.image);
         async move {
-            let os = if let Os::Unknown = &state.os {
-                image::find_os(&state.id, &docker).await?
-            } else {
-                state.os.clone()
-            };
-            let pkg_mngr = os.package_manager();
+            let pkg_mngr = state.os.package_manager();
             let pkg_mngr_name = pkg_mngr.as_ref();
             let tag = format!("{}:{}", state.image, state.tag);
 
             if pkg_mngr_name.is_empty() {
                 return Err(anyhow!(
                     "caching image failed - no package manger found for os `{}`",
-                    os.as_ref()
+                    state.os.name()
                 ));
             }
 
