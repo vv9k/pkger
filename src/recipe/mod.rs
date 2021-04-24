@@ -247,7 +247,7 @@ macro_rules! impl_step_rep {
             fn try_from(rep: $ty_rep) -> Result<Self> {
                 let mut steps = Vec::with_capacity(rep.steps.len());
 
-                for result in rep.steps.into_iter().map(|it| Cmd::try_from(it)) {
+                for result in rep.steps.into_iter().map(Cmd::try_from) {
                     steps.push(result?);
                 }
 
