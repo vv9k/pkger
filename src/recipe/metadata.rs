@@ -56,6 +56,27 @@ pub struct MetadataRep {
 
     // Only RPM
     pub rpm: Option<RpmRep>,
+
+    // Only PKG
+    pub pkg: Option<PkgRep>,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct PkgRep {
+    pub pkgrel: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PkgInfo {
+    pub pkgrel: Option<String>,
+}
+
+impl TryFrom<PkgRep> for PkgInfo {
+    type Error = Error;
+
+    fn try_from(rep: PkgRep) -> Result<Self> {
+        Ok(Self { pkgrel: rep.pkgrel })
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -191,6 +212,8 @@ pub struct Metadata {
     pub deb: Option<DebInfo>,
 
     pub rpm: Option<RpmInfo>,
+
+    pub pkg: Option<PkgInfo>,
 }
 
 impl Metadata {
@@ -219,6 +242,20 @@ impl Metadata {
             }
         } else {
             "noarch"
+        }
+    }
+
+    /// Returns the name of `arch` appropriate for PKG build
+    pub fn pkg_arch(&self) -> &str {
+        if let Some(arch) = &self.arch {
+            match &arch[..] {
+                "amd64" | "x86_64" => "x86_64",
+                "x86" | "i386" => "x86",
+                arch => arch,
+                // #TODO: add more...
+            }
+        } else {
+            "any"
         }
     }
 
@@ -279,6 +316,12 @@ impl TryFrom<MetadataRep> for Metadata {
 
             rpm: if let Some(rpm) = rep.rpm {
                 Some(RpmInfo::try_from(rpm)?)
+            } else {
+                None
+            },
+
+            pkg: if let Some(pkg) = rep.pkg {
+                Some(PkgInfo::try_from(pkg)?)
             } else {
                 None
             },

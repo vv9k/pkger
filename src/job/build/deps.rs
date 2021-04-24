@@ -27,6 +27,10 @@ pub fn pkger_deps(target: &BuildTarget, recipe: &Recipe) -> HashSet<&'static str
         BuildTarget::Gzip => {
             deps.insert("gzip");
         }
+        BuildTarget::Pkg => {
+            deps.insert("base-devel");
+            deps.insert("sudo");
+        }
     }
     if recipe.metadata.git.is_some() {
         deps.insert("git");

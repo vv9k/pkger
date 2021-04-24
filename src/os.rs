@@ -119,7 +119,7 @@ impl PackageManager {
         match self {
             Self::Apt => vec!["install", "-y"],
             Self::Dnf => vec!["install", "-y"],
-            Self::Pacman => vec!["-S"],
+            Self::Pacman => vec!["-S", "--noconfirm"],
             Self::Yum => vec!["install", "-y"],
         }
     }
@@ -128,7 +128,7 @@ impl PackageManager {
         match self {
             Self::Apt => vec!["update", "-y"],
             Self::Dnf | Self::Yum => vec!["clean", "metadata"],
-            Self::Pacman => vec!["-Sy"],
+            Self::Pacman => vec!["-Sy", "--noconfirm"],
         }
     }
 
@@ -136,7 +136,7 @@ impl PackageManager {
         match self {
             Self::Apt => vec!["dist-upgrade", "-y"],
             Self::Dnf | Self::Yum => vec!["update", "-y"],
-            Self::Pacman => vec!["-Syu"],
+            Self::Pacman => vec!["-Syu", "--noconfirm"],
         }
     }
 }
