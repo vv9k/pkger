@@ -2,6 +2,7 @@ mod deb;
 mod deps;
 mod gzip;
 mod image;
+mod pkg;
 mod remote;
 mod rpm;
 mod scripts;
@@ -316,6 +317,7 @@ impl<'job> BuildContainerCtx<'job> {
             BuildTarget::Rpm => self.build_rpm(&image_state, &output_dir).await,
             BuildTarget::Gzip => self.build_gzip(&output_dir).await,
             BuildTarget::Deb => self.build_deb(&image_state, &output_dir).await,
+            BuildTarget::Pkg => self.build_pkg(&image_state, &output_dir).await,
         }
     }
 

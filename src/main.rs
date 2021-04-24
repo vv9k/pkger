@@ -20,7 +20,7 @@ use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use recipe::{DebRep, MetadataRep, RecipeRep, RpmRep};
+use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -354,6 +354,10 @@ impl Pkger {
             config_noreplace: opts.config_noreplace,
         };
 
+        let pkg = PkgRep {
+            pkgrel: opts.pkgrel,
+        };
+
         let metadata = MetadataRep {
             name: opts.name,
             version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
@@ -377,6 +381,7 @@ impl Pkger {
 
             deb: Some(deb),
             rpm: Some(rpm),
+            pkg: Some(pkg),
         };
 
         let recipe = RecipeRep {

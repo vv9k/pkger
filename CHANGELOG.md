@@ -14,3 +14,4 @@
 - Add some more fields for RPM builds, rename `section` to `group` and use it for RPM as well as DEB [#41](https://github.com/wojciechkepka/pkger/pull/41)
 - Separate RPM and DEB fields in recipe metadata [#42](https://github.com/wojciechkepka/pkger/pull/42)
 - Add missing fields for DEB builds, add `url` field to metadata [#43](https://github.com/wojciechkepka/pkger/pull/43)
+- Add initial PKG target [#44](https://github.com/wojciechkepka/pkger/pull/44)

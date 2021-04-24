@@ -3,13 +3,15 @@ mod metadata;
 
 pub use envs::Env;
 pub use metadata::{
-    BuildTarget, DebInfo, DebRep, GitSource, ImageTarget, Metadata, MetadataRep, RpmInfo, RpmRep,
+    BuildTarget, DebInfo, DebRep, GitSource, ImageTarget, Metadata, MetadataRep, PkgInfo, PkgRep,
+    RpmInfo, RpmRep,
 };
 
 use crate::cmd::Cmd;
 use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
+use pkgbuild::PkgBuild;
 use rpmspec::RpmSpec;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -259,6 +261,53 @@ impl Recipe {
         }
         if let Some(requires) = &self.metadata.depends {
             builder = builder.add_requires_entries(requires.resolve_names(image));
+        }
+
+        builder.build()
+    }
+
+    pub fn as_pkgbuild(&self, image: &str, sources: &[String], checksums: &[String]) -> PkgBuild {
+        let package_func = sources.iter().fold(String::new(), |mut s, src| {
+            s.push_str(&format!("    tar xvf {} -C $pkgdir\n", src));
+            s
+        });
+
+        let mut builder = PkgBuild::builder()
+            .pkgname(&self.metadata.name)
+            .pkgver(&self.metadata.version)
+            .pkgdesc(&self.metadata.description)
+            .add_license_entries(vec![&self.metadata.license])
+            .add_arch_entries(vec![self
+                .metadata
+                .arch
+                .clone()
+                .unwrap_or_else(|| "any".to_string())])
+            .add_source_entries(sources)
+            .add_md5sums_entries(checksums)
+            .package_func(package_func);
+
+        if let Some(url) = &self.metadata.url {
+            builder = builder.url(url);
+        }
+        if let Some(depends) = &self.metadata.depends {
+            builder = builder.add_depends_entries(depends.resolve_names(image));
+        }
+        if let Some(conflicts) = &self.metadata.conflicts {
+            builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
+        }
+        if let Some(provides) = &self.metadata.provides {
+            builder = builder.add_provides_entries(provides.resolve_names(image));
+        }
+
+        if let Some(pkg) = &self.metadata.pkg {
+            if let Some(pkgrel) = &pkg.pkgrel {
+                builder = builder.pkgrel(pkgrel);
+            } else {
+                // default to "1" as it's required
+                builder = builder.pkgrel("1");
+            }
+        } else {
+            builder = builder.pkgrel("1");
         }
 
         builder.build()
