@@ -79,6 +79,9 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     pub maintainer: Option<String>,
     #[clap(long)]
+    /// The website of the package
+    pub url: Option<String>,
+    #[clap(long)]
     pub arch: Option<String>,
     #[clap(long)]
     /// http/https or file system source pointing to a tar archive or some other file
@@ -118,6 +121,34 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     /// Only applies to DEB build
     pub priority: Option<String>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub installed_size: Option<String>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub built_using: Option<String>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub essential: Option<bool>,
+
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub pre_depends: Option<Vec<String>>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub recommends: Option<Vec<String>>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub suggests: Option<Vec<String>>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub breaks: Option<Vec<String>>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub replaces: Option<Vec<String>>,
+    #[clap(long)]
+    /// Only applies to DEB build
+    pub enchances: Option<Vec<String>>,
 
     // Only RPM
     #[clap(long)]

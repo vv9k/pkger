@@ -46,6 +46,9 @@ git = "https://github.com/wojciechkepka/pkger.git" # will default to branch = "m
 
 maintainer = "Wojciech Kępka <wojciech@wkepka.dev>"
 
+# The website of the package being built
+url = "https://github.com/wojciechkepka/pkger"
+
 arch = "x86_64" # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
 
 skip_default_deps = true # skip installing default dependencies, it might break the builds
@@ -75,7 +78,17 @@ debian10 = ["curl", "libssl-dev"]
 
 [metadata.deb]
 priority = ""
+installed_size = ""
+built_using = ""
+essential = true
 
+# same as all other dependencies but deb specific
+pre_depends = []
+recommends = []
+suggests = []
+breaks = []
+replaces = []
+enchances = []
 
 #### RPM fields
 
