@@ -23,8 +23,9 @@ The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*con
    - If `git` is provided as a field, the repository that it points to will be automatically extracted to `$PKGER_OUT_DIR`, otherwise `pkger` will try to fetch `source`.
    - If `source` starts with a prefix like `http` or `https` the file that if points to will be downloaded. If the file is an archive like `.tar.gz` or `.tar.xz` it will be directly extracted to `$PKGER_BLD_DIR`, otherwise the file will be copied to the directory untouched.
 ```toml
-[metadata]
 #### required common fields
+
+[metadata]
 name = "pkger"
 version = "0.1.0"
 description = "A package building tool utilizing Docker"
@@ -36,37 +37,49 @@ images = [
 
 
 #### optional common
+
 source = "" # remote source or file system location
 
 git = "https://github.com/wojciechkepka/pkger.git" # will default to branch = "master"
 # or specify a branch like this:
 # git = { url = "https://github.com/wojciechkepka/pkger.git", branch = "dev" }
 
-maintainer = "Wojciech Kępka <wojciech@wkepka.dev>" # defaults to `none` for DEB build as it's required
+maintainer = "Wojciech Kępka <wojciech@wkepka.dev>"
+
 arch = "x86_64" # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
+
 skip_default_deps = true # skip installing default dependencies, it might break the builds
+
 exclude = ["share", "info"] # directories to exclude from final package
+
 group = "" # acts as Group in RPM or Section in DEB build
 
-# Can be either a plain array when every image shares the dependencies:
-# build depends = [ "curl", "gcc", "pkg-config" ]
-#
+#### dependencies
+
+# This fields can be specified as arrays
+depends   = []
+conflicts = []
+provides  = []
+
 # Or specified per image as a map:
 [metadata.build_depends]
-all = ["gcc", "pkg-config", "git"]
-centos8 = ["cargo", "openssl-devel"]
+all      = ["gcc", "pkg-config", "git"]
+centos8  = ["cargo", "openssl-devel"]
 debian10 = ["curl", "libssl-dev"]
 
-# Same applies to this fields
-depends = []
-conflicts = []
-provides = []
+# If specifying some deps as array and some as maps the arrays always have to come before the maps
+# otherwise TOML breaks
 
-#### optional DEB fields
+
+#### DEB fields
+
+[metadata.deb]
 priority = ""
 
+
 #### RPM fields
-obsoletes = [] # acts the same as `build_depends`
+
+[metadata.rpm]
 release = "1" # defaults to 0
 epoch = "42"
 vendor = ""
@@ -78,6 +91,12 @@ pre_script = ""
 post_script = ""
 preun_script = ""
 postun_script = ""
+
+# acts the same as other dependencies - can be passed as array
+# obsoletes = ["foo"]
+# or as a map per image at the end of rpm fields definition
+[metadata.rpm.obsoletes]
+centos8 = ["foo"]
 
 ```
  - ### configure (Optional)
