@@ -1080,6 +1080,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
 
 [[package]]
+name = "pkgbuild"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d502d8575142d66489c87b588264dafdd821cd375b0f329e0300a4e27d2b54e"
+dependencies = [
+ "paste",
+ "pkgspec",
+]
+
+[[package]]
 name = "pkger"
 version = "0.1.0"
 dependencies = [
@@ -1094,6 +1104,7 @@ dependencies = [
  "flate2",
  "futures 0.3.14",
  "moby",
+ "pkgbuild",
  "pretty_assertions",
  "rpmspec",
  "serde",

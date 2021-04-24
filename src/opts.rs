@@ -172,4 +172,9 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     /// Only applies to RPM
     pub config_noreplace: Option<String>,
+
+    // Only PKG
+    #[clap(long)]
+    /// Only applies to PKG
+    pub pkgrel: Option<String>,
 }

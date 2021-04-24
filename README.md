@@ -1,7 +1,7 @@
 # pkger 📦
 [![Build Status](https://github.com/wojciechkepka/pkger/workflows/pkger%20CI/badge.svg)](https://github.com/wojciechkepka/pkger/actions?query=workflow%3A%22pkger+CI%22)
 
-**pkger** is a tool that automates building *RPMs*, *DEBs* and other packages on multiple *Linux* distributions, versions and architectures with the help of Docker.
+**pkger** is a tool that automates building *RPMs*, *DEBs*, *PKG*, and other packages on multiple *Linux* distributions, versions and architectures with the help of Docker.
 
 ![Example output](https://github.com/wojciechkepka/pkger/blob/master/assets/example_output.png)
 
@@ -93,7 +93,7 @@ enchances = []
 #### RPM fields
 
 [metadata.rpm]
-release = "1" # defaults to 0
+release = "1" # defaults to "0"
 epoch = "42"
 vendor = ""
 icon = ""
@@ -110,6 +110,11 @@ postun_script = ""
 # or as a map per image at the end of rpm fields definition
 [metadata.rpm.obsoletes]
 centos8 = ["foo"]
+
+#### PKG fields
+
+[metadata.pkg]
+pkgrel = "2" # defaults to "0"
 
 ```
  - ### configure (Optional)
@@ -160,7 +165,7 @@ RUST_LOG = "trace"
 
 ## Final package
 
-Currently available targets are: *RPM*, *DEB*, *GZIP*.  
+Currently available targets are: *RPM*, *DEB*, *PKG*, *GZIP*.  
 
 After executing build script (or install if provided), **pkger** will copy all files from `$PKGER_OUT_DIR` to final package. So for example if this directory contains a file `$PKGER_OUT_DIR/usr/bin/pkger` this file will be added to the package as `/usr/bin/pkger`.
 

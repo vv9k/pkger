@@ -157,23 +157,21 @@ impl<'job> DockerContainer<'job> {
                         .working_dir(dir)
                         .build()
                 }
+            } else if let Some(user) = user {
+                let user = user.into();
+                debug!(user = %user);
+                ExecContainerOptions::builder()
+                    .cmd(sh_cmd)
+                    .attach_stdout(true)
+                    .attach_stderr(true)
+                    .user(user)
+                    .build()
             } else {
-                if let Some(user) = user {
-                    let user = user.into();
-                    debug!(user = %user);
-                    ExecContainerOptions::builder()
-                        .cmd(sh_cmd)
-                        .attach_stdout(true)
-                        .attach_stderr(true)
-                        .user(user)
-                        .build()
-                } else {
-                    ExecContainerOptions::builder()
-                        .cmd(sh_cmd)
-                        .attach_stdout(true)
-                        .attach_stderr(true)
-                        .build()
-                }
+                ExecContainerOptions::builder()
+                    .cmd(sh_cmd)
+                    .attach_stdout(true)
+                    .attach_stderr(true)
+                    .build()
             };
 
             let exec = Exec::create(&self.docker, self.id(), &opts).await?;

@@ -9,13 +9,15 @@ git = "https://github.com/wojciechkepka/pkger.git"
 provides = ["pkger"]
 images = [
     { name = "centos8", target = "rpm" },
-    { name = "debian10", target = "deb" }
+    { name = "debian10", target = "deb" },
+    { name = "arch", target = "pkg" }
 ]
 
 [metadata.build_depends]
 all = ["gcc", "pkg-config", "git"]
 centos8 = ["cargo", "openssl-devel"]
 debian10 = ["curl", "libssl-dev"]
+arch = ["cargo"]
 
 [configure]
 steps = [
@@ -25,7 +27,7 @@ steps = [
 
 [build]
 steps = [
-    {cmd = "cargo build --color=never", images = ["centos8"]},
+    {cmd = "cargo build --color=never", images = ["centos8", "arch"]},
     {cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"]}
 ]
 

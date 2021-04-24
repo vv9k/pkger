@@ -8,6 +8,7 @@ pub enum BuildTarget {
     Rpm,
     Deb,
     Gzip,
+    Pkg,
 }
 
 impl Default for BuildTarget {
@@ -24,6 +25,7 @@ impl TryFrom<&str> for BuildTarget {
             "rpm" => Ok(Self::Rpm),
             "deb" => Ok(Self::Deb),
             "gzip" => Ok(Self::Gzip),
+            "pkg" => Ok(Self::Pkg),
             target => Err(anyhow!("unknown build target `{}`", target)),
         }
     }
@@ -35,6 +37,7 @@ impl AsRef<str> for BuildTarget {
             BuildTarget::Rpm => "rpm",
             BuildTarget::Deb => "deb",
             BuildTarget::Gzip => "gzip",
+            BuildTarget::Pkg => "pkg",
         }
     }
 }
