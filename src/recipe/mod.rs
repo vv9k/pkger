@@ -2,7 +2,9 @@ mod envs;
 mod metadata;
 
 pub use envs::Env;
-pub use metadata::{BuildTarget, GitSource, ImageTarget, Metadata, MetadataRep};
+pub use metadata::{
+    BuildTarget, DebInfo, DebRep, GitSource, ImageTarget, Metadata, MetadataRep, RpmInfo, RpmRep,
+};
 
 use crate::cmd::Cmd;
 use crate::{Error, Result};
@@ -128,6 +130,9 @@ impl Recipe {
             .maintainer(maintainer)
             .architecture(arch);
 
+        if let Some(group) = &self.metadata.group {
+            builder = builder.section(group);
+        }
         if let Some(depends) = &self.metadata.depends {
             builder = builder.add_depends_entries(depends.resolve_names(image));
         }
@@ -138,8 +143,10 @@ impl Recipe {
             builder = builder.add_provides_entries(provides.resolve_names(image));
         }
 
-        if let Some(group) = &self.metadata.group {
-            builder = builder.section(group);
+        if let Some(deb) = &self.metadata.deb {
+            if let Some(priority) = &deb.priority {
+                builder = builder.priority(priority);
+            }
         }
 
         builder.build()
@@ -160,61 +167,58 @@ impl Recipe {
                 s
             });
 
-        macro_rules! let_some_or {
-            ($field:ident, $default:expr) => {
-                if let Some($field) = &self.metadata.$field {
-                    $field
-                } else {
-                    $default
-                };
-            };
-        }
-        let release = let_some_or!(release, "0");
-        let arch = let_some_or!(arch, "noarch");
-        let summary = let_some_or!(summary, &self.metadata.description);
-
         let mut builder = RpmSpec::builder()
             .name(&self.metadata.name)
-            .build_arch(arch)
-            .summary(summary)
+            .build_arch(self.metadata.rpm_arch())
             .description(&self.metadata.description)
             .license(&self.metadata.license)
             .version(&self.metadata.version)
-            .release(release)
+            .release(self.metadata.rpm_release())
             .add_files_entries(files)
             .add_dir_files_entries(dirs)
             .add_sources_entries(sources)
             .install_script(&install_script)
             .description(&self.metadata.description);
+
+        if let Some(rpm) = &self.metadata.rpm {
+            if let Some(obsoletes) = &rpm.obsoletes {
+                builder = builder.add_obsoletes_entries(obsoletes.resolve_names(image));
+            }
+            if let Some(epoch) = &rpm.epoch {
+                builder = builder.epoch(epoch);
+            }
+            if let Some(vendor) = &rpm.vendor {
+                builder = builder.vendor(vendor);
+            }
+            if let Some(icon) = &rpm.icon {
+                builder = builder.icon(icon);
+            }
+            if let Some(pre_script) = &rpm.pre_script {
+                builder = builder.pre_script(pre_script);
+            }
+            if let Some(post_script) = &rpm.post_script {
+                builder = builder.post_script(post_script);
+            }
+            if let Some(preun_script) = &rpm.preun_script {
+                builder = builder.preun_script(preun_script);
+            }
+            if let Some(post_script) = &rpm.post_script {
+                builder = builder.post_script(post_script);
+            }
+            if let Some(config_noreplace) = &rpm.config_noreplace {
+                builder = builder.config_noreplace(config_noreplace);
+            }
+            if let Some(summary) = &rpm.summary {
+                builder = builder.summary(summary);
+            } else {
+                builder = builder.summary(&self.metadata.description);
+            }
+        }
         if let Some(group) = &self.metadata.group {
             builder = builder.group(group);
         }
         if let Some(maintainer) = &self.metadata.maintainer {
             builder = builder.packager(maintainer);
-        }
-        if let Some(epoch) = &self.metadata.epoch {
-            builder = builder.epoch(epoch);
-        }
-        if let Some(vendor) = &self.metadata.vendor {
-            builder = builder.vendor(vendor);
-        }
-        if let Some(icon) = &self.metadata.icon {
-            builder = builder.icon(icon);
-        }
-        if let Some(pre_script) = &self.metadata.pre_script {
-            builder = builder.pre_script(pre_script);
-        }
-        if let Some(post_script) = &self.metadata.post_script {
-            builder = builder.post_script(post_script);
-        }
-        if let Some(preun_script) = &self.metadata.preun_script {
-            builder = builder.preun_script(preun_script);
-        }
-        if let Some(post_script) = &self.metadata.post_script {
-            builder = builder.post_script(post_script);
-        }
-        if let Some(config_noreplace) = &self.metadata.config_noreplace {
-            builder = builder.config_noreplace(config_noreplace);
         }
         if let Some(conflicts) = &self.metadata.conflicts {
             builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
@@ -224,9 +228,6 @@ impl Recipe {
         }
         if let Some(requires) = &self.metadata.depends {
             builder = builder.add_requires_entries(requires.resolve_names(image));
-        }
-        if let Some(obsoletes) = &self.metadata.obsoletes {
-            builder = builder.add_obsoletes_entries(obsoletes.resolve_names(image));
         }
 
         builder.build()
