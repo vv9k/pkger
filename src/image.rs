@@ -36,7 +36,7 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
 
         let os_name = extract_key(&out, "ID");
         let version = extract_key(&out, "VERSION_ID");
-        Ok(Os::from(os_name, version))
+        Os::new(os_name.unwrap_or_default(), version)
     }
     .instrument(span)
     .await
@@ -160,7 +160,7 @@ impl ImageState {
         let span = info_span!("create-image-state", image = %name);
         async move {
             let os = find_os(id, docker).await?;
-            debug!(os = %os.as_ref(), version = %os.os_ver(), "parsed image info");
+            debug!(os = %os.name(), version = %os.version(), "parsed image info");
 
             let image_handle = docker.images().get(id);
             let details = image_handle.inspect().await?;

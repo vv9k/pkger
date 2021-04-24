@@ -73,7 +73,7 @@ impl<'job> BuildContainerCtx<'job> {
             .await
             .map_err(|e| anyhow!("failed to copy source files to build directory - {}", e))?;
 
-            let dpkg_deb_opts = if image_state.os.os_ver().parse::<u8>().unwrap_or_default() < 10 {
+            let dpkg_deb_opts = if image_state.os.version().parse::<u8>().unwrap_or_default() < 10 {
                 "--build"
             } else {
                 "--build --root-owner-group"
