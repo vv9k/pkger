@@ -1,14 +1,14 @@
 mod envs;
 mod metadata;
 
+pub use envs::Env;
+pub use metadata::{BuildTarget, GitSource, ImageTarget, Metadata, MetadataRep};
+
 use crate::cmd::Cmd;
 use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
-pub use envs::Env;
-pub use metadata::{BuildTarget, GitSource, ImageTarget, Metadata, MetadataRep};
 use rpmspec::RpmSpec;
-
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
@@ -203,7 +203,7 @@ impl Recipe {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RecipeRep {
     pub metadata: MetadataRep,
     pub env: Option<toml::value::Table>,
@@ -213,8 +213,12 @@ pub struct RecipeRep {
 }
 
 impl RecipeRep {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        Ok(toml::from_slice::<RecipeRep>(&fs::read(&path)?)?)
+    pub fn from_toml_bytes(data: &[u8]) -> Result<Self> {
+        Ok(toml::from_slice(&data)?)
+    }
+
+    pub fn read_from<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Self::from_toml_bytes(&fs::read(&path)?)
     }
 }
 
@@ -224,7 +228,7 @@ impl TryFrom<DirEntry> for RecipeRep {
     fn try_from(entry: DirEntry) -> Result<Self> {
         let mut path = entry.path();
         path.push(DEFAULT_RECIPE_FILE);
-        RecipeRep::new(path)
+        RecipeRep::read_from(path)
     }
 }
 
@@ -267,7 +271,7 @@ macro_rules! impl_step_rep {
             }
         }
 
-        #[derive(Deserialize, Serialize, Debug, Default)]
+        #[derive(Clone, Deserialize, Serialize, Debug, Default)]
         pub struct $ty_rep {
             pub steps: Vec<toml::Value>,
             pub working_dir: Option<PathBuf>,
@@ -279,3 +283,30 @@ macro_rules! impl_step_rep {
 impl_step_rep!(BuildScript, BuildRep);
 impl_step_rep!(InstallScript, InstallRep);
 impl_step_rep!(ConfigureScript, ConfigureRep);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    const TEST_RECIPE: &[u8] = include_bytes!("../../example/recipes/test/recipe.toml");
+
+    #[test]
+    fn parses_recipe_from_rep() {
+        let rep = RecipeRep::from_toml_bytes(&TEST_RECIPE).unwrap();
+        let parsed = Recipe::try_from(rep.clone()).unwrap();
+
+        let rep_config = rep.configure.unwrap();
+        let config = parsed.configure_script.unwrap();
+        assert_eq!(config.working_dir, rep_config.working_dir);
+        assert_eq!(config.shell, rep_config.shell);
+
+        assert_eq!(parsed.build_script.working_dir, rep.build.working_dir);
+        assert_eq!(parsed.build_script.shell, rep.build.shell);
+
+        let rep_install = rep.install.unwrap();
+        let install = parsed.install_script.unwrap();
+        assert_eq!(install.working_dir, rep_install.working_dir);
+        assert_eq!(install.shell, rep_install.shell);
+    }
+}

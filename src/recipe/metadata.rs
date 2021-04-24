@@ -11,12 +11,21 @@ pub enum BuildTarget {
     Gzip,
 }
 
-impl From<Option<String>> for BuildTarget {
-    fn from(s: Option<String>) -> Self {
-        match s.map(|inner| inner.to_lowercase()) {
-            Some(s) if &s == "rpm" => Self::Rpm,
-            Some(s) if &s == "deb" => Self::Deb,
-            _ => Self::Gzip,
+impl Default for BuildTarget {
+    fn default() -> Self {
+        Self::Gzip
+    }
+}
+
+impl TryFrom<&str> for BuildTarget {
+    type Error = Error;
+
+    fn try_from(s: &str) -> Result<Self> {
+        match &s.to_lowercase()[..] {
+            "rpm" => Ok(Self::Rpm),
+            "deb" => Ok(Self::Deb),
+            "gzip" => Ok(Self::Gzip),
+            target => Err(anyhow!("unknown build target `{}`", target)),
         }
     }
 }
@@ -37,21 +46,57 @@ pub struct GitSource {
     // defaults to master
     branch: String,
 }
+
+impl From<&str> for GitSource {
+    fn from(s: &str) -> Self {
+        Self {
+            url: s.to_string(),
+            branch: "master".to_string(),
+        }
+    }
+}
+
+impl TryFrom<toml::value::Table> for GitSource {
+    type Error = Error;
+    fn try_from(table: toml::value::Table) -> Result<Self> {
+        if let Some(url) = table.get("url") {
+            if !url.is_str() {
+                return Err(anyhow!("expected a string as url, found `{:?}`", url));
+            }
+
+            let url = url.as_str().unwrap().to_string();
+
+            if let Some(branch) = table.get("branch") {
+                if !branch.is_str() {
+                    return Err(anyhow!("expected a string as branch, found `{:?}`", branch));
+                }
+
+                return Ok(GitSource::new(
+                    url,
+                    Some(branch.as_str().unwrap().to_string()),
+                ));
+            }
+
+            Ok(GitSource::new(url, None::<&str>))
+        } else {
+            Err(anyhow!(
+                "expected a url entry in a table, found `{:?}`",
+                table
+            ))
+        }
+    }
+}
+
 impl TryFrom<toml::Value> for GitSource {
     type Error = Error;
     fn try_from(value: toml::Value) -> Result<Self> {
-        if let Some(url) = value.get("url") {
-            Ok(GitSource::new(
-                url.to_string(),
-                value.get("branch").map(toml::Value::to_string),
-            ))
-        } else if value.is_str() {
-            Ok(GitSource::new(value.to_string(), None::<&str>))
-        } else {
-            Err(anyhow!(
-                "git source entry missing url `{}`",
-                value.to_string()
-            ))
+        match value {
+            toml::Value::Table(table) => Self::try_from(table),
+            toml::Value::String(s) => Ok(Self::from(s.as_str())),
+            value => Err(anyhow!(
+                "expected a table or a string as git source, found `{:?}`",
+                value
+            )),
         }
     }
 }
@@ -89,20 +134,52 @@ impl ImageTarget {
     }
 }
 
+impl TryFrom<toml::value::Table> for ImageTarget {
+    type Error = Error;
+
+    fn try_from(map: toml::value::Table) -> Result<Self> {
+        if let Some(image) = map.get("name") {
+            if !image.is_str() {
+                return Err(anyhow!(
+                    "expected a string as image name, found `{:?}`",
+                    image
+                ));
+            }
+            let image = image.as_str().unwrap().to_string();
+
+            let target = if let Some(target) = map.get("target") {
+                if !target.is_str() {
+                    return Err(anyhow!(
+                        "expected a string as image target, found `{:?}`",
+                        image
+                    ));
+                } else {
+                    BuildTarget::try_from(target.as_str().unwrap())?
+                }
+            } else {
+                BuildTarget::default()
+            };
+
+            Ok(ImageTarget { image, target })
+        } else {
+            Err(anyhow!("image name not found in `{:?}`", map))
+        }
+    }
+}
+
 impl TryFrom<toml::Value> for ImageTarget {
     type Error = Error;
     fn try_from(value: toml::Value) -> Result<Self> {
-        if let Some(image) = value.get("name") {
-            Ok(Self {
-                image: image.to_string().trim_matches('"').to_string(),
-                target: BuildTarget::from(
-                    value
-                        .get("target")
-                        .map(|v| v.to_string().trim_matches('"').to_string()),
-                ),
-            })
-        } else {
-            Err(anyhow!("image entry missing name `{}`", value.to_string()))
+        match value {
+            toml::Value::Table(map) => Self::try_from(map),
+            toml::Value::String(image) => Ok(Self {
+                image,
+                target: BuildTarget::default(),
+            }),
+            value => Err(anyhow!(
+                "expected a map or string for image, found `{:?}`",
+                value
+            )),
         }
     }
 }
@@ -236,7 +313,7 @@ impl TryFrom<MetadataRep> for Metadata {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct MetadataRep {
     // Required
     pub name: String,
