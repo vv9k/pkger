@@ -18,6 +18,8 @@ impl Default for Dependencies {
         let mut deps = Self {
             inner: HashMap::new(),
         };
+
+        // ensure the COMMON_DEPS_KEY entry is created by default
         deps.inner
             .insert(COMMON_DEPS_KEY.to_string(), HashSet::new());
         deps

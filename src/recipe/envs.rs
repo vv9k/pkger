@@ -23,6 +23,7 @@ impl Env {
     pub fn new() -> Self {
         Self(HashMap::new())
     }
+
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<String>
     where
         K: Into<String>,
