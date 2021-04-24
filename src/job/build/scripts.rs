@@ -53,7 +53,8 @@ impl<'job> BuildContainerCtx<'job> {
                         continue;
                     }
                 }
-                self.checked_exec(&cmd.cmd, working_dir, shell).await?;
+                self.checked_exec(&cmd.cmd, working_dir, shell, None)
+                    .await?;
             }
 
             Ok(())
@@ -88,7 +89,8 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
-                self.checked_exec(&cmd.cmd, working_dir, shell).await?;
+                self.checked_exec(&cmd.cmd, working_dir, shell, None)
+                    .await?;
             }
 
             Ok(())
@@ -123,7 +125,8 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
-                self.checked_exec(&cmd.cmd, working_dir, shell).await?;
+                self.checked_exec(&cmd.cmd, working_dir, shell, None)
+                    .await?;
             }
 
             Ok(())

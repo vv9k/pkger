@@ -113,16 +113,18 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn exec<C, W, S>(
+    pub async fn exec<C, W, S, U>(
         &self,
         cmd: C,
         dir: Option<W>,
         shell: Option<S>,
+        user: Option<U>,
     ) -> Result<Output<String>>
     where
         C: AsRef<str>,
         W: AsRef<Path>,
         S: AsRef<str>,
+        U: Into<String>,
     {
         let span = info_span!("container-exec", id = %self.id());
         async move {
@@ -137,18 +139,41 @@ impl<'job> DockerContainer<'job> {
             let opts = if let Some(dir) = dir {
                 let dir = dir.as_ref().to_string_lossy().to_string();
                 debug!(working_directory = %dir);
-                ExecContainerOptions::builder()
-                    .cmd(sh_cmd)
-                    .attach_stdout(true)
-                    .attach_stderr(true)
-                    .working_dir(dir)
-                    .build()
+                if let Some(user) = user {
+                    let user = user.into();
+                    debug!(user = %user);
+                    ExecContainerOptions::builder()
+                        .cmd(sh_cmd)
+                        .attach_stdout(true)
+                        .attach_stderr(true)
+                        .working_dir(dir)
+                        .user(user)
+                        .build()
+                } else {
+                    ExecContainerOptions::builder()
+                        .cmd(sh_cmd)
+                        .attach_stdout(true)
+                        .attach_stderr(true)
+                        .working_dir(dir)
+                        .build()
+                }
             } else {
-                ExecContainerOptions::builder()
-                    .cmd(sh_cmd)
-                    .attach_stdout(true)
-                    .attach_stderr(true)
-                    .build()
+                if let Some(user) = user {
+                    let user = user.into();
+                    debug!(user = %user);
+                    ExecContainerOptions::builder()
+                        .cmd(sh_cmd)
+                        .attach_stdout(true)
+                        .attach_stderr(true)
+                        .user(user)
+                        .build()
+                } else {
+                    ExecContainerOptions::builder()
+                        .cmd(sh_cmd)
+                        .attach_stdout(true)
+                        .attach_stderr(true)
+                        .build()
+                }
             };
 
             let exec = Exec::create(&self.docker, self.id(), &opts).await?;
