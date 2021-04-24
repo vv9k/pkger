@@ -147,7 +147,7 @@ impl ImageState {
         tag: &str,
         timestamp: &SystemTime,
         docker: &Docker,
-        deps: &HashSet<String>,
+        deps: &HashSet<&str>,
     ) -> Result<ImageState> {
         let name = format!(
             "{}-{}",
@@ -172,7 +172,7 @@ impl ImageState {
                 tag: tag.to_string(),
                 timestamp: *timestamp,
                 details,
-                deps: deps.clone(),
+                deps: deps.iter().map(|s| s.to_string()).collect(),
             })
         }
         .instrument(span)
