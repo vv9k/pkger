@@ -46,6 +46,7 @@ maintainer = "Wojciech Kępka <wojciech@wkepka.dev>" # defaults to `none` for DE
 arch = "x86_64" # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
 skip_default_deps = true # skip installing default dependencies, it might break the builds
 exclude = ["share", "info"] # directories to exclude from final package
+group = "" # acts as Group in RPM or Section in DEB build
 
 # Can be either a plain array when every image shares the dependencies:
 # build depends = [ "curl", "gcc", "pkg-config" ]
@@ -62,13 +63,22 @@ conflicts = []
 provides = []
 
 #### optional DEB fields
-section = ""
 priority = ""
 
 #### RPM fields
-release = "1" # defaults to 0
 obsoletes = [] # acts the same as `build_depends`
+release = "1" # defaults to 0
+epoch = "42"
+vendor = ""
+icon = ""
 summary = "shorter description" # if not provided defaults to value of `description`
+config_noreplace = "%{_sysconfdir}/%{name}/%{name}.conf"
+
+pre_script = ""
+post_script = ""
+preun_script = ""
+postun_script = ""
+
 ```
  - ### configure (Optional)
  - Optional configuration steps. If provided the steps will be executed before the build phase.
