@@ -1,0 +1,40 @@
+use crate::{Error, Result};
+
+use serde::{Deserialize, Serialize};
+use std::convert::{AsRef, TryFrom};
+
+#[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
+pub enum BuildTarget {
+    Rpm,
+    Deb,
+    Gzip,
+}
+
+impl Default for BuildTarget {
+    fn default() -> Self {
+        Self::Gzip
+    }
+}
+
+impl TryFrom<&str> for BuildTarget {
+    type Error = Error;
+
+    fn try_from(s: &str) -> Result<Self> {
+        match &s.to_lowercase()[..] {
+            "rpm" => Ok(Self::Rpm),
+            "deb" => Ok(Self::Deb),
+            "gzip" => Ok(Self::Gzip),
+            target => Err(anyhow!("unknown build target `{}`", target)),
+        }
+    }
+}
+
+impl AsRef<str> for BuildTarget {
+    fn as_ref(&self) -> &str {
+        match &self {
+            BuildTarget::Rpm => "rpm",
+            BuildTarget::Deb => "deb",
+            BuildTarget::Gzip => "gzip",
+        }
+    }
+}
