@@ -60,6 +60,7 @@ impl<'job> BuildContainerCtx<'job> {
                 ),
                 None,
                 None,
+                None,
             )
             .await
             .map_err(|e| anyhow!("failed to copy source file to temp dir - {}", e))?;
@@ -69,6 +70,7 @@ impl<'job> BuildContainerCtx<'job> {
                 &format!("tar -zcvf {} .", source_tar_path.display(),),
                 Some(tmp_buildroot.as_path()),
                 None,
+                None,
             )
             .await?;
 
@@ -77,6 +79,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .checked_exec(
                     r#"find . -type f -maxdepth 1 -name "*""#,
                     Some(self.container_out_dir),
+                    None,
                     None,
                 )
                 .await
@@ -93,6 +96,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .checked_exec(
                     r#"find . -type d -maxdepth 1 -name "*""#, //rpmbuild automatically includes all child files and dirs
                     Some(self.container_out_dir),
+                    None,
                     None,
                 )
                 .await
@@ -137,12 +141,14 @@ impl<'job> BuildContainerCtx<'job> {
                 ),
                 None,
                 None,
+                None,
             )
             .await?;
 
             trace!("rpmbuild");
             self.checked_exec(
                 &format!("rpmbuild -bb {}", specs.join(spec_file).display()),
+                None,
                 None,
                 None,
             )

@@ -332,7 +332,7 @@ impl<'job> BuildContainerCtx<'job> {
             let dirs_joined = dirs_joined.trim();
             trace!(directories = %dirs_joined);
 
-            self.checked_exec(&format!("mkdir -pv {}", dirs_joined), None, None)
+            self.checked_exec(&format!("mkdir -pv {}", dirs_joined), None, None, None)
                 .await
                 .map(|_| ())
         }
@@ -345,10 +345,11 @@ impl<'job> BuildContainerCtx<'job> {
         cmd: &str,
         working_dir: Option<&Path>,
         shell: Option<&str>,
+        user: Option<&str>,
     ) -> Result<Output<String>> {
         let span = info_span!("checked-exec");
         async move {
-            let out = self.container.exec(&cmd, working_dir, shell).await?;
+            let out = self.container.exec(&cmd, working_dir, shell, user).await?;
             if out.exit_code != 0 {
                 Err(anyhow!(
                     "command `{}` failed with exit code {}\nError:\n{}",
@@ -386,6 +387,7 @@ impl<'job> BuildContainerCtx<'job> {
                 self.checked_exec(
                     &format!("rm -rvf {}", exclude_paths.join(" ")),
                     Some(self.container_out_dir),
+                    None,
                     None,
                 )
                 .await?;

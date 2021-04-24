@@ -60,6 +60,7 @@ impl<'job> BuildContainerCtx<'job> {
                 ),
                 None,
                 None,
+                None,
             )
             .await
             .map_err(|e| anyhow!("failed to extract archive with control file - {}", e))?;
@@ -68,6 +69,7 @@ impl<'job> BuildContainerCtx<'job> {
             self.checked_exec(
                 &format!("cp -rv . {}", base_dir.display()),
                 Some(self.container_out_dir),
+                None,
                 None,
             )
             .await
@@ -81,6 +83,7 @@ impl<'job> BuildContainerCtx<'job> {
 
             self.checked_exec(
                 &format!("dpkg-deb {} {}", dpkg_deb_opts, base_dir.display()),
+                None,
                 None,
                 None,
             )

@@ -27,7 +27,7 @@ impl<'job> BuildContainerCtx<'job> {
                     repo.branch(),
                     repo.url(),
                     self.container_bld_dir.display()
-                ), None, None)
+                ), None, None, None)
                 .await
                 .map(|_| ())
         }
@@ -39,7 +39,7 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("download-http");
         async move {
             info!(url = %source, destination = %dest.display(), "fetching");
-            self.checked_exec(&format!("curl -LO {}", source), Some(dest), None)
+            self.checked_exec(&format!("curl -LO {}", source), Some(dest), None, None)
                 .await
                 .map(|_| ())
         }
@@ -100,6 +100,7 @@ impl<'job> BuildContainerCtx<'job> {
                     ),
                     Some(self.container_tmp_dir),
                     Some("/bin/bash"),
+                    None,
                 )
                 .await?;
             }
