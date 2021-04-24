@@ -79,4 +79,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: run
-          args: --release -- -d -c example/conf.toml build test
+          args: -- -d -c example/conf.toml build test
