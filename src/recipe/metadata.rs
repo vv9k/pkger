@@ -40,10 +40,73 @@ pub struct MetadataRep {
     pub provides: Option<toml::Value>,
 
     // Only DEB
-    pub priority: Option<String>,
+    pub deb: Option<DebRep>,
 
     // Only RPM
+    pub rpm: Option<RpmRep>,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct DebRep {
+    pub priority: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DebInfo {
+    pub priority: Option<String>,
+}
+
+impl From<DebRep> for DebInfo {
+    fn from(rep: DebRep) -> Self {
+        Self {
+            priority: rep.priority,
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct RpmRep {
     pub obsoletes: Option<toml::Value>,
+    pub release: Option<String>,
+    pub epoch: Option<String>,
+    pub vendor: Option<String>,
+    pub icon: Option<String>,
+    pub summary: Option<String>,
+    pub pre_script: Option<String>,
+    pub post_script: Option<String>,
+    pub preun_script: Option<String>,
+    pub postun_script: Option<String>,
+    pub config_noreplace: Option<String>,
+}
+
+impl TryFrom<RpmRep> for RpmInfo {
+    type Error = Error;
+
+    fn try_from(rep: RpmRep) -> Result<Self> {
+        let obsoletes = if let Some(deps) = rep.obsoletes {
+            Some(Dependencies::try_from(deps)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            obsoletes,
+            release: rep.release,
+            epoch: rep.epoch,
+            vendor: rep.vendor,
+            icon: rep.icon,
+            summary: rep.summary,
+            pre_script: rep.pre_script,
+            post_script: rep.post_script,
+            preun_script: rep.preun_script,
+            postun_script: rep.postun_script,
+            config_noreplace: rep.config_noreplace,
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RpmInfo {
+    pub obsoletes: Option<Dependencies>,
     pub release: Option<String>,
     pub epoch: Option<String>,
     pub vendor: Option<String>,
@@ -84,24 +147,13 @@ pub struct Metadata {
     pub conflicts: Option<Dependencies>,
     pub provides: Option<Dependencies>,
 
-    // Only DEB
-    pub priority: Option<String>,
+    pub deb: Option<DebInfo>,
 
-    // Only RPM
-    pub obsoletes: Option<Dependencies>,
-    pub release: Option<String>,
-    pub epoch: Option<String>,
-    pub vendor: Option<String>,
-    pub icon: Option<String>,
-    pub summary: Option<String>,
-    pub pre_script: Option<String>,
-    pub post_script: Option<String>,
-    pub preun_script: Option<String>,
-    pub postun_script: Option<String>,
-    pub config_noreplace: Option<String>,
+    pub rpm: Option<RpmInfo>,
 }
 
 impl Metadata {
+    /// Returns the name of `arch` appropriate for DEB build
     pub fn deb_arch(&self) -> &str {
         if let Some(arch) = &self.arch {
             match &arch[..] {
@@ -114,6 +166,8 @@ impl Metadata {
             "all"
         }
     }
+
+    /// Returns the name of `arch` appropriate for RPM build
     pub fn rpm_arch(&self) -> &str {
         if let Some(arch) = &self.arch {
             match &arch[..] {
@@ -125,6 +179,17 @@ impl Metadata {
         } else {
             "noarch"
         }
+    }
+
+    /// Returns the RPM release if the value is available, otherwise returns "0"
+    pub fn rpm_release(&self) -> &str {
+        if let Some(rpm) = &self.rpm {
+            if let Some(release) = &rpm.release {
+                return release.as_str();
+            }
+        }
+
+        "0"
     }
 }
 
@@ -138,11 +203,6 @@ impl TryFrom<MetadataRep> for Metadata {
             None
         };
         let depends = if let Some(deps) = rep.depends {
-            Some(Dependencies::try_from(deps)?)
-        } else {
-            None
-        };
-        let obsoletes = if let Some(deps) = rep.obsoletes {
             Some(Dependencies::try_from(deps)?)
         } else {
             None
@@ -190,21 +250,13 @@ impl TryFrom<MetadataRep> for Metadata {
             conflicts,
             provides,
 
-            // only DEB
-            priority: rep.priority,
+            deb: rep.deb.map(DebInfo::from),
 
-            // only RPM
-            obsoletes,
-            release: rep.release,
-            epoch: rep.epoch,
-            vendor: rep.vendor,
-            icon: rep.icon,
-            summary: rep.summary,
-            pre_script: rep.pre_script,
-            post_script: rep.post_script,
-            preun_script: rep.preun_script,
-            postun_script: rep.postun_script,
-            config_noreplace: rep.config_noreplace,
+            rpm: if let Some(rpm) = rep.rpm {
+                Some(RpmInfo::try_from(rpm)?)
+            } else {
+                None
+            },
         })
     }
 }

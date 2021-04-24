@@ -20,7 +20,7 @@ use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
 use crate::recipe::Recipes;
 
 pub use anyhow::{Error, Result};
-use recipe::{MetadataRep, RecipeRep};
+use recipe::{DebRep, MetadataRep, RecipeRep, RpmRep};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -326,6 +326,24 @@ impl Pkger {
             }};
         }
 
+        let deb = DebRep {
+            priority: opts.priority,
+        };
+
+        let rpm = RpmRep {
+            release: opts.release,
+            obsoletes: vec_as_deps!(opts.obsoletes),
+            epoch: opts.epoch,
+            vendor: opts.vendor,
+            icon: opts.icon,
+            summary: opts.summary,
+            pre_script: None,
+            post_script: None,
+            preun_script: None,
+            postun_script: None,
+            config_noreplace: opts.config_noreplace,
+        };
+
         let metadata = MetadataRep {
             name: opts.name,
             version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
@@ -346,19 +364,8 @@ impl Pkger {
             conflicts: vec_as_deps!(opts.conflicts),
             provides: vec_as_deps!(opts.provides),
 
-            priority: opts.priority,
-
-            release: opts.release,
-            obsoletes: vec_as_deps!(opts.obsoletes),
-            epoch: opts.epoch,
-            vendor: opts.vendor,
-            icon: opts.icon,
-            summary: opts.summary,
-            pre_script: None,
-            post_script: None,
-            preun_script: None,
-            postun_script: None,
-            config_noreplace: opts.config_noreplace,
+            deb: Some(deb),
+            rpm: Some(rpm),
         };
 
         let recipe = RecipeRep {
