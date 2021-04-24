@@ -139,10 +139,41 @@ impl Recipe {
         if let Some(maintainer) = &self.metadata.maintainer {
             builder = builder.maintainer(maintainer);
         }
+        if let Some(homepage) = &self.metadata.url {
+            builder = builder.homepage(homepage);
+        }
 
         if let Some(deb) = &self.metadata.deb {
             if let Some(priority) = &deb.priority {
                 builder = builder.priority(priority);
+            }
+            if let Some(installed_size) = &deb.installed_size {
+                builder = builder.installed_size(installed_size);
+            }
+            if let Some(built_using) = &deb.built_using {
+                builder = builder.built_using(built_using);
+            }
+            if let Some(essential) = &deb.essential {
+                builder = builder.essential(*essential);
+            }
+
+            if let Some(pre_depends) = &deb.pre_depends {
+                builder = builder.add_pre_depends_entries(pre_depends.resolve_names(image));
+            }
+            if let Some(recommends) = &deb.recommends {
+                builder = builder.add_recommends_entries(recommends.resolve_names(image));
+            }
+            if let Some(suggests) = &deb.suggests {
+                builder = builder.add_suggests_entries(suggests.resolve_names(image));
+            }
+            if let Some(breaks) = &deb.breaks {
+                builder = builder.add_breaks_entries(breaks.resolve_names(image));
+            }
+            if let Some(replaces) = &deb.replaces {
+                builder = builder.add_replaces_entries(replaces.resolve_names(image));
+            }
+            if let Some(enchances) = &deb.enchances {
+                builder = builder.add_enchances_entries(enchances.resolve_names(image));
             }
         }
 
@@ -216,6 +247,9 @@ impl Recipe {
         }
         if let Some(maintainer) = &self.metadata.maintainer {
             builder = builder.packager(maintainer);
+        }
+        if let Some(url) = &self.metadata.url {
+            builder = builder.url(url);
         }
         if let Some(conflicts) = &self.metadata.conflicts {
             builder = builder.add_conflicts_entries(conflicts.resolve_names(image));

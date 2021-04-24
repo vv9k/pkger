@@ -328,6 +328,16 @@ impl Pkger {
 
         let deb = DebRep {
             priority: opts.priority,
+            installed_size: opts.installed_size,
+            built_using: opts.built_using,
+            essential: opts.essential,
+
+            pre_depends: vec_as_deps!(opts.pre_depends),
+            recommends: vec_as_deps!(opts.recommends),
+            suggests: vec_as_deps!(opts.suggests),
+            breaks: vec_as_deps!(opts.breaks),
+            replaces: vec_as_deps!(opts.replaces),
+            enchances: vec_as_deps!(opts.enchances),
         };
 
         let rpm = RpmRep {
@@ -352,6 +362,7 @@ impl Pkger {
             images: vec![],
 
             maintainer: opts.maintainer,
+            url: opts.url,
             arch: opts.arch,
             source: opts.source,
             git,
