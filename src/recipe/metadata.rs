@@ -12,6 +12,16 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
+macro_rules! let_some_deps {
+    ($from:expr) => {
+        if let Some(deps) = $from {
+            Some(Dependencies::try_from(deps)?)
+        } else {
+            None
+        }
+    };
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct MetadataRep {
     // Required
@@ -23,6 +33,8 @@ pub struct MetadataRep {
 
     // Common optional
     pub maintainer: Option<String>,
+    /// The URL of the web site for this package
+    pub url: Option<String>,
     pub arch: Option<String>,
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
@@ -49,18 +61,50 @@ pub struct MetadataRep {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct DebRep {
     pub priority: Option<String>,
+    pub installed_size: Option<String>,
+    pub built_using: Option<String>,
+    pub essential: Option<bool>,
+
+    pub pre_depends: Option<toml::Value>,
+    pub recommends: Option<toml::Value>,
+    pub suggests: Option<toml::Value>,
+    pub breaks: Option<toml::Value>,
+    pub replaces: Option<toml::Value>,
+    pub enchances: Option<toml::Value>,
 }
 
 #[derive(Clone, Debug)]
 pub struct DebInfo {
     pub priority: Option<String>,
+    pub installed_size: Option<String>,
+    pub built_using: Option<String>,
+    pub essential: Option<bool>,
+
+    pub pre_depends: Option<Dependencies>,
+    pub recommends: Option<Dependencies>,
+    pub suggests: Option<Dependencies>,
+    pub breaks: Option<Dependencies>,
+    pub replaces: Option<Dependencies>,
+    pub enchances: Option<Dependencies>,
 }
 
-impl From<DebRep> for DebInfo {
-    fn from(rep: DebRep) -> Self {
-        Self {
+impl TryFrom<DebRep> for DebInfo {
+    type Error = Error;
+
+    fn try_from(rep: DebRep) -> Result<Self> {
+        Ok(Self {
             priority: rep.priority,
-        }
+            installed_size: rep.installed_size,
+            built_using: rep.built_using,
+            essential: rep.essential,
+
+            pre_depends: let_some_deps!(rep.pre_depends),
+            recommends: let_some_deps!(rep.recommends),
+            suggests: let_some_deps!(rep.suggests),
+            breaks: let_some_deps!(rep.breaks),
+            replaces: let_some_deps!(rep.replaces),
+            enchances: let_some_deps!(rep.enchances),
+        })
     }
 }
 
@@ -83,13 +127,8 @@ impl TryFrom<RpmRep> for RpmInfo {
     type Error = Error;
 
     fn try_from(rep: RpmRep) -> Result<Self> {
-        let obsoletes = if let Some(deps) = rep.obsoletes {
-            Some(Dependencies::try_from(deps)?)
-        } else {
-            None
-        };
         Ok(Self {
-            obsoletes,
+            obsoletes: let_some_deps!(rep.obsoletes),
             release: rep.release,
             epoch: rep.epoch,
             vendor: rep.vendor,
@@ -128,8 +167,10 @@ pub struct Metadata {
     pub license: String,
     pub images: Vec<ImageTarget>,
 
-    pub maintainer: Option<String>,
     pub arch: Option<String>,
+    pub maintainer: Option<String>,
+    /// The URL of the web site for this package
+    pub url: Option<String>,
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
     /// Git repository as source
@@ -197,27 +238,6 @@ impl TryFrom<MetadataRep> for Metadata {
     type Error = Error;
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
-        let build_depends = if let Some(deps) = rep.build_depends {
-            Some(Dependencies::try_from(deps)?)
-        } else {
-            None
-        };
-        let depends = if let Some(deps) = rep.depends {
-            Some(Dependencies::try_from(deps)?)
-        } else {
-            None
-        };
-        let conflicts = if let Some(deps) = rep.conflicts {
-            Some(Dependencies::try_from(deps)?)
-        } else {
-            None
-        };
-        let provides = if let Some(deps) = rep.provides {
-            Some(Dependencies::try_from(deps)?)
-        } else {
-            None
-        };
-
         let mut images = vec![];
         for image in rep.images.into_iter().map(ImageTarget::try_from) {
             images.push(image?);
@@ -230,8 +250,9 @@ impl TryFrom<MetadataRep> for Metadata {
             license: rep.license,
             images,
 
-            maintainer: rep.maintainer,
             arch: rep.arch,
+            maintainer: rep.maintainer,
+            url: rep.url,
             source: rep.source,
             git: {
                 if let Some(val) = rep.git {
@@ -244,13 +265,17 @@ impl TryFrom<MetadataRep> for Metadata {
             exclude: rep.exclude,
             group: rep.group,
 
-            build_depends,
+            build_depends: let_some_deps!(rep.build_depends),
 
-            depends,
-            conflicts,
-            provides,
+            depends: let_some_deps!(rep.depends),
+            conflicts: let_some_deps!(rep.conflicts),
+            provides: let_some_deps!(rep.provides),
 
-            deb: rep.deb.map(DebInfo::from),
+            deb: if let Some(deb) = rep.deb {
+                Some(DebInfo::try_from(deb)?)
+            } else {
+                None
+            },
 
             rpm: if let Some(rpm) = rep.rpm {
                 Some(RpmInfo::try_from(rpm)?)
