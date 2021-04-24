@@ -95,6 +95,9 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
+    #[clap(long)]
+    /// Group in RPM or section in DEB build
+    pub group: Option<String>,
 
     #[clap(long)]
     pub build_depends: Option<Vec<String>>,
@@ -114,9 +117,6 @@ pub struct GenRecipeOpts {
     // Only DEB
     #[clap(long)]
     /// Only applies to DEB build
-    pub section: Option<String>,
-    #[clap(long)]
-    /// Only applies to DEB build
     pub priority: Option<String>,
 
     // Only RPM
@@ -128,5 +128,17 @@ pub struct GenRecipeOpts {
     pub obsoletes: Option<Vec<String>>,
     #[clap(long)]
     /// Only applies to RPM
+    pub epoch: Option<String>,
+    #[clap(long)]
+    /// Only applies to RPM
+    pub vendor: Option<String>,
+    #[clap(long)]
+    /// Only applies to RPM
+    pub icon: Option<String>,
+    #[clap(long)]
+    /// Only applies to RPM
     pub summary: Option<String>,
+    #[clap(long)]
+    /// Only applies to RPM
+    pub config_noreplace: Option<String>,
 }

@@ -12,6 +12,50 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct MetadataRep {
+    // Required
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub license: String,
+    pub images: Vec<toml::Value>,
+
+    // Common optional
+    pub maintainer: Option<String>,
+    pub arch: Option<String>,
+    /// http/https or file system source pointing to a tar.gz or tar.xz package
+    pub source: Option<String>,
+    /// Git repository as source
+    pub git: Option<toml::Value>,
+    /// Whether to install default dependencies before build
+    pub skip_default_deps: Option<bool>,
+    /// Directories to exclude when creating the package
+    pub exclude: Option<Vec<String>>,
+    pub group: Option<String>,
+
+    pub build_depends: Option<toml::Value>,
+    pub depends: Option<toml::Value>,
+    pub conflicts: Option<toml::Value>,
+    pub provides: Option<toml::Value>,
+
+    // Only DEB
+    pub priority: Option<String>,
+
+    // Only RPM
+    pub obsoletes: Option<toml::Value>,
+    pub release: Option<String>,
+    pub epoch: Option<String>,
+    pub vendor: Option<String>,
+    pub icon: Option<String>,
+    pub summary: Option<String>,
+    pub pre_script: Option<String>,
+    pub post_script: Option<String>,
+    pub preun_script: Option<String>,
+    pub postun_script: Option<String>,
+    pub config_noreplace: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Metadata {
     // General
@@ -31,6 +75,8 @@ pub struct Metadata {
     pub skip_default_deps: Option<bool>,
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
+    /// Works as section in DEB and group in RPM
+    pub group: Option<String>,
 
     pub build_depends: Option<Dependencies>,
 
@@ -39,13 +85,20 @@ pub struct Metadata {
     pub provides: Option<Dependencies>,
 
     // Only DEB
-    pub section: Option<String>,
     pub priority: Option<String>,
 
     // Only RPM
-    pub release: Option<String>,
     pub obsoletes: Option<Dependencies>,
+    pub release: Option<String>,
+    pub epoch: Option<String>,
+    pub vendor: Option<String>,
+    pub icon: Option<String>,
     pub summary: Option<String>,
+    pub pre_script: Option<String>,
+    pub post_script: Option<String>,
+    pub preun_script: Option<String>,
+    pub postun_script: Option<String>,
+    pub config_noreplace: Option<String>,
 }
 
 impl Metadata {
@@ -113,12 +166,13 @@ impl TryFrom<MetadataRep> for Metadata {
         Ok(Self {
             name: rep.name,
             version: rep.version,
-            arch: rep.arch,
-            release: rep.release,
             description: rep.description,
             license: rep.license,
-            source: rep.source,
             images,
+
+            maintainer: rep.maintainer,
+            arch: rep.arch,
+            source: rep.source,
             git: {
                 if let Some(val) = rep.git {
                     GitSource::try_from(val).map(Some)?
@@ -126,53 +180,31 @@ impl TryFrom<MetadataRep> for Metadata {
                     None
                 }
             },
-            depends,
             skip_default_deps: rep.skip_default_deps,
+            exclude: rep.exclude,
+            group: rep.group,
+
             build_depends,
-            obsoletes,
+
+            depends,
             conflicts,
             provides,
-            exclude: rep.exclude,
-            maintainer: rep.maintainer,
-            section: rep.section,
+
+            // only DEB
             priority: rep.priority,
+
+            // only RPM
+            obsoletes,
+            release: rep.release,
+            epoch: rep.epoch,
+            vendor: rep.vendor,
+            icon: rep.icon,
             summary: rep.summary,
+            pre_script: rep.pre_script,
+            post_script: rep.post_script,
+            preun_script: rep.preun_script,
+            postun_script: rep.postun_script,
+            config_noreplace: rep.config_noreplace,
         })
     }
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct MetadataRep {
-    // Required
-    pub name: String,
-    pub version: String,
-    pub description: String,
-    pub license: String,
-    pub images: Vec<toml::Value>,
-
-    // Common optional
-    pub maintainer: Option<String>,
-    pub arch: Option<String>,
-    /// http/https or file system source pointing to a tar.gz or tar.xz package
-    pub source: Option<String>,
-    /// Git repository as source
-    pub git: Option<toml::Value>,
-    /// Whether to install default dependencies before build
-    pub skip_default_deps: Option<bool>,
-    /// Directories to exclude when creating the package
-    pub exclude: Option<Vec<String>>,
-
-    pub build_depends: Option<toml::Value>,
-    pub depends: Option<toml::Value>,
-    pub conflicts: Option<toml::Value>,
-    pub provides: Option<toml::Value>,
-
-    // Only DEB
-    pub section: Option<String>,
-    pub priority: Option<String>,
-
-    // Only RPM
-    pub release: Option<String>,
-    pub obsoletes: Option<toml::Value>,
-    pub summary: Option<String>,
 }

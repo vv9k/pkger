@@ -138,6 +138,10 @@ impl Recipe {
             builder = builder.add_provides_entries(provides.resolve_names(image));
         }
 
+        if let Some(group) = &self.metadata.group {
+            builder = builder.section(group);
+        }
+
         builder.build()
     }
 
@@ -182,10 +186,36 @@ impl Recipe {
             .add_sources_entries(sources)
             .install_script(&install_script)
             .description(&self.metadata.description);
+        if let Some(group) = &self.metadata.group {
+            builder = builder.group(group);
+        }
         if let Some(maintainer) = &self.metadata.maintainer {
             builder = builder.packager(maintainer);
         }
-
+        if let Some(epoch) = &self.metadata.epoch {
+            builder = builder.epoch(epoch);
+        }
+        if let Some(vendor) = &self.metadata.vendor {
+            builder = builder.vendor(vendor);
+        }
+        if let Some(icon) = &self.metadata.icon {
+            builder = builder.icon(icon);
+        }
+        if let Some(pre_script) = &self.metadata.pre_script {
+            builder = builder.pre_script(pre_script);
+        }
+        if let Some(post_script) = &self.metadata.post_script {
+            builder = builder.post_script(post_script);
+        }
+        if let Some(preun_script) = &self.metadata.preun_script {
+            builder = builder.preun_script(preun_script);
+        }
+        if let Some(post_script) = &self.metadata.post_script {
+            builder = builder.post_script(post_script);
+        }
+        if let Some(config_noreplace) = &self.metadata.config_noreplace {
+            builder = builder.config_noreplace(config_noreplace);
+        }
         if let Some(conflicts) = &self.metadata.conflicts {
             builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
         }
