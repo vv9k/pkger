@@ -250,9 +250,9 @@ dependencies = [
 
 [[package]]
 name = "deb-control"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d86227a865aa36daca58b040f115d3f47cb9fa452487484fa512025926c45d2"
+checksum = "60af0342ae805d703ffbc0028708d17c388175c4e6ffd65b357cb2258a7709ec"
 dependencies = [
  "paste",
  "pkgspec",

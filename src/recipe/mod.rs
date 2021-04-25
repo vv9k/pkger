@@ -121,11 +121,16 @@ impl TryFrom<RecipeRep> for Recipe {
 impl Recipe {
     pub fn as_deb_control(&self, image: &str) -> BinaryDebControl {
         let arch = self.metadata.deb_arch();
+
         let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
             .version(&self.metadata.version)
+            .revision(self.metadata.release())
             .description(&self.metadata.description)
             .architecture(arch);
 
+        if let Some(epoch) = &self.metadata.epoch {
+            builder = builder.epoch(epoch);
+        }
         if let Some(group) = &self.metadata.group {
             builder = builder.section(group);
         }
@@ -203,7 +208,7 @@ impl Recipe {
             .description(&self.metadata.description)
             .license(&self.metadata.license)
             .version(&self.metadata.version)
-            .release(self.metadata.rpm_release())
+            .release(self.metadata.release())
             .add_files_entries(files)
             .add_dir_files_entries(dirs)
             .add_sources_entries(sources)
@@ -213,9 +218,6 @@ impl Recipe {
         if let Some(rpm) = &self.metadata.rpm {
             if let Some(obsoletes) = &rpm.obsoletes {
                 builder = builder.add_obsoletes_entries(obsoletes.resolve_names(image));
-            }
-            if let Some(epoch) = &rpm.epoch {
-                builder = builder.epoch(epoch);
             }
             if let Some(vendor) = &rpm.vendor {
                 builder = builder.vendor(vendor);
@@ -253,6 +255,9 @@ impl Recipe {
         if let Some(url) = &self.metadata.url {
             builder = builder.url(url);
         }
+        if let Some(epoch) = &self.metadata.epoch {
+            builder = builder.epoch(epoch);
+        }
         if let Some(conflicts) = &self.metadata.conflicts {
             builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
         }
@@ -289,6 +294,9 @@ impl Recipe {
         if let Some(url) = &self.metadata.url {
             builder = builder.url(url);
         }
+        if let Some(group) = &self.metadata.group {
+            builder = builder.add_groups_entries(vec![group]);
+        }
         if let Some(depends) = &self.metadata.depends {
             builder = builder.add_depends_entries(depends.resolve_names(image));
         }
@@ -299,16 +307,7 @@ impl Recipe {
             builder = builder.add_provides_entries(provides.resolve_names(image));
         }
 
-        if let Some(pkg) = &self.metadata.pkg {
-            if let Some(pkgrel) = &pkg.pkgrel {
-                builder = builder.pkgrel(pkgrel);
-            } else {
-                // default to "1" as it's required
-                builder = builder.pkgrel("1");
-            }
-        } else {
-            builder = builder.pkgrel("1");
-        }
+        builder = builder.pkgrel(self.metadata.release());
 
         builder.build()
     }
