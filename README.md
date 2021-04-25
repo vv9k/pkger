@@ -8,7 +8,7 @@
 
 ## How it works
 
-**pkger** has 2 concepts - images and recipes. Each recipe is a sort of build mainfest that allows **pkger** to create the final package. Images are directories that contain a `Dockerfile` as well as optional other files that might get included in the image build phase. 
+**pkger** has 2 concepts - images and recipes. Each recipe is a sort of build mainfest that allows **pkger** to create the final package. Images are directories that contain a `Dockerfile` as well as optional other files that might get included in the image build phase. Images are optional and **pkger** will create images as needed for each target build.
 
 ## Images
 
@@ -70,9 +70,19 @@ provides  = []
 
 # Or specified per image as a map:
 [metadata.build_depends]
+# common dependencies shared across all images
 all      = ["gcc", "pkg-config", "git"]
+
+# dependencies for custom images
 centos8  = ["cargo", "openssl-devel"]
 debian10 = ["curl", "libssl-dev"]
+
+# if running a simple build and there is a need to specify dependencies for the target
+# add dependencies for one of this images:
+pkger-rpm = ["cargo"]
+pkger-deb = ["curl"]
+pkger-pkg = ["cargo"]
+pkger-gzip = []
 
 # If specifying some deps as array and some as maps the arrays always have to come before the maps
 # otherwise TOML breaks
@@ -192,10 +202,13 @@ After executing build script (or install if provided), **pkger** will copy all f
 
 Config file has a following structure:
 ```toml
-images_dir = ""
+# required
 recipes_dir = ""
 output_dir = ""
-docker = "unix:///var/run/docker.sock" # optional
+
+# optional
+images_dir = ""
+docker = unix:///var/run/docker.sock"
 ```
  - `images_dir` - directory with images
    - Each image is a directory containing a `Dockerfile` and files to be imported with it
@@ -218,6 +231,8 @@ To build a package use
  - `pkger build [RECIPES]`
  - If `-c` is not provided **pkger** will look for the configuration file in the default location - `$HOME/.pkger.toml`. If the user has no home directory then as the last resort it will try to use `.pkger.toml` in current working directory as config path.
  - Add any amount of recipes whitespace separated at the end. If no recipe name is provided, all recipes will be queued for a build.
+ - If building a recipe without any predefined images existing on the filesystem add the `--simple` flag so that **pkger** will create necessary images for each target.
+   - `pkger build --simple rpm deb -- test-pkger`
 
 By default **pkger** will display basic output as hierhical log with level set to `INFO`. To debug run with `-d` or `--debug` option. To surpress all output except for errors add `-q` or `--quiet`. To manually set log level set `RUST_LOG` env variable to a value like `pkger=debug` with debug replaced with the desired log level.
 

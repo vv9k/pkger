@@ -46,7 +46,7 @@ impl<'job> BuildContainerCtx<'job> {
                 None
             };
             for cmd in &config_script.steps {
-                if !cmd.images.is_empty() {
+                if !cmd.images.is_empty() && !self.simple {
                     trace!(images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
                         trace!(image = %self.image.name, "not found, skipping");
@@ -58,6 +58,7 @@ impl<'job> BuildContainerCtx<'job> {
                     trace!(command = %cmd.cmd, "skipping, shouldn't run on target");
                     continue;
                 }
+
                 self.checked_exec(&cmd.cmd, working_dir, shell, None)
                     .await?;
             }
@@ -86,7 +87,7 @@ impl<'job> BuildContainerCtx<'job> {
                 None
             };
             for cmd in &build_script.steps {
-                if !cmd.images.is_empty() {
+                if !cmd.images.is_empty() && !self.simple {
                     trace!(images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
                         trace!(image = %self.image.name, "not found, skipping");
@@ -126,7 +127,7 @@ impl<'job> BuildContainerCtx<'job> {
                 None
             };
             for cmd in &install_script.steps {
-                if !cmd.images.is_empty() {
+                if !cmd.images.is_empty() && !self.simple {
                     trace!(images = ?cmd.images, "only execute on");
                     if !cmd.images.contains(&self.image.name) {
                         trace!(image = %self.image.name, "not found, skipping");
@@ -138,6 +139,7 @@ impl<'job> BuildContainerCtx<'job> {
                     trace!(command = %cmd.cmd, "skipping, shouldn't run on target");
                     continue;
                 }
+
                 self.checked_exec(&cmd.cmd, working_dir, shell, None)
                     .await?;
             }

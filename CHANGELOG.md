@@ -18,3 +18,4 @@
 - Make `release` and `epoch` fields of metadata global rather than RPM specific
 - Add some missing extra fields in metadata for PKG [#45](https://github.com/wojciechkepka/pkger/pull/45)
 - Add optional boolean flags in recipe scripts that specify on which targets each command should be run
+- Add a simple oneshot build without custom images [#46](https://github.com/wojciechkepka/pkger/pull/46)

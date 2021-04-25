@@ -31,8 +31,9 @@ impl BuildCtx {
             deps.extend(deps::pkger_deps(&self.build_target, &self.recipe));
             trace!(resolved_deps = ?deps);
 
-            let result = cloned_span
-                .in_scope(|| find_cached_state(&self.image, &self.target, &self.image_state));
+            let result = cloned_span.in_scope(|| {
+                find_cached_state(&self.image, &self.target, &self.image_state, self.simple)
+            });
 
             if let Some(state) = result {
                 let state_deps = state
@@ -82,6 +83,7 @@ impl BuildCtx {
                             &SystemTime::now(),
                             &self.docker,
                             &Default::default(),
+                            self.simple,
                         )
                         .await?;
 
@@ -176,6 +178,7 @@ RUN {} {} {} >/dev/null"#,
                             &SystemTime::now(),
                             &docker,
                             deps,
+                            self.simple,
                         )
                         .await
                     }
@@ -196,6 +199,7 @@ pub fn find_cached_state(
     image: &FsImage,
     target: &RecipeTarget,
     state: &Arc<RwLock<ImagesState>>,
+    simple: bool,
 ) -> Option<ImageState> {
     let span = info_span!("find-image-cache");
     let _enter = span.enter();
@@ -205,6 +209,9 @@ pub fn find_cached_state(
     trace!("checking if image should be rebuilt");
     if let Ok(states) = state.read() {
         if let Some(state) = (*states).images.get(&target) {
+            if simple {
+                return Some(state.to_owned());
+            }
             if let Ok(entries) = fs::read_dir(image.path.as_path()) {
                 for file in entries {
                     if let Err(e) = file {

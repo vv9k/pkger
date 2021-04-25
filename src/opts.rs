@@ -49,17 +49,23 @@ pub enum PkgerCmd {
 
 #[derive(Debug, Clap)]
 pub struct BuildOpts {
+    /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
+    pub recipes: Vec<String>,
+    #[clap(short, long)]
+    /// A list of targets to build like `rpm deb pkg`. All images needed to build each recipe for
+    /// each target will be created on the go. When this flag is provided all custom images and
+    /// image targets defined in recipes will be ignored.
+    pub simple: Option<Vec<String>>,
+    #[clap(short, long)]
+    /// Specify the images on which to build the recipes. Only those recipes that have one or more
+    /// of the images provided as this argument are going to get built. This flag is ignored when
+    /// `targets` is specified.
+    pub images: Option<Vec<String>>,
     #[clap(long)]
     /// URL to Docker daemon listening on a unix or tcp socket. An example could be
     /// `unix:///var/run/docker.socket` or a tcp uri `tcp://127.0.0.1:81`. By default pkger will
     /// try to connect to a unix socket at `/run/docker.sock`.
     pub docker: Option<String>,
-    /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
-    pub recipes: Vec<String>,
-    #[clap(short, long)]
-    /// Specify the images on which to build the recipes. Only those recipes that have one or more
-    /// of the images provided as this argument are going to get built.
-    pub images: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clap)]
