@@ -112,8 +112,11 @@ impl TryFrom<toml::Value> for Cmd {
 }
 
 impl Cmd {
+    pub fn has_target_specified(&self) -> bool {
+        self.rpm.is_some() || self.deb.is_some() || self.pkg.is_some() || self.gzip.is_some()
+    }
     pub fn should_run_on(&self, target: &BuildTarget) -> bool {
-        if self.rpm.is_none() && self.deb.is_none() && self.pkg.is_none() && self.gzip.is_none() {
+        if !self.has_target_specified() {
             return true;
         }
         match &target {
