@@ -26,11 +26,13 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
                 .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
                 .build(),
             true,
-            false,
+            true,
         )
         .run()
         .await
         .map_err(|e| anyhow!("failed to check image os - {}", e))?;
+
+        trace!(stderr = %String::from_utf8_lossy(&out.stderr));
 
         let out = String::from_utf8_lossy(&out.stdout);
 
