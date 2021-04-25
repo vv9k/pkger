@@ -1,0 +1,540 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>pkger</title>
+        
+        <meta name="robots" content="noindex" />
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="favicon.png">
+        
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        
+        <link rel="stylesheet" href="css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">2.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">2.1.</strong> Metadata</a></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">2.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">2.3.</strong> Generate recipes</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">3.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">4.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">5.</strong> Formatting output</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">pkger</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="config"><a class="header" href="#config">Config</a></h1>
+<p>Config file has a following structure:</p>
+<pre><code class="language-toml"># required
+recipes_dir = &quot;&quot;
+output_dir = &quot;&quot;
+
+# optional
+images_dir = &quot;&quot;
+docker = &quot;unix:///var/run/docker.sock&quot;
+</code></pre>
+<p><code>images_dir</code> - directory with images</p>
+<ul>
+<li>Each image is a directory containing a <code>Dockerfile</code> and files to be imported with it</li>
+<li>Image name is the directory name</li>
+</ul>
+<p><code>recipes_dir</code> - directory with recipes</p>
+<ul>
+<li>Each recipe is a directory containing a <code>recipe.toml</code> file and source files (if not remote) </li>
+</ul>
+<p><code>output_dir</code> - directory with built packages</p>
+<ul>
+<li>When <strong>pkger</strong> finishes building the package it will create a directory <code>$output_dir/$PKGER_OS/$PKGER_OS_VERSION/</code> where it will put the built package</li>
+</ul>
+<p><code>docker</code> - specify docker uri in configuration.</p>
+<p>If an option is available as both configuration parameter and cli argument <strong>pkger</strong> will favour the arguments passed during startup.</p>
+<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file <code>.pkger.toml</code>. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
+<h1 id="recipes"><a class="header" href="#recipes">Recipes</a></h1>
+<p>The recipe is divided into 2 required (<em>metadata</em>, <em>build</em>) and 3 optional (<em>config</em>, <em>install</em>, <em>env</em>) parts. To read more on each topic select a subsection in the menu.</p>
+<p>Here's an example working recipe for pkger:</p>
+<pre><code class="language-toml">[metadata]
+name = &quot;pkger&quot;
+description = &quot;pkger&quot;
+arch = &quot;x86_64&quot;
+license = &quot;MIT&quot;
+version = &quot;0.1.0&quot;
+maintainer = &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
+url = &quot;https://github.com/wojciech/pkger&quot;
+git = &quot;https://github.com/wojciechkepka/pkger.git&quot;
+provides = [&quot;pkger&quot;]
+
+[metadata.depends]
+pkger-deb = [&quot;libssl-dev&quot;]
+pkger-rpm = [&quot;openssl-devel&quot;]
+
+[metadata.build_depends]
+all = [&quot;gcc&quot;, &quot;pkg-config&quot;]
+pkger-rpm = [&quot;cargo&quot;]
+pkger-deb = [&quot;curl&quot;, &quot;libssl-dev&quot;]
+pkger-pkg = [&quot;cargo&quot;]
+
+[configure]
+steps = [
+    {cmd = &quot;curl -o /tmp/install_rust.sh https://sh.rustup.rs&quot;, deb = true },
+    {cmd = &quot;sh /tmp/install_rust.sh -y --default-toolchain stable&quot;, deb = true }
+]
+
+[build]
+steps = [
+    {cmd = &quot;cargo build --color=never&quot;, rpm = true, pkg = true },
+    {cmd = &quot;$HOME/.cargo/bin/cargo build --color=never&quot;, deb = true }
+]
+
+[install]
+steps = [
+    &quot;mkdir -p usr/bin&quot;,
+    &quot;install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/&quot;
+]
+</code></pre>
+<h1 id="metadata-required"><a class="header" href="#metadata-required">Metadata (Required)</a></h1>
+<ul>
+<li>All the metadata and information needed for the build</li>
+<li><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, depending on the OS type and choosing the appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type. To skip installation of default dependencies add <code>skip_default_deps = true</code> to <code>[metadata]</code></li>
+<li>Below example recipe will be built for 2 images <code>centos8</code> and <code>debian10</code>. Each image also specifies the target that should be built using it.</li>
+<li>If <code>git</code> is provided as a field, the repository that it points to will be automatically extracted to <code>$PKGER_OUT_DIR</code>, otherwise <code>pkger</code> will try to fetch <code>source</code>.</li>
+<li>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> it will be directly extracted to <code>$PKGER_BLD_DIR</code>, otherwise the file will be copied to the directory untouched.</li>
+</ul>
+<h2 id="required-fields"><a class="header" href="#required-fields">required fields</a></h2>
+<pre><code class="language-toml">[metadata]
+name = &quot;pkger&quot;
+version = &quot;0.1.0&quot;
+description = &quot;A package building tool utilizing Docker&quot;
+license = &quot;MIT&quot;
+</code></pre>
+<h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
+<pre><code class="language-toml"># optional if building with `--simple` targets
+images = [
+    { name = &quot;centos8&quot; , target = &quot;rpm&quot; },
+    { name = &quot;debian10&quot;, target = &quot;deb&quot; }
+]
+</code></pre>
+<h4 id="common"><a class="header" href="#common">common</a></h4>
+<pre><code class="language-toml">release = &quot;1&quot; # defaults to &quot;0&quot;
+
+epoch = &quot;42&quot;
+
+source = &quot;&quot; # remote source or file system location
+
+git = &quot;https://github.com/wojciechkepka/pkger.git&quot; # will default to branch = &quot;master&quot;
+# or specify a branch like this:
+# git = { url = &quot;https://github.com/wojciechkepka/pkger.git&quot;, branch = &quot;dev&quot; }
+
+maintainer = &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
+
+# The website of the package being built
+url = &quot;https://github.com/wojciechkepka/pkger&quot;
+
+arch = &quot;x86_64&quot; # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
+
+skip_default_deps = true # skip installing default dependencies, it might break the builds
+
+exclude = [&quot;share&quot;, &quot;info&quot;] # directories to exclude from final package
+
+group = &quot;&quot; # acts as Group in RPM or Section in DEB build
+</code></pre>
+<h4 id="dependencies"><a class="header" href="#dependencies">dependencies</a></h4>
+<p>This fields can be specified as arrays:</p>
+<pre><code class="language-toml">depends   = []
+conflicts = []
+provides  = []
+</code></pre>
+<p>Or specified per image as a map:</p>
+<pre><code class="language-toml">[metadata.build_depends]
+# common dependencies shared across all images
+all      = [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
+
+# dependencies for custom images
+centos8  = [&quot;cargo&quot;, &quot;openssl-devel&quot;]
+debian10 = [&quot;curl&quot;, &quot;libssl-dev&quot;]
+</code></pre>
+<p>if running a simple build and there is a need to specify dependencies for the target add dependencies
+for one of this images:</p>
+<pre><code class="language-toml">pkger-rpm = [&quot;cargo&quot;]
+pkger-deb = [&quot;curl&quot;]
+pkger-pkg = [&quot;cargo&quot;]
+pkger-gzip = []
+
+</code></pre>
+<p>If specifying some deps as array and some as maps the arrays always have to come before the maps, otherwise TOML breaks</p>
+<h4 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h4>
+<pre><code class="language-toml">[metadata.deb]
+priority = &quot;&quot;
+installed_size = &quot;&quot;
+built_using = &quot;&quot;
+essential = true
+
+# same as all other dependencies but deb specific
+pre_depends = []
+recommends = []
+suggests = []
+breaks = []
+replaces = []
+enchances = []
+</code></pre>
+<h4 id="rpm-fields"><a class="header" href="#rpm-fields">RPM fields</a></h4>
+<pre><code class="language-toml">[metadata.rpm]
+vendor = &quot;&quot;
+icon = &quot;&quot;
+summary = &quot;shorter description&quot; # if not provided defaults to value of `description`
+config_noreplace = &quot;%{_sysconfdir}/%{name}/%{name}.conf&quot;
+
+pre_script = &quot;&quot;
+post_script = &quot;&quot;
+preun_script = &quot;&quot;
+postun_script = &quot;&quot;
+
+# acts the same as other dependencies - can be passed as array
+# obsoletes = [&quot;foo&quot;]
+# or as a map per image at the end of rpm fields definition
+[metadata.rpm.obsoletes]
+centos8 = [&quot;foo&quot;]
+</code></pre>
+<h4 id="pkg-fields"><a class="header" href="#pkg-fields">PKG fields</a></h4>
+<pre><code class="language-toml">[metadata.pkg]
+# location of the script in $PKGER_OUT_DIR that contains pre/post install/upgrade/remove functions
+# to be included in the final pkg
+install = &quot;.install&quot;
+
+# A list of files to be backed up when package will be removed or upgraded
+backup = [&quot;/etc/pkger.conf&quot;]
+
+# A list of packages that this package replaces
+replaces = []
+
+# This are dependencies that this package needs to offer full functionality.
+# Each dependency should contain a short description in this format:
+optdepends = [
+    &quot;libpng: PNG images support&quot;,
+    &quot;alsa-lib: sound support&quot;
+]
+</code></pre>
+<h1 id="scripts"><a class="header" href="#scripts">Scripts</a></h1>
+<p><strong>pkger</strong> has 3 defined build phases - <em>configure</em>, <em>build</em> and <em>install</em> of which only <em>build</em> is required to create a package.</p>
+<p>To set a working directory during the script phase set the <code>working_dir</code> variable like so:</p>
+<pre><code class="language-toml">working_dir = &quot;/tmp&quot;
+</code></pre>
+<p>To use a different shell to execute each command set the <code>shell</code> variable:</p>
+<pre><code class="language-toml">shell = &quot;/bin/bash&quot; # optionally change default `/bin/sh`
+</code></pre>
+<h2 id="configure-optional"><a class="header" href="#configure-optional">configure (Optional)</a></h2>
+<ul>
+<li>Optional configuration steps. If provided the steps will be executed before the build phase.</li>
+</ul>
+<pre><code class="language-toml">[configure]
+steps = [
+    &quot;curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh&quot;
+]
+</code></pre>
+<h2 id="build-required"><a class="header" href="#build-required">build (Required)</a></h2>
+<ul>
+<li>All build steps presented as a list of strings</li>
+<li>Steps will be executed with a working directory set to <code>$PKGER_BLD_DIR</code></li>
+<li>After successfully running all steps <strong>pkger</strong> will assemble the final package from <code>$PKGER_BLD_DIR</code> directory</li>
+</ul>
+<pre><code class="language-toml">[build]
+steps = [
+    &quot;$HOME/.cargo/bin/cargo build --release .&quot;,
+    { images = [&quot;debian10&quot;], cmd = &quot;echo 'hello from Debian'&quot; }, # will only be executed on image `debian10`
+    { rpm = true, cmd = &quot;echo 'will only run on images with target == `rpm`'&quot; }
+    # same applies to other targets
+    # { pkg = false, deb = true, gzip = false, cmd = &quot;echo test&quot; }
+]
+</code></pre>
+<h2 id="install-optional"><a class="header" href="#install-optional">install (Optional)</a></h2>
+<ul>
+<li>Optional installation steps. If provided the steps will be executed after the build phase.</li>
+<li>Working directory will be set to <code>$PKGER_OUT_DIR</code> by default so you can use relative paths during install</li>
+</ul>
+<pre><code class="language-toml">[install]
+steps = [
+    &quot;install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger&quot;
+]
+</code></pre>
+<p>After executing build script (or install if provided), <strong>pkger</strong> will copy all files from <code>$PKGER_OUT_DIR</code> to final package. So for example if this directory contains a file <code>$PKGER_OUT_DIR/usr/bin/pkger</code> this file will be added to the package as <code>/usr/bin/pkger</code>.</p>
+<h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
+<p>To generate a recipe declaratively from CLI use subcommand <code>gen-recipe</code>. By default it requires only the name of the package and prints the recipe to stdout. If <code>output_dir</code> is provided <strong>pkger</strong> will create a directory with the name of the package and a <code>recipe.toml</code> containing generated recipe.</p>
+<p>Example generated recipe with no options printed to stdout:</p>
+<pre><code>&gt; pkger gen-recipe blank
+[metadata]
+name = &quot;blank&quot;
+version = &quot;1.0.0&quot;
+description = &quot;missing&quot;
+license = &quot;missing&quot;
+images = []
+
+[metadata.deb]
+
+[metadata.rpm]
+
+[metadata.pkg]
+
+[build]
+steps = []
+</code></pre>
+<p>Or a more complex one, all of the metadata fields can be added using declarative syntax:</p>
+<pre><code>&gt; pkger gen-recipe test --arch x86_64 --description &quot;A very interesting package...&quot; \
+                        --provides test-bin --version 1.0.0 --build-depends curl make \
+                        --license MIT
+[metadata]
+name = &quot;test&quot;
+version = &quot;1.0.0&quot;
+description = &quot;A very interesting package...&quot;
+license = &quot;MIT&quot;
+images = []
+arch = &quot;x86_64&quot;
+build_depends = [&quot;curl&quot;, &quot;make&quot;]
+provides = [&quot;test-bin&quot;]
+
+[metadata.deb]
+
+[metadata.rpm]
+
+[metadata.pkg]
+
+[build]
+steps = []
+</code></pre>
+<h1 id="images"><a class="header" href="#images">Images</a></h1>
+<p>Images are an optional feature of <strong>pkger</strong>.By default <strong>pkger</strong> will create necessary images to build simple targets, they are completely distinct from user defined ones. User images offer higher customisation when it comes to preparing the build environment.</p>
+<p>In the images directory specified by the <a href="./configuration.html">configuration</a> <strong>pkger</strong> will treat each subdirectory containing a <code>Dockerfile</code> as an image. The name of the directory will become the name of the image.</p>
+<p>So example structure like this:</p>
+<pre><code>images
+├── arch
+│  └── Dockerfile
+├── centos8
+│  └── Dockerfile
+└── debian10
+   └── Dockerfile
+</code></pre>
+<p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>centos8</em> and <em>debian10</em>.</p>
+<p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
+<h1 id="build-a-package"><a class="header" href="#build-a-package">Build a package</a></h1>
+<p>Currently available targets are: <em>RPM</em>, <em>DEB</em>, <em>PKG</em>, <em>GZIP</em>.</p>
+<h3 id="simple-build"><a class="header" href="#simple-build">Simple build</a></h3>
+<p>To build a simple package using <strong>pkger</strong> use:</p>
+<ul>
+<li><code>pkger build --simple [TARGETS] -- [RECIPES]</code></li>
+</ul>
+<h3 id="custom-images-build"><a class="header" href="#custom-images-build">Custom images build</a></h3>
+<p>To use custom images drop the <code>--simple</code> parameter and just use:</p>
+<ul>
+<li><code>pkger build [RECIPES]</code></li>
+</ul>
+<p>For this to have any effect the recipes have to have image targets defined (more on that <a href="./metadata.html#optional-fields">here</a>)</p>
+<h1 id="formatting-output"><a class="header" href="#formatting-output">Formatting output</a></h1>
+<p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or <code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set <code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
+<p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells <strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output. Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
+<ul>
+<li><code>d</code> hides the timestamp</li>
+<li><code>f</code> hides the fields in spans (the values between curly braces like <code>{id = vw89wje92}</code>)</li>
+<li><code>l</code> hides the level</li>
+<li><code>s</code> hides the spans entirely</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+        
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+        
+        
+
+    </body>
+</html>
