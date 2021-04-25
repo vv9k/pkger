@@ -14,21 +14,24 @@ mod recipe;
 mod util;
 
 use crate::docker::DockerConnectionPool;
-use crate::image::{FsImages, ImagesState};
+use crate::image::{FsImage, FsImages, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
 use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
-use crate::recipe::Recipes;
+use crate::recipe::{BuildTarget, Recipes};
 
 pub use anyhow::{Error, Result};
 use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
+use tempdir::TempDir;
 use tokio::task;
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
 static DEFAULT_CONFIG_FILE: &str = ".pkger.toml";
@@ -36,9 +39,9 @@ static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    images_dir: PathBuf,
     recipes_dir: PathBuf,
     output_dir: PathBuf,
+    images_dir: Option<PathBuf>,
     docker: Option<String>,
 }
 impl Config {
@@ -49,21 +52,28 @@ impl Config {
 
 struct Pkger {
     config: Arc<Config>,
-    images: Arc<FsImages>,
+    user_images: Arc<Option<FsImages>>,
     recipes: Arc<Recipes>,
     docker: Arc<DockerConnectionPool>,
     images_filter: Arc<Vec<String>>,
     images_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
+    simple_targets: Vec<String>,
+    _pkger_dir: TempDir,
 }
 
-impl From<Config> for Pkger {
-    fn from(config: Config) -> Self {
-        let images = FsImages::new(&config.images_dir);
+impl Pkger {
+    fn new(config: Config) -> Result<Self> {
+        let _pkger_dir = create_pkger_dirs()?;
+        let user_images = if let Some(path) = &config.images_dir {
+            Some(FsImages::new(&path))
+        } else {
+            None
+        };
         let recipes = Recipes::new(&config.recipes_dir);
         let pkger = Pkger {
             config: Arc::new(config),
-            images: Arc::new(images),
+            user_images: Arc::new(user_images),
             images_filter: Arc::new(vec![]),
             recipes: Arc::new(recipes),
             docker: Arc::new(DockerConnectionPool::default()),
@@ -71,21 +81,20 @@ impl From<Config> for Pkger {
                 ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
             )),
             is_running: Arc::new(AtomicBool::new(true)),
+            simple_targets: vec![],
+            _pkger_dir,
         };
         let is_running = pkger.is_running.clone();
         set_ctrlc_handler(is_running);
-        pkger
+        Ok(pkger)
     }
-}
-
-impl Pkger {
     async fn process_opts(&mut self, opts: PkgerOpts) -> Result<()> {
         match opts.command {
             PkgerCmd::Build(build_opts) => {
-                self.load_images();
-                self.load_recipes();
+                self.load_user_images()?;
+                self.load_recipes()?;
                 self.process_build_opts(&build_opts)?;
-                self.process_tasks().await;
+                self.process_tasks().await?;
                 self.save_images_state();
                 Ok(())
             }
@@ -124,26 +133,37 @@ impl Pkger {
             info!("building all recipes");
         }
 
-        if let Some(images) = &opts.images {
-            trace!(opts_images = ?images);
-            if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
-                for image in images {
-                    if self.images.images().get(image).is_none() {
-                        warn!(image = %image, "not found in images");
-                    } else {
-                        filter.push(image.clone());
-                    }
-                }
+        if let Some(targets) = &opts.simple {
+            targets
+                .iter()
+                .for_each(|target| self.simple_targets.push(target.to_string()));
+        } else {
+            if let Some(opt_images) = &opts.images {
+                if let Some(user_images) = self.user_images.as_ref() {
+                    trace!(opts_images = ?opt_images);
+                    if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
+                        for image in opt_images {
+                            if user_images.images().get(image).is_none() {
+                                warn!(image = %image, "not found in images");
+                            } else {
+                                filter.push(image.clone());
+                            }
+                        }
 
-                if self.images_filter.is_empty() {
-                    warn!(
+                        if self.images_filter.is_empty() {
+                            warn!(
                         "image filter was provided but no provided images matched existing images"
                     );
+                        } else {
+                            info!(images = ?self.images_filter, "building only on");
+                        }
+                    } else {
+                        info!("building on all images");
+                    }
                 } else {
-                    info!(images = ?self.images_filter, "building only on");
-                }
-            } else {
-                info!("building on all images");
+                    warn!("no custom images found, not building any recipes");
+                    return Ok(());
+                };
             }
         }
 
@@ -170,38 +190,24 @@ impl Pkger {
         Ok(())
     }
 
-    async fn process_tasks(&self) {
+    async fn process_tasks(&mut self) -> Result<()> {
         let span = info_span!("process-tasks");
         async move {
             let mut tasks = Vec::new();
-            for recipe in self.recipes.inner_ref().values() {
-                for image_info in &recipe.metadata.images {
-                    if !self.images_filter.is_empty() && !self.images_filter.contains(&image_info.image)
-                    {
-                        debug!(image = %image_info.image, "skipping");
-                        continue;
-                    }
-                    if let Some(image) = self.images.images().get(&image_info.image) {
-                        debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
-                        tasks.push(
-                            task::spawn(
-                                JobCtx::Build(BuildCtx::new(
-                                    recipe.clone(),
-                                    (*image).clone(),
-                                    self.docker.connect(),
-                                    image_info.target.clone(),
-                                    self.config.clone(),
-                                    self.images_state.clone(),
-                                    self.is_running.clone(),
-                                ))
-                                .run(),
-                            )
-                        );
-                    } else {
-                        warn!(image = %image_info.image, "not found");
-                    }
+
+            if self.simple_targets.is_empty() {
+                self.spawn_custom_image_tasks(&mut tasks);
+            } else {
+                trace!(targets = ?self.simple_targets, "building simple targets");
+                let mut targets = Vec::new();
+                let location = self._pkger_dir.path().join("images");
+                for target in &self.simple_targets {
+                    let target = BuildTarget::try_from(target.as_str())?;
+                    let image = image::create_fsimage(&location, &target)?;
+                    targets.push((image,target));
                 }
-            }
+                self.spawn_simple_tasks(&targets[..], &mut tasks);
+            };
 
             let mut errors = vec![];
 
@@ -223,7 +229,71 @@ impl Pkger {
                     info!(id = %id, output = %output, duration = %format!("{}s", duration.as_secs_f32()), "job succeded");
                 }
             });
+
+            Ok(())
         }.instrument(span).await
+    }
+
+    fn spawn_simple_tasks(
+        &self,
+        images: &[(FsImage, BuildTarget)],
+        tasks: &mut Vec<JoinHandle<JobResult>>,
+    ) {
+        for recipe in self.recipes.inner_ref().values() {
+            for (image, target) in images {
+                debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
+                tasks.push(task::spawn(
+                    JobCtx::Build(BuildCtx::new(
+                        recipe.clone(),
+                        (*image).clone(),
+                        self.docker.connect(),
+                        target.clone(),
+                        self.config.clone(),
+                        self.images_state.clone(),
+                        self.is_running.clone(),
+                        true,
+                    ))
+                    .run(),
+                ));
+            }
+        }
+    }
+
+    fn spawn_custom_image_tasks(&self, tasks: &mut Vec<JoinHandle<JobResult>>) {
+        for recipe in self.recipes.inner_ref().values() {
+            let recipe_images = &recipe.metadata.images;
+            for it in recipe_images {
+                if !self.images_filter.is_empty() && !self.images_filter.contains(&it.image) {
+                    debug!(image = %it.image, "skipping");
+                    continue;
+                }
+                debug!(image = %it.image, recipe = %recipe.metadata.name, "spawning task");
+                let images = if let Some(images) = self.user_images.as_ref() {
+                    images
+                } else {
+                    warn!("no custom images found, not building any recipes");
+                    return;
+                };
+
+                if let Some(image) = images.images().get(&it.image) {
+                    tasks.push(task::spawn(
+                        JobCtx::Build(BuildCtx::new(
+                            recipe.clone(),
+                            (*image).clone(),
+                            self.docker.connect(),
+                            it.target.clone(),
+                            self.config.clone(),
+                            self.images_state.clone(),
+                            self.is_running.clone(),
+                            false,
+                        ))
+                        .run(),
+                    ));
+                } else {
+                    warn!(image= %it.image, "not found");
+                }
+            }
+        }
     }
 
     fn save_images_state(&self) {
@@ -243,39 +313,34 @@ impl Pkger {
         }
     }
 
-    fn load_images(&mut self) {
-        if let Some(images) = Arc::get_mut(&mut self.images) {
-            if let Err(e) = images.load() {
-                error!(
-                    reason = %e,
-                    "failed to load images"
-                );
-                process::exit(1);
+    fn load_user_images(&mut self) -> Result<()> {
+        let images = if let Some(images) = Arc::get_mut(&mut self.user_images) {
+            if let Some(images) = images {
+                images
+            } else {
+                return Err(anyhow!("no user images to load"));
             }
         } else {
-            error!(
-                reason = "couldn't get mutable reference to images",
-                "failed to load images"
-            );
-            process::exit(1);
+            return Err(anyhow!("failed to get mutable reference to user images"));
+        };
+        if let Err(e) = images.load() {
+            Err(anyhow!("failed to load images - {}", e))
+        } else {
+            Ok(())
         }
     }
 
-    fn load_recipes(&mut self) {
+    fn load_recipes(&mut self) -> Result<()> {
         if let Some(recipes) = Arc::get_mut(&mut self.recipes) {
             if let Err(e) = recipes.load() {
-                error!(
-                    reason = %e,
-                    "failed to load recipes"
-                );
-                process::exit(1);
+                Err(anyhow!("failed to load recipes - {}", e))
+            } else {
+                Ok(())
             }
         } else {
-            error!(
-                reason = "couldn't get mutable reference to recipes",
-                "failed to load recipes"
-            );
-            process::exit(1);
+            Err(anyhow!(
+                "failed to load recipes - couldn't get mutable reference to recipes"
+            ))
         }
     }
 
@@ -415,6 +480,17 @@ fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     };
 }
 
+fn create_pkger_dirs() -> Result<TempDir> {
+    let tempdir = TempDir::new("pkger")?;
+    let pkger_dir = tempdir.path();
+    let images_dir = pkger_dir.join("images");
+    if !images_dir.exists() {
+        fs::create_dir_all(&images_dir)?;
+    }
+
+    Ok(tempdir)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = PkgerOpts::from_args();
@@ -444,7 +520,14 @@ async fn main() -> Result<()> {
     let config = result.unwrap();
     trace!(config = ?config);
 
-    let mut pkger = Pkger::from(config);
+    let mut pkger = match Pkger::new(config) {
+        Ok(pkger) => pkger,
+        Err(e) => {
+            error!(reason = %e, "failed to initialize pkger");
+            process::exit(1);
+        }
+    };
+
     if let Err(e) = pkger.process_opts(opts).await {
         error!(reason = %e, "execution failed");
         process::exit(1);

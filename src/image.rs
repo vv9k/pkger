@@ -2,6 +2,7 @@ use crate::os::Os;
 use crate::Result;
 use crate::{
     job::{Ctx, OneShotCtx},
+    recipe::BuildTarget,
     recipe::RecipeTarget,
 };
 
@@ -42,6 +43,23 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
     }
     .instrument(span)
     .await
+}
+
+pub fn create_fsimage(images_dir: &Path, target: &BuildTarget) -> Result<FsImage> {
+    let (image, name) = match &target {
+        BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
+        BuildTarget::Deb => ("debian:latest", "pkger-deb"),
+        BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
+        BuildTarget::Gzip => ("ubuntu:latest", "pkger-gzip"),
+    };
+
+    let image_dir = images_dir.join(name);
+    fs::create_dir_all(&image_dir)?;
+
+    let dockerfile = format!("FROM {}", image);
+    fs::write(image_dir.join("Dockerfile"), dockerfile.as_bytes())?;
+
+    FsImage::new(image_dir)
 }
 
 //####################################################################################################
@@ -140,6 +158,7 @@ pub struct ImageState {
     pub timestamp: SystemTime,
     pub details: ImageDetails,
     pub deps: HashSet<String>,
+    pub simple: bool,
 }
 
 impl ImageState {
@@ -150,6 +169,7 @@ impl ImageState {
         timestamp: &SystemTime,
         docker: &Docker,
         deps: &HashSet<&str>,
+        simple: bool,
     ) -> Result<ImageState> {
         let name = format!(
             "{}-{}",
@@ -175,6 +195,7 @@ impl ImageState {
                 timestamp: *timestamp,
                 details,
                 deps: deps.iter().map(|s| s.to_string()).collect(),
+                simple,
             })
         }
         .instrument(span)

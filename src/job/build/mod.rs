@@ -52,6 +52,7 @@ pub struct BuildCtx {
     config: Arc<Config>,
     image_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
+    simple: bool,
 }
 
 #[async_trait]
@@ -151,6 +152,7 @@ impl BuildCtx {
         config: Arc<Config>,
         image_state: Arc<RwLock<ImagesState>>,
         is_running: Arc<AtomicBool>,
+        simple: bool,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -190,6 +192,7 @@ impl BuildCtx {
             config,
             image_state,
             is_running,
+            simple,
         }
     }
 
@@ -229,6 +232,7 @@ impl BuildCtx {
                 self.container_out_dir.as_path(),
                 self.container_bld_dir.as_path(),
                 self.container_tmp_dir.as_path(),
+                self.simple,
             );
 
             ctx.start_container().await.map(|_| ctx)
@@ -273,6 +277,7 @@ pub struct BuildContainerCtx<'job> {
     pub container_out_dir: &'job Path,
     pub container_bld_dir: &'job Path,
     pub container_tmp_dir: &'job Path,
+    pub simple: bool,
 }
 
 impl<'job> BuildContainerCtx<'job> {
@@ -287,6 +292,7 @@ impl<'job> BuildContainerCtx<'job> {
         container_out_dir: &'job Path,
         container_bld_dir: &'job Path,
         container_tmp_dir: &'job Path,
+        simple: bool,
     ) -> BuildContainerCtx<'job> {
         BuildContainerCtx {
             container: DockerContainer::new(docker, Some(is_running)),
@@ -297,6 +303,7 @@ impl<'job> BuildContainerCtx<'job> {
             container_out_dir,
             container_bld_dir,
             container_tmp_dir,
+            simple,
         }
     }
 
