@@ -336,7 +336,7 @@ impl Pkger {
             recommends: vec_as_deps!(opts.recommends),
             suggests: vec_as_deps!(opts.suggests),
             breaks: vec_as_deps!(opts.breaks),
-            replaces: vec_as_deps!(opts.replaces),
+            replaces: vec_as_deps!(opts.replaces.clone()),
             enchances: vec_as_deps!(opts.enchances),
         };
 
@@ -352,7 +352,12 @@ impl Pkger {
             config_noreplace: opts.config_noreplace,
         };
 
-        let pkg = PkgRep {};
+        let pkg = PkgRep {
+            install: opts.install_script,
+            backup: opts.backup_files,
+            replaces: vec_as_deps!(opts.replaces),
+            optdepends: opts.optdepends,
+        };
 
         let metadata = MetadataRep {
             name: opts.name,

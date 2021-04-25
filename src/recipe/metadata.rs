@@ -67,16 +67,39 @@ pub struct MetadataRep {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct PkgRep {}
+pub struct PkgRep {
+    /// The name of the .install script to be included in the package
+    pub install: Option<String>,
+    /// A list of files that can contain user-made changes and should be preserved during upgrade
+    /// or removal of a package
+    pub backup: Option<Vec<String>>,
+    pub replaces: Option<toml::Value>,
+    /// Optional dependencies needed for full functionality of the package
+    pub optdepends: Option<Vec<String>>,
+}
 
 #[derive(Clone, Debug)]
-pub struct PkgInfo {}
+pub struct PkgInfo {
+    /// The name of the .install script to be included in the package
+    pub install: Option<String>,
+    /// A list of files that can contain user-made changes and should be preserved during upgrade
+    /// or removal of a package
+    pub backup: Option<Vec<String>>,
+    pub replaces: Option<Dependencies>,
+    /// Optional dependencies needed for full functionality of the package
+    pub optdepends: Option<Vec<String>>,
+}
 
 impl TryFrom<PkgRep> for PkgInfo {
     type Error = Error;
 
     fn try_from(rep: PkgRep) -> Result<Self> {
-        Ok(Self {})
+        Ok(Self {
+            install: rep.install,
+            backup: rep.backup,
+            replaces: let_some_deps!(rep.replaces),
+            optdepends: rep.optdepends,
+        })
     }
 }
 

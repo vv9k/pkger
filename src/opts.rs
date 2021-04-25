@@ -124,6 +124,10 @@ pub struct GenRecipeOpts {
     /// `HTTP_PROXY=proxy.corp.local,PATH=$PATH:/opt/dev/bin`
     pub env: Option<String>,
 
+    #[clap(long)]
+    /// A list of packages that this packages replaces. Applies to DEB and PKG
+    pub replaces: Option<Vec<String>>,
+
     // Only DEB
     #[clap(long)]
     /// Only applies to DEB build
@@ -152,9 +156,6 @@ pub struct GenRecipeOpts {
     pub breaks: Option<Vec<String>>,
     #[clap(long)]
     /// Only applies to DEB build
-    pub replaces: Option<Vec<String>>,
-    #[clap(long)]
-    /// Only applies to DEB build
     pub enchances: Option<Vec<String>>,
 
     // Only RPM
@@ -173,4 +174,16 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     /// Only applies to RPM
     pub config_noreplace: Option<String>,
+
+    // Only PKG
+    #[clap(long)]
+    /// The name of the .install script to be included in the package. Only applies to PKG
+    pub install_script: Option<String>,
+    #[clap(long)]
+    /// A list of files that can contain user-made changes and should be preserved during upgrade
+    /// or removal of a package. Only applies to PKG
+    pub backup_files: Option<Vec<String>>,
+    #[clap(long)]
+    /// Optional dependencies needed for full functionality of the package. Only applies to PKG
+    pub optdepends: Option<Vec<String>>,
 }
