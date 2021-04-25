@@ -18,17 +18,19 @@ all = ["gcc", "pkg-config", "git"]
 centos8 = ["cargo", "openssl-devel"]
 debian10 = ["curl", "libssl-dev"]
 arch = ["cargo"]
+pkger-rpm = ["cargo", "openssl-devel"]
+pkger-deb = ["curl", "libssl-dev"]
 
 [configure]
 steps = [
-    {cmd = "curl -o /tmp/install_rust.sh https://sh.rustup.rs", images = ["debian10"]},
-    {cmd = "sh /tmp/install_rust.sh -y --default-toolchain stable", images = ["debian10"]}
+    {cmd = "curl -o /tmp/install_rust.sh https://sh.rustup.rs", images = ["debian10"], deb = true },
+    {cmd = "sh /tmp/install_rust.sh -y --default-toolchain stable", images = ["debian10"], deb = true }
 ]
 
 [build]
 steps = [
-    {cmd = "cargo build --color=never", images = ["centos8", "arch"]},
-    {cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"]}
+    {cmd = "cargo build --color=never", images = ["centos8", "arch"], rpm = true },
+    {cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"], deb = true }
 ]
 
 [install]
