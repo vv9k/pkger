@@ -285,7 +285,7 @@ impl Metadata {
     /// Returns the release number of this package if one exists, otherwise returns "0"
     pub fn release(&self) -> &str {
         if let Some(release) = &self.release {
-            return release.as_str();
+            release.as_str()
         } else {
             "0"
         }
