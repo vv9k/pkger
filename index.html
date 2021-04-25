@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Configuration - pkger</title>
+        <title>Installation - pkger</title>
         
         
 
@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">2.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">2.1.</strong> Metadata</a></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">2.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">2.3.</strong> Generate recipes</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">3.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">4.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">5.</strong> Formatting output</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">3.3.</strong> Generate recipes</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">4.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">5.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">6.</strong> Formatting output</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -163,32 +163,11 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="config"><a class="header" href="#config">Config</a></h1>
-<p>Config file has a following structure:</p>
-<pre><code class="language-toml"># required
-recipes_dir = &quot;&quot;
-output_dir = &quot;&quot;
-
-# optional
-images_dir = &quot;&quot;
-docker = &quot;unix:///var/run/docker.sock&quot;
-</code></pre>
-<p><code>images_dir</code> - directory with images</p>
+                        <h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>To install <strong>pkger</strong> download one of the latest prebuild static binaries from <a href="https://github.com/wojciechkepka/pkger/releases">here</a>. If your desired target is not on the list you'll have to build <strong>pkger</strong> from source by cloning the repository from <code>https://github.com/wojciechkepka/pkger</code> and building it with:</p>
 <ul>
-<li>Each image is a directory containing a <code>Dockerfile</code> and files to be imported with it</li>
-<li>Image name is the directory name</li>
+<li><code>cargo build --release</code></li>
 </ul>
-<p><code>recipes_dir</code> - directory with recipes</p>
-<ul>
-<li>Each recipe is a directory containing a <code>recipe.toml</code> file and source files (if not remote) </li>
-</ul>
-<p><code>output_dir</code> - directory with built packages</p>
-<ul>
-<li>When <strong>pkger</strong> finishes building the package it will create a directory <code>$output_dir/$PKGER_OS/$PKGER_OS_VERSION/</code> where it will put the built package</li>
-</ul>
-<p><code>docker</code> - specify docker uri in configuration.</p>
-<p>If an option is available as both configuration parameter and cli argument <strong>pkger</strong> will favour the arguments passed during startup.</p>
-<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file <code>.pkger.toml</code>. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
 
                     </main>
 
@@ -197,7 +176,7 @@ docker = &quot;unix:///var/run/docker.sock&quot;
                         
 
                         
-                            <a rel="next" href="recipes.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="configuration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -211,7 +190,7 @@ docker = &quot;unix:///var/run/docker.sock&quot;
                 
 
                 
-                    <a rel="next" href="recipes.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="configuration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 
