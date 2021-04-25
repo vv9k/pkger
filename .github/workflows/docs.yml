@@ -1,9 +1,21 @@
 name: Publish docs
 
 on:
+  workflow_dispatch:
   push:
+    paths-ignore:
+      - "src"
+      - "example"
+      - "tests"
     branches:
-      - main
+      - master
+  pull_request:
+    paths-ignore:
+      - "src"
+      - "example"
+      - "tests"
+    branches:
+      - master
 
 jobs:
   deploy:
