@@ -16,3 +16,4 @@
 - Add missing fields for DEB builds, add `url` field to metadata [#43](https://github.com/wojciechkepka/pkger/pull/43)
 - Add initial PKG target [#44](https://github.com/wojciechkepka/pkger/pull/44)
 - Make `release` and `epoch` fields of metadata global rather than RPM specific
+- Add some missing extra fields in metadata for PKG [#45](https://github.com/wojciechkepka/pkger/pull/45)
