@@ -154,6 +154,9 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
 steps = [
     "$HOME/.cargo/bin/cargo build --release .",
     { images = ["debian10"], cmd = "echo 'hello from Debian'" } # will only be executed on image `debian10`
+    { rpm = true, cmd = "echo 'will only run on images with target == `rpm`'" }
+    # same applies to other targets
+    # { pkg = false, deb = true, gzip = false, cmd = "echo test" }
 ]
 ```
  - ### install (Optional)
