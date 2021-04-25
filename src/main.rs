@@ -24,7 +24,7 @@ use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
@@ -36,9 +36,9 @@ static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    images_dir: String,
-    recipes_dir: String,
-    output_dir: String,
+    images_dir: PathBuf,
+    recipes_dir: PathBuf,
+    output_dir: PathBuf,
     docker: Option<String>,
 }
 impl Config {
@@ -59,8 +59,8 @@ struct Pkger {
 
 impl From<Config> for Pkger {
     fn from(config: Config) -> Self {
-        let images = FsImages::new(config.images_dir.as_str());
-        let recipes = Recipes::new(config.recipes_dir.as_str());
+        let images = FsImages::new(&config.images_dir);
+        let recipes = Recipes::new(&config.recipes_dir);
         let pkger = Pkger {
             config: Arc::new(config),
             images: Arc::new(images),
