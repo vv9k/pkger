@@ -236,6 +236,12 @@ description = "missing"
 license = "missing"
 images = []
 
+[metadata.deb]
+
+[metadata.rpm]
+
+[metadata.pkg]
+
 [build]
 steps = []
 ```
@@ -254,6 +260,12 @@ images = []
 arch = "x86_64"
 build_depends = ["curl", "make"]
 provides = ["test-bin"]
+
+[metadata.deb]
+
+[metadata.rpm]
+
+[metadata.pkg]
 
 [build]
 steps = []
