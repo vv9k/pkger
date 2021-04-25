@@ -40,12 +40,8 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!("copy source files to temporary location");
             self.checked_exec(
-                &format!(
-                    "cp -rv {} {}",
-                    self.container_out_dir.display(),
-                    src_dir.display(),
-                ),
-                None,
+                &format!("cp -rv . {}", src_dir.display()),
+                Some(self.container_out_dir),
                 None,
                 None,
             )
