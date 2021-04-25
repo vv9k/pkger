@@ -137,33 +137,31 @@ impl Pkger {
             targets
                 .iter()
                 .for_each(|target| self.simple_targets.push(target.to_string()));
-        } else {
-            if let Some(opt_images) = &opts.images {
-                if let Some(user_images) = self.user_images.as_ref() {
-                    trace!(opts_images = ?opt_images);
-                    if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
-                        for image in opt_images {
-                            if user_images.images().get(image).is_none() {
-                                warn!(image = %image, "not found in images");
-                            } else {
-                                filter.push(image.clone());
-                            }
+        } else if let Some(opt_images) = &opts.images {
+            if let Some(user_images) = self.user_images.as_ref() {
+                trace!(opts_images = ?opt_images);
+                if let Some(filter) = Arc::get_mut(&mut self.images_filter) {
+                    for image in opt_images {
+                        if user_images.images().get(image).is_none() {
+                            warn!(image = %image, "not found in images");
+                        } else {
+                            filter.push(image.clone());
                         }
+                    }
 
-                        if self.images_filter.is_empty() {
-                            warn!(
+                    if self.images_filter.is_empty() {
+                        warn!(
                         "image filter was provided but no provided images matched existing images"
                     );
-                        } else {
-                            info!(images = ?self.images_filter, "building only on");
-                        }
                     } else {
-                        info!("building on all images");
+                        info!(images = ?self.images_filter, "building only on");
                     }
                 } else {
-                    warn!("no custom images found, not building any recipes");
-                    return Ok(());
-                };
+                    info!("building on all images");
+                }
+            } else {
+                warn!("no custom images found, not building any recipes");
+                return Ok(());
             }
         }
 
