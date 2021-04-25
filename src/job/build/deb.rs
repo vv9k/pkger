@@ -19,7 +19,7 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
-        let arch = self.recipe.metadata.deb_arch();
+        let arch = self.recipe.metadata.arch.deb_name();
         let package_name = [&name, ".", &arch].join("");
 
         let span = info_span!("DEB", package = %package_name);

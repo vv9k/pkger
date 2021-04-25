@@ -19,7 +19,7 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
-        let arch = self.recipe.metadata.pkg_arch();
+        let arch = self.recipe.metadata.arch.pkg_name();
         let package_name = [&name, "-1-", &arch].join("");
 
         let span = info_span!("PKG", package = %package_name);
