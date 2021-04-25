@@ -31,6 +31,8 @@ name = "pkger"
 version = "0.1.0"
 description = "A package building tool utilizing Docker"
 license = "MIT"
+
+# optional if building with `--simple` targets
 images = [
     { name = "centos8" , target = "rpm" },
     { name = "debian10", target = "deb" }
