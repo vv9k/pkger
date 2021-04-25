@@ -259,7 +259,12 @@ impl Pkger {
 
     fn spawn_custom_image_tasks(&self, tasks: &mut Vec<JoinHandle<JobResult>>) {
         for recipe in self.recipes.inner_ref().values() {
-            let recipe_images = &recipe.metadata.images;
+            let recipe_images = if let Some(images) = &recipe.metadata.images {
+                images
+            } else {
+                continue;
+            };
+
             for it in recipe_images {
                 if !self.images_filter.is_empty() && !self.images_filter.contains(&it.image) {
                     debug!(image = %it.image, "skipping");
@@ -427,7 +432,7 @@ impl Pkger {
             version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
             description: opts.description.unwrap_or_else(|| "missing".to_string()),
             license: opts.license.unwrap_or_else(|| "missing".to_string()),
-            images: vec![],
+            images: None,
 
             maintainer: opts.maintainer,
             url: opts.url,
