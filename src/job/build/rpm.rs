@@ -77,7 +77,7 @@ impl<'job> BuildContainerCtx<'job> {
             trace!("find source file paths");
             let files = self
                 .checked_exec(
-                    r#"find . -type f -maxdepth 1 -name "*""#,
+                    r#"find . -type f -name "*""#,
                     Some(self.container_out_dir),
                     None,
                     None,
@@ -92,28 +92,11 @@ impl<'job> BuildContainerCtx<'job> {
                         .collect::<Vec<_>>()
                 })
                 .map_err(|e| anyhow!("failed to find source files - {}", e))?;
-            let dirs = self
-                .checked_exec(
-                    r#"find . -type d -maxdepth 1 -name "*""#, //rpmbuild automatically includes all child files and dirs
-                    Some(self.container_out_dir),
-                    None,
-                    None,
-                )
-                .await
-                .map(|out| {
-                    out.stdout
-                        .join("")
-                        .split_ascii_whitespace()
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.trim_start_matches('.').to_string())
-                        .collect::<Vec<_>>()
-                })
-                .map_err(|e| anyhow!("failed to find source dirs - {}", e))?;
             trace!(source_files = ?files);
 
             let spec = cloned_span.in_scope(|| {
                 self.recipe
-                    .as_rpm_spec(&[source_tar], &files[..], &dirs[..], &image_state.image)
+                    .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
                     .render()
             });
 
