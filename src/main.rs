@@ -336,14 +336,12 @@ impl Pkger {
             recommends: vec_as_deps!(opts.recommends),
             suggests: vec_as_deps!(opts.suggests),
             breaks: vec_as_deps!(opts.breaks),
-            replaces: vec_as_deps!(opts.replaces),
+            replaces: vec_as_deps!(opts.replaces.clone()),
             enchances: vec_as_deps!(opts.enchances),
         };
 
         let rpm = RpmRep {
-            release: opts.release,
             obsoletes: vec_as_deps!(opts.obsoletes),
-            epoch: opts.epoch,
             vendor: opts.vendor,
             icon: opts.icon,
             summary: opts.summary,
@@ -355,7 +353,10 @@ impl Pkger {
         };
 
         let pkg = PkgRep {
-            pkgrel: opts.pkgrel,
+            install: opts.install_script,
+            backup: opts.backup_files,
+            replaces: vec_as_deps!(opts.replaces),
+            optdepends: opts.optdepends,
         };
 
         let metadata = MetadataRep {
@@ -373,6 +374,8 @@ impl Pkger {
             skip_default_deps: opts.skip_default_deps,
             exclude: opts.exclude,
             group: opts.group,
+            release: opts.release,
+            epoch: opts.epoch,
 
             build_depends: vec_as_deps!(opts.build_depends),
             depends: vec_as_deps!(opts.depends),

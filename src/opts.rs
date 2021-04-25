@@ -99,8 +99,15 @@ pub struct GenRecipeOpts {
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
     #[clap(long)]
-    /// Group in RPM or section in DEB build
+    /// Group in RPM and PKG or section in DEB build
     pub group: Option<String>,
+    #[clap(long)]
+    /// The release number. This is usually a positive integer number that allows to differentiate
+    /// between consecutive builds of the same version of a package
+    pub release: Option<String>,
+    #[clap(long)]
+    /// Used to force the package to be seen as newer than any previous version with a lower epoch
+    pub epoch: Option<String>,
 
     #[clap(long)]
     pub build_depends: Option<Vec<String>>,
@@ -116,6 +123,10 @@ pub struct GenRecipeOpts {
     /// A comma separated list of k=v entries like:
     /// `HTTP_PROXY=proxy.corp.local,PATH=$PATH:/opt/dev/bin`
     pub env: Option<String>,
+
+    #[clap(long)]
+    /// A list of packages that this packages replaces. Applies to DEB and PKG
+    pub replaces: Option<Vec<String>>,
 
     // Only DEB
     #[clap(long)]
@@ -145,21 +156,12 @@ pub struct GenRecipeOpts {
     pub breaks: Option<Vec<String>>,
     #[clap(long)]
     /// Only applies to DEB build
-    pub replaces: Option<Vec<String>>,
-    #[clap(long)]
-    /// Only applies to DEB build
     pub enchances: Option<Vec<String>>,
 
     // Only RPM
     #[clap(long)]
     /// Only applies to RPM
-    pub release: Option<String>,
-    #[clap(long)]
-    /// Only applies to RPM
     pub obsoletes: Option<Vec<String>>,
-    #[clap(long)]
-    /// Only applies to RPM
-    pub epoch: Option<String>,
     #[clap(long)]
     /// Only applies to RPM
     pub vendor: Option<String>,
@@ -175,6 +177,13 @@ pub struct GenRecipeOpts {
 
     // Only PKG
     #[clap(long)]
-    /// Only applies to PKG
-    pub pkgrel: Option<String>,
+    /// The name of the .install script to be included in the package. Only applies to PKG
+    pub install_script: Option<String>,
+    #[clap(long)]
+    /// A list of files that can contain user-made changes and should be preserved during upgrade
+    /// or removal of a package. Only applies to PKG
+    pub backup_files: Option<Vec<String>>,
+    #[clap(long)]
+    /// Optional dependencies needed for full functionality of the package. Only applies to PKG
+    pub optdepends: Option<Vec<String>>,
 }
