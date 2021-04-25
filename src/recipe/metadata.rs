@@ -31,7 +31,8 @@ pub struct MetadataRep {
     pub version: String,
     pub description: String,
     pub license: String,
-    pub images: Vec<toml::Value>,
+
+    pub images: Option<Vec<toml::Value>>,
 
     // Common optional
     pub maintainer: Option<String>,
@@ -206,9 +207,9 @@ pub struct Metadata {
     pub version: String,
     pub description: String,
     pub license: String,
-    pub images: Vec<ImageTarget>,
     pub arch: BuildArch,
 
+    pub images: Option<Vec<ImageTarget>>,
     pub maintainer: Option<String>,
     /// The URL of the web site for this package
     pub url: Option<String>,
@@ -256,10 +257,15 @@ impl TryFrom<MetadataRep> for Metadata {
     type Error = Error;
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
-        let mut images = vec![];
-        for image in rep.images.into_iter().map(ImageTarget::try_from) {
-            images.push(image?);
-        }
+        let images = if let Some(rep_images) = rep.images {
+            let mut images = vec![];
+            for image in rep_images.into_iter().map(ImageTarget::try_from) {
+                images.push(image?);
+            }
+            Some(images)
+        } else {
+            None
+        };
 
         Ok(Self {
             name: rep.name,
