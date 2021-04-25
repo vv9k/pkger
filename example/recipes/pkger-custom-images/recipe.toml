@@ -5,33 +5,36 @@ arch = "x86_64"
 license = "MIT"
 version = "0.1.0"
 maintainer = "Wojciech Kępka <wojciech@wkepka.dev>"
+url = "https://github.com/wojciech/pkger"
 git = "https://github.com/wojciechkepka/pkger.git"
 provides = ["pkger"]
+
 images = [
     { name = "centos8", target = "rpm" },
     { name = "debian10", target = "deb" },
     { name = "arch", target = "pkg" }
 ]
 
+[metadata.depends]
+debian10= ["libssl-dev"]
+centos8 = ["openssl-devel"]
+
 [metadata.build_depends]
-all = ["gcc", "pkg-config", "git"]
+all = ["gcc", "pkg-config"]
 centos8 = ["cargo", "openssl-devel"]
 debian10 = ["curl", "libssl-dev"]
 arch = ["cargo"]
-pkger-rpm = ["cargo", "openssl-devel"]
-pkger-deb = ["curl", "libssl-dev"]
-pkger-pkg = ["cargo"]
 
 [configure]
 steps = [
-    {cmd = "curl -o /tmp/install_rust.sh https://sh.rustup.rs", images = ["debian10"], deb = true },
-    {cmd = "sh /tmp/install_rust.sh -y --default-toolchain stable", images = ["debian10"], deb = true }
+    { cmd = "curl -o /tmp/install_rust.sh https://sh.rustup.rs", images = ["debian10"] },
+    { cmd = "sh /tmp/install_rust.sh -y --default-toolchain stable", images = ["debian10"] }
 ]
 
 [build]
 steps = [
-    {cmd = "cargo build --color=never", images = ["centos8", "arch"], rpm = true, pkg = true },
-    {cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"], deb = true }
+    { cmd = "cargo build --color=never", images = ["centos8", "arch"] },
+    { cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"] }
 ]
 
 [install]
