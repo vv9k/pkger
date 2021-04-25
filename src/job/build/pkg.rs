@@ -115,13 +115,6 @@ impl<'job> BuildContainerCtx<'job> {
             self.checked_exec(&format!("passwd -d {}", BUILD_USER), None, None, None)
                 .await?;
             self.checked_exec(
-                &format!("echo -e '{} ALL=(ALL) ALL\n' >> /etc/sudoers", BUILD_USER),
-                None,
-                None,
-                None,
-            )
-            .await?;
-            self.checked_exec(
                 &format!("chown -Rv {0}:{0} .", BUILD_USER),
                 Some(bld_dir.as_path()),
                 None,
