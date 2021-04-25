@@ -120,13 +120,11 @@ impl TryFrom<RecipeRep> for Recipe {
 
 impl Recipe {
     pub fn as_deb_control(&self, image: &str) -> BinaryDebControl {
-        let arch = self.metadata.deb_arch();
-
         let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
             .version(&self.metadata.version)
             .revision(self.metadata.release())
             .description(&self.metadata.description)
-            .architecture(arch);
+            .architecture(self.metadata.arch.deb_name());
 
         if let Some(epoch) = &self.metadata.epoch {
             builder = builder.epoch(epoch);
@@ -204,7 +202,7 @@ impl Recipe {
 
         let mut builder = RpmSpec::builder()
             .name(&self.metadata.name)
-            .build_arch(self.metadata.rpm_arch())
+            .build_arch(self.metadata.arch.rpm_name())
             .description(&self.metadata.description)
             .license(&self.metadata.license)
             .version(&self.metadata.version)
@@ -282,11 +280,7 @@ impl Recipe {
             .pkgver(&self.metadata.version)
             .pkgdesc(&self.metadata.description)
             .add_license_entries(vec![&self.metadata.license])
-            .add_arch_entries(vec![self
-                .metadata
-                .arch
-                .clone()
-                .unwrap_or_else(|| "any".to_string())])
+            .add_arch_entries(vec![self.metadata.arch.pkg_name().to_string()])
             .add_source_entries(sources)
             .add_md5sums_entries(checksums)
             .package_func(package_func);

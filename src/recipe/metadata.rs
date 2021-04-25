@@ -1,7 +1,9 @@
+mod arch;
 mod git;
 mod image;
 mod target;
 
+pub use arch::BuildArch;
 pub use git::GitSource;
 pub use image::ImageTarget;
 pub use target::BuildTarget;
@@ -205,8 +207,8 @@ pub struct Metadata {
     pub description: String,
     pub license: String,
     pub images: Vec<ImageTarget>,
+    pub arch: BuildArch,
 
-    pub arch: Option<String>,
     pub maintainer: Option<String>,
     /// The URL of the web site for this package
     pub url: Option<String>,
@@ -240,48 +242,6 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    /// Returns the name of `arch` appropriate for DEB build
-    pub fn deb_arch(&self) -> &str {
-        if let Some(arch) = &self.arch {
-            match &arch[..] {
-                "amd64" | "x86_64" => "amd64",
-                "x86" | "i386" => "i386",
-                arch => arch,
-                // #TODO: add more...
-            }
-        } else {
-            "all"
-        }
-    }
-
-    /// Returns the name of `arch` appropriate for RPM build
-    pub fn rpm_arch(&self) -> &str {
-        if let Some(arch) = &self.arch {
-            match &arch[..] {
-                "amd64" | "x86_64" => "x86_64",
-                "x86" | "i386" => "x86",
-                arch => arch,
-                // #TODO: add more...
-            }
-        } else {
-            "noarch"
-        }
-    }
-
-    /// Returns the name of `arch` appropriate for PKG build
-    pub fn pkg_arch(&self) -> &str {
-        if let Some(arch) = &self.arch {
-            match &arch[..] {
-                "amd64" | "x86_64" => "x86_64",
-                "x86" | "i386" => "x86",
-                arch => arch,
-                // #TODO: add more...
-            }
-        } else {
-            "any"
-        }
-    }
-
     /// Returns the release number of this package if one exists, otherwise returns "0"
     pub fn release(&self) -> &str {
         if let Some(release) = &self.release {
@@ -308,7 +268,10 @@ impl TryFrom<MetadataRep> for Metadata {
             license: rep.license,
             images,
 
-            arch: rep.arch,
+            arch: rep
+                .arch
+                .map(|arch| BuildArch::from(arch.as_str()))
+                .unwrap_or_else(|| BuildArch::All),
             maintainer: rep.maintainer,
             url: rep.url,
             source: rep.source,
