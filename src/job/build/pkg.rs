@@ -13,14 +13,12 @@ impl<'job> BuildContainerCtx<'job> {
         image_state: &ImageState,
         output_dir: &Path,
     ) -> Result<PathBuf> {
-        let name = [
-            &self.recipe.metadata.name,
-            "-",
-            &self.recipe.metadata.version,
-        ]
-        .join("");
+        let name = format!(
+            "{}-{}",
+            &self.recipe.metadata.name, &self.recipe.metadata.version,
+        );
         let arch = self.recipe.metadata.arch.pkg_name();
-        let package_name = [&name, "-1-", &arch].join("");
+        let package_name = format!("{}-{}-{}", &name, &self.recipe.metadata.release(), &arch);
 
         let span = info_span!("PKG", package = %package_name);
         let cloned_span = span.clone();
