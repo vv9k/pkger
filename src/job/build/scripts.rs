@@ -53,6 +53,11 @@ impl<'job> BuildContainerCtx<'job> {
                         continue;
                     }
                 }
+
+                if !cmd.should_run_on(&self.target) {
+                    trace!(command = %cmd.cmd, "skipping, shouldn't run on target");
+                    continue;
+                }
                 self.checked_exec(&cmd.cmd, working_dir, shell, None)
                     .await?;
             }
@@ -89,6 +94,10 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
+                if !cmd.should_run_on(&self.target) {
+                    trace!(command = %cmd.cmd, "skipping, shouldn't run on target");
+                    continue;
+                }
                 self.checked_exec(&cmd.cmd, working_dir, shell, None)
                     .await?;
             }
@@ -125,6 +134,10 @@ impl<'job> BuildContainerCtx<'job> {
                     }
                 }
 
+                if !cmd.should_run_on(&self.target) {
+                    trace!(command = %cmd.cmd, "skipping, shouldn't run on target");
+                    continue;
+                }
                 self.checked_exec(&cmd.cmd, working_dir, shell, None)
                     .await?;
             }
