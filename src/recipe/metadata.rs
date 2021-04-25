@@ -45,6 +45,11 @@ pub struct MetadataRep {
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
     pub group: Option<String>,
+    /// The release number. This is usually a positive integer number that allows to differentiate
+    /// between consecutive builds of the same version of a package
+    pub release: Option<String>,
+    /// Used to force the package to be seen as newer than any previous version with a lower epoch
+    pub epoch: Option<String>,
 
     pub build_depends: Option<toml::Value>,
     pub depends: Option<toml::Value>,
@@ -62,20 +67,16 @@ pub struct MetadataRep {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct PkgRep {
-    pub pkgrel: Option<String>,
-}
+pub struct PkgRep {}
 
 #[derive(Clone, Debug)]
-pub struct PkgInfo {
-    pub pkgrel: Option<String>,
-}
+pub struct PkgInfo {}
 
 impl TryFrom<PkgRep> for PkgInfo {
     type Error = Error;
 
     fn try_from(rep: PkgRep) -> Result<Self> {
-        Ok(Self { pkgrel: rep.pkgrel })
+        Ok(Self {})
     }
 }
 
@@ -132,8 +133,6 @@ impl TryFrom<DebRep> for DebInfo {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RpmRep {
     pub obsoletes: Option<toml::Value>,
-    pub release: Option<String>,
-    pub epoch: Option<String>,
     pub vendor: Option<String>,
     pub icon: Option<String>,
     pub summary: Option<String>,
@@ -150,8 +149,6 @@ impl TryFrom<RpmRep> for RpmInfo {
     fn try_from(rep: RpmRep) -> Result<Self> {
         Ok(Self {
             obsoletes: let_some_deps!(rep.obsoletes),
-            release: rep.release,
-            epoch: rep.epoch,
             vendor: rep.vendor,
             icon: rep.icon,
             summary: rep.summary,
@@ -167,8 +164,6 @@ impl TryFrom<RpmRep> for RpmInfo {
 #[derive(Clone, Debug)]
 pub struct RpmInfo {
     pub obsoletes: Option<Dependencies>,
-    pub release: Option<String>,
-    pub epoch: Option<String>,
     pub vendor: Option<String>,
     pub icon: Option<String>,
     pub summary: Option<String>,
@@ -202,6 +197,11 @@ pub struct Metadata {
     pub exclude: Option<Vec<String>>,
     /// Works as section in DEB and group in RPM
     pub group: Option<String>,
+    /// The release number. This is usually a positive integer number that allows to differentiate
+    /// between consecutive builds of the same version of a package
+    pub release: Option<String>,
+    /// Used to force the package to be seen as newer than any previous version with a lower epoch
+    pub epoch: Option<String>,
 
     pub build_depends: Option<Dependencies>,
 
@@ -259,15 +259,13 @@ impl Metadata {
         }
     }
 
-    /// Returns the RPM release if the value is available, otherwise returns "0"
-    pub fn rpm_release(&self) -> &str {
-        if let Some(rpm) = &self.rpm {
-            if let Some(release) = &rpm.release {
-                return release.as_str();
-            }
+    /// Returns the release number of this package if one exists, otherwise returns "0"
+    pub fn release(&self) -> &str {
+        if let Some(release) = &self.release {
+            return release.as_str();
+        } else {
+            "0"
         }
-
-        "0"
     }
 }
 
@@ -301,6 +299,8 @@ impl TryFrom<MetadataRep> for Metadata {
             skip_default_deps: rep.skip_default_deps,
             exclude: rep.exclude,
             group: rep.group,
+            release: rep.release,
+            epoch: rep.epoch,
 
             build_depends: let_some_deps!(rep.build_depends),
 

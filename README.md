@@ -1,4 +1,5 @@
 # pkger 📦
+
 [![Build Status](https://github.com/wojciechkepka/pkger/workflows/pkger%20CI/badge.svg)](https://github.com/wojciechkepka/pkger/actions?query=workflow%3A%22pkger+CI%22)
 
 **pkger** is a tool that automates building *RPMs*, *DEBs*, *PKG*, and other packages on multiple *Linux* distributions, versions and architectures with the help of Docker.
@@ -37,6 +38,9 @@ images = [
 
 
 #### optional common
+release = "1" # defaults to "0"
+
+epoch = "42"
 
 source = "" # remote source or file system location
 
@@ -93,8 +97,6 @@ enchances = []
 #### RPM fields
 
 [metadata.rpm]
-release = "1" # defaults to "0"
-epoch = "42"
 vendor = ""
 icon = ""
 summary = "shorter description" # if not provided defaults to value of `description`
@@ -114,8 +116,6 @@ centos8 = ["foo"]
 #### PKG fields
 
 [metadata.pkg]
-pkgrel = "2" # defaults to "0"
-
 ```
  - ### configure (Optional)
  - Optional configuration steps. If provided the steps will be executed before the build phase.

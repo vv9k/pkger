@@ -99,8 +99,15 @@ pub struct GenRecipeOpts {
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
     #[clap(long)]
-    /// Group in RPM or section in DEB build
+    /// Group in RPM and PKG or section in DEB build
     pub group: Option<String>,
+    #[clap(long)]
+    /// The release number. This is usually a positive integer number that allows to differentiate
+    /// between consecutive builds of the same version of a package
+    pub release: Option<String>,
+    #[clap(long)]
+    /// Used to force the package to be seen as newer than any previous version with a lower epoch
+    pub epoch: Option<String>,
 
     #[clap(long)]
     pub build_depends: Option<Vec<String>>,
@@ -153,13 +160,7 @@ pub struct GenRecipeOpts {
     // Only RPM
     #[clap(long)]
     /// Only applies to RPM
-    pub release: Option<String>,
-    #[clap(long)]
-    /// Only applies to RPM
     pub obsoletes: Option<Vec<String>>,
-    #[clap(long)]
-    /// Only applies to RPM
-    pub epoch: Option<String>,
     #[clap(long)]
     /// Only applies to RPM
     pub vendor: Option<String>,
@@ -172,9 +173,4 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     /// Only applies to RPM
     pub config_noreplace: Option<String>,
-
-    // Only PKG
-    #[clap(long)]
-    /// Only applies to PKG
-    pub pkgrel: Option<String>,
 }

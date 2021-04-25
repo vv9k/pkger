@@ -20,7 +20,7 @@ impl<'job> BuildContainerCtx<'job> {
             &self.recipe.metadata.version,
         ]
         .join("");
-        let release = self.recipe.metadata.rpm_release();
+        let release = self.recipe.metadata.release();
         let arch = self.recipe.metadata.rpm_arch();
         let buildroot_name = [&name, "-", &release, ".", &arch].join("");
         let source_tar = [&name, ".tar.gz"].join("");
