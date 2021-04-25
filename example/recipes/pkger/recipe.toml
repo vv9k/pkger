@@ -20,6 +20,7 @@ debian10 = ["curl", "libssl-dev"]
 arch = ["cargo"]
 pkger-rpm = ["cargo", "openssl-devel"]
 pkger-deb = ["curl", "libssl-dev"]
+pkger-pkg = ["cargo"]
 
 [configure]
 steps = [
@@ -29,7 +30,7 @@ steps = [
 
 [build]
 steps = [
-    {cmd = "cargo build --color=never", images = ["centos8", "arch"], rpm = true },
+    {cmd = "cargo build --color=never", images = ["centos8", "arch"], rpm = true, pkg = true },
     {cmd = "$HOME/.cargo/bin/cargo build --color=never", images = ["debian10"], deb = true }
 ]
 
