@@ -1081,9 +1081,9 @@ checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
 
 [[package]]
 name = "pkgbuild"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d502d8575142d66489c87b588264dafdd821cd375b0f329e0300a4e27d2b54e"
+checksum = "a3e02c2e865a06cee852ffbca32a6dfef3557fc04bc9426a384d43aad38c0512"
 dependencies = [
  "paste",
  "pkgspec",
