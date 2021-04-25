@@ -163,7 +163,7 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
 [build] # required
 steps = [
     "$HOME/.cargo/bin/cargo build --release .",
-    { images = ["debian10"], cmd = "echo 'hello from Debian'" } # will only be executed on image `debian10`
+    { images = ["debian10"], cmd = "echo 'hello from Debian'" }, # will only be executed on image `debian10`
     { rpm = true, cmd = "echo 'will only run on images with target == `rpm`'" }
     # same applies to other targets
     # { pkg = false, deb = true, gzip = false, cmd = "echo test" }
@@ -208,7 +208,7 @@ output_dir = ""
 
 # optional
 images_dir = ""
-docker = unix:///var/run/docker.sock"
+docker = "unix:///var/run/docker.sock"
 ```
  - `images_dir` - directory with images
    - Each image is a directory containing a `Dockerfile` and files to be imported with it
