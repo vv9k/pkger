@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">3.3.</strong> Generate recipes</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">4.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">5.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">6.</strong> Formatting output</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">5.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">6.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">7.</strong> Formatting output</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -170,8 +170,9 @@
 <ul>
 <li><code>cargo build --release</code></li>
 </ul>
-<h1 id="config"><a class="header" href="#config">Config</a></h1>
-<p>Config file has a following structure:</p>
+<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file <code>.pkger.toml</code>. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
+<p>The configuration file has a following structure:</p>
 <pre><code class="language-toml"># required
 recipes_dir = &quot;&quot;
 output_dir = &quot;&quot;
@@ -180,25 +181,13 @@ output_dir = &quot;&quot;
 images_dir = &quot;&quot;
 docker = &quot;unix:///var/run/docker.sock&quot;
 </code></pre>
-<p><code>images_dir</code> - directory with images</p>
-<ul>
-<li>Each image is a directory containing a <code>Dockerfile</code> and files to be imported with it</li>
-<li>Image name is the directory name</li>
-</ul>
-<p><code>recipes_dir</code> - directory with recipes</p>
-<ul>
-<li>Each recipe is a directory containing a <code>recipe.toml</code> file and source files (if not remote) </li>
-</ul>
-<p><code>output_dir</code> - directory with built packages</p>
-<ul>
-<li>When <strong>pkger</strong> finishes building the package it will create a directory <code>$output_dir/$PKGER_OS/$PKGER_OS_VERSION/</code> where it will put the built package</li>
-</ul>
-<p><code>docker</code> - specify docker uri in configuration.</p>
+<p>The required fields when running a build are <code>recipes_dir</code> and <code>output_dir</code>. First tells <strong>pkger</strong> where to look for <a href="./recipes.html">recipes</a> to build, the second is the directory where the final packages will end up.</p>
+<p>When using <a href="./images.html">custom images</a> their location can be specified with <code>images_dir</code>.</p>
+<p>If Docker daemon that <strong>pkger</strong> should connect does not run on a default unix socket override the uri with <code>docker</code> parameter.</p>
 <p>If an option is available as both configuration parameter and cli argument <strong>pkger</strong> will favour the arguments passed during startup.</p>
-<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file <code>.pkger.toml</code>. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
 <h1 id="recipes"><a class="header" href="#recipes">Recipes</a></h1>
 <p>The recipe is divided into 2 required (<em>metadata</em>, <em>build</em>) and 3 optional (<em>config</em>, <em>install</em>, <em>env</em>) parts. To read more on each topic select a subsection in the menu.</p>
-<p>Here's an example working recipe for pkger:</p>
+<p>Here's an example working recipe for <strong>pkger</strong>:</p>
 <pre><code class="language-toml">[metadata]
 name = &quot;pkger&quot;
 description = &quot;pkger&quot;
@@ -239,13 +228,7 @@ steps = [
 ]
 </code></pre>
 <h1 id="metadata-required"><a class="header" href="#metadata-required">Metadata (Required)</a></h1>
-<ul>
-<li>All the metadata and information needed for the build</li>
-<li><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, depending on the OS type and choosing the appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type. To skip installation of default dependencies add <code>skip_default_deps = true</code> to <code>[metadata]</code></li>
-<li>Below example recipe will be built for 2 images <code>centos8</code> and <code>debian10</code>. Each image also specifies the target that should be built using it.</li>
-<li>If <code>git</code> is provided as a field, the repository that it points to will be automatically extracted to <code>$PKGER_OUT_DIR</code>, otherwise <code>pkger</code> will try to fetch <code>source</code>.</li>
-<li>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> it will be directly extracted to <code>$PKGER_BLD_DIR</code>, otherwise the file will be copied to the directory untouched.</li>
-</ul>
+<p>Contains all fields that describe the package being built.</p>
 <h2 id="required-fields"><a class="header" href="#required-fields">required fields</a></h2>
 <pre><code class="language-toml">[metadata]
 name = &quot;pkger&quot;
@@ -254,22 +237,26 @@ description = &quot;A package building tool utilizing Docker&quot;
 license = &quot;MIT&quot;
 </code></pre>
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
-<pre><code class="language-toml"># optional if building with `--simple` targets
-images = [
+<p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored when building with <code>--simple</code> flag.</p>
+<pre><code class="language-toml">images = [
     { name = &quot;centos8&quot; , target = &quot;rpm&quot; },
     { name = &quot;debian10&quot;, target = &quot;deb&quot; }
 ]
 </code></pre>
-<h4 id="common"><a class="header" href="#common">common</a></h4>
-<pre><code class="language-toml">release = &quot;1&quot; # defaults to &quot;0&quot;
-
-epoch = &quot;42&quot;
-
-source = &quot;&quot; # remote source or file system location
+<h3 id="sources"><a class="header" href="#sources">sources</a></h3>
+<p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified <strong>pkger</strong> will fetch both to the build directory.</p>
+<p>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> it will be directly extracted to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
+<pre><code class="language-toml">source = &quot;&quot; # remote source or file system location
 
 git = &quot;https://github.com/wojciechkepka/pkger.git&quot; # will default to branch = &quot;master&quot;
 # or specify a branch like this:
 # git = { url = &quot;https://github.com/wojciechkepka/pkger.git&quot;, branch = &quot;dev&quot; }
+</code></pre>
+<h3 id="common"><a class="header" href="#common">common</a></h3>
+<p>Optional fields shared across all targets.</p>
+<pre><code class="language-toml">release = &quot;1&quot; # defaults to &quot;0&quot;
+
+epoch = &quot;42&quot;
 
 maintainer = &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
 
@@ -284,13 +271,15 @@ exclude = [&quot;share&quot;, &quot;info&quot;] # directories to exclude from fi
 
 group = &quot;&quot; # acts as Group in RPM or Section in DEB build
 </code></pre>
-<h4 id="dependencies"><a class="header" href="#dependencies">dependencies</a></h4>
+<h3 id="dependencies"><a class="header" href="#dependencies">dependencies</a></h3>
+<p>Common fields that specify dependencies, conflicts and provides will be added to the spec of the final package. </p>
 <p>This fields can be specified as arrays:</p>
 <pre><code class="language-toml">depends   = []
 conflicts = []
 provides  = []
 </code></pre>
-<p>Or specified per image as a map:</p>
+<p>Or specified per image as a map below.</p>
+<p><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, choosing an appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type.</p>
 <pre><code class="language-toml">[metadata.build_depends]
 # common dependencies shared across all images
 all      = [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
@@ -299,31 +288,15 @@ all      = [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
 centos8  = [&quot;cargo&quot;, &quot;openssl-devel&quot;]
 debian10 = [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
-<p>if running a simple build and there is a need to specify dependencies for the target add dependencies
-for one of this images:</p>
+<p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:</p>
 <pre><code class="language-toml">pkger-rpm = [&quot;cargo&quot;]
 pkger-deb = [&quot;curl&quot;]
 pkger-pkg = [&quot;cargo&quot;]
 pkger-gzip = []
 
 </code></pre>
-<p>If specifying some deps as array and some as maps the arrays always have to come before the maps, otherwise TOML breaks</p>
-<h4 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h4>
-<pre><code class="language-toml">[metadata.deb]
-priority = &quot;&quot;
-installed_size = &quot;&quot;
-built_using = &quot;&quot;
-essential = true
-
-# same as all other dependencies but deb specific
-pre_depends = []
-recommends = []
-suggests = []
-breaks = []
-replaces = []
-enchances = []
-</code></pre>
-<h4 id="rpm-fields"><a class="header" href="#rpm-fields">RPM fields</a></h4>
+<h1 id="rpm-fields"><a class="header" href="#rpm-fields">RPM fields</a></h1>
+<p>Optional fields that will be used when building RPM target.</p>
 <pre><code class="language-toml">[metadata.rpm]
 vendor = &quot;&quot;
 icon = &quot;&quot;
@@ -341,9 +314,26 @@ postun_script = &quot;&quot;
 [metadata.rpm.obsoletes]
 centos8 = [&quot;foo&quot;]
 </code></pre>
-<h4 id="pkg-fields"><a class="header" href="#pkg-fields">PKG fields</a></h4>
+<h1 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h1>
+<p>Optional fields that may be used when building a DEB package.</p>
+<pre><code class="language-toml">[metadata.deb]
+priority = &quot;&quot;
+installed_size = &quot;&quot;
+built_using = &quot;&quot;
+essential = true
+
+# same as all other dependencies but deb specific
+pre_depends = []
+recommends = []
+suggests = []
+breaks = []
+replaces = []
+enchances = []
+</code></pre>
+<h1 id="pkg-fields"><a class="header" href="#pkg-fields">PKG fields</a></h1>
+<p>Optional fields that will be used when building a PKG package.</p>
 <pre><code class="language-toml">[metadata.pkg]
-# location of the script in $PKGER_OUT_DIR that contains pre/post install/upgrade/remove functions
+# location of the script in `$PKGER_OUT_DIR` that contains pre/post install/upgrade/remove functions
 # to be included in the final pkg
 install = &quot;.install&quot;
 
@@ -369,20 +359,15 @@ optdepends = [
 <pre><code class="language-toml">shell = &quot;/bin/bash&quot; # optionally change default `/bin/sh`
 </code></pre>
 <h2 id="configure-optional"><a class="header" href="#configure-optional">configure (Optional)</a></h2>
-<ul>
-<li>Optional configuration steps. If provided the steps will be executed before the build phase.</li>
-</ul>
+<p>Optional configuration steps. If provided the steps will be executed before the build phase.</p>
 <pre><code class="language-toml">[configure]
+shell = &quot;/bin/bash&quot;
 steps = [
     &quot;curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh&quot;
 ]
 </code></pre>
 <h2 id="build-required"><a class="header" href="#build-required">build (Required)</a></h2>
-<ul>
-<li>All build steps presented as a list of strings</li>
-<li>Steps will be executed with a working directory set to <code>$PKGER_BLD_DIR</code></li>
-<li>After successfully running all steps <strong>pkger</strong> will assemble the final package from <code>$PKGER_BLD_DIR</code> directory</li>
-</ul>
+<p>This is the phase where the package should be assembled/compiled/linked and so on. All steps executed during the build will have the working directory seto to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>. This directory will contain either extracted sources if <code>source</code> is specified in <a href="./metadata.html#optional-fields">metadata</a> or a git repository if <code>git</code> was specified.</p>
 <pre><code class="language-toml">[build]
 steps = [
     &quot;$HOME/.cargo/bin/cargo build --release .&quot;,
@@ -393,16 +378,26 @@ steps = [
 ]
 </code></pre>
 <h2 id="install-optional"><a class="header" href="#install-optional">install (Optional)</a></h2>
-<ul>
-<li>Optional installation steps. If provided the steps will be executed after the build phase.</li>
-<li>Working directory will be set to <code>$PKGER_OUT_DIR</code> by default so you can use relative paths during install</li>
-</ul>
+<p>Optional steps that (if provided) will be executed after the build phase. Working directory of each step will be set to <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> so you can use relative paths with commands like install. Each file that ends up in <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> will be available in the final package unless explicitly excluded by <code>exclude</code> field in <a href="./metadata.html#optional-fields">metadata</a>. So in the example below, the file that is installed will be available as <code>/usr/bin/pkger</code> with permissions preserved.</p>
 <pre><code class="language-toml">[install]
 steps = [
     &quot;install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger&quot;
 ]
 </code></pre>
-<p>After executing build script (or install if provided), <strong>pkger</strong> will copy all files from <code>$PKGER_OUT_DIR</code> to final package. So for example if this directory contains a file <code>$PKGER_OUT_DIR/usr/bin/pkger</code> this file will be added to the package as <code>/usr/bin/pkger</code>.</p>
+<h1 id="env-optional"><a class="header" href="#env-optional">env (Optional)</a></h1>
+<p>Optional environment variables that should be available during the <a href="./scripts.html">scripts</a>.</p>
+<pre><code class="language-toml">[env]
+HTTPS_PROXY = &quot;http://proxy.domain.com:1234&quot;
+RUST_LOG = &quot;trace&quot;
+</code></pre>
+<h1 id="pkger-variables"><a class="header" href="#pkger-variables"><strong>pkger</strong> variables</a></h1>
+<p>Some env variables will be available to use during the build like:</p>
+<ul>
+<li><code>$PKGER_OS</code> the distribution of current container</li>
+<li><code>$PKGER_OS_VERSION</code> version of the distribution if applies</li>
+<li><code>$PKGER_BLD_DIR</code> the build directory with fetched source or git repo in the container</li>
+<li><code>$PKGER_OUT_DIR</code> the final directory from which <strong>pkger</strong> will copy files to target package</li>
+</ul>
 <h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
 <p>To generate a recipe declaratively from CLI use subcommand <code>gen-recipe</code>. By default it requires only the name of the package and prints the recipe to stdout. If <code>output_dir</code> is provided <strong>pkger</strong> will create a directory with the name of the package and a <code>recipe.toml</code> containing generated recipe.</p>
 <p>Example generated recipe with no options printed to stdout:</p>
@@ -461,14 +456,14 @@ steps = []
 <p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>centos8</em> and <em>debian10</em>.</p>
 <p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
 <h1 id="build-a-package"><a class="header" href="#build-a-package">Build a package</a></h1>
-<p>Currently available targets are: <em>RPM</em>, <em>DEB</em>, <em>PKG</em>, <em>GZIP</em>.</p>
+<p>Currently available targets are: <strong>RPM</strong>, <strong>DEB</strong>, <strong>PKG</strong>, <strong>GZIP</strong>.</p>
 <h3 id="simple-build"><a class="header" href="#simple-build">Simple build</a></h3>
 <p>To build a simple package using <strong>pkger</strong> use:</p>
 <ul>
 <li><code>pkger build --simple [TARGETS] -- [RECIPES]</code></li>
 </ul>
 <h3 id="custom-images-build"><a class="header" href="#custom-images-build">Custom images build</a></h3>
-<p>To use custom images drop the <code>--simple</code> parameter and just use:</p>
+<p>To use <a href="./images.html">custom images</a> drop the <code>--simple</code> parameter and just use:</p>
 <ul>
 <li><code>pkger build [RECIPES]</code></li>
 </ul>

@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html" class="active"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">3.3.</strong> Generate recipes</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">4.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">5.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">6.</strong> Formatting output</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html" class="active"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">5.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">6.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">7.</strong> Formatting output</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -164,13 +164,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="metadata-required"><a class="header" href="#metadata-required">Metadata (Required)</a></h1>
-<ul>
-<li>All the metadata and information needed for the build</li>
-<li><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, depending on the OS type and choosing the appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type. To skip installation of default dependencies add <code>skip_default_deps = true</code> to <code>[metadata]</code></li>
-<li>Below example recipe will be built for 2 images <code>centos8</code> and <code>debian10</code>. Each image also specifies the target that should be built using it.</li>
-<li>If <code>git</code> is provided as a field, the repository that it points to will be automatically extracted to <code>$PKGER_OUT_DIR</code>, otherwise <code>pkger</code> will try to fetch <code>source</code>.</li>
-<li>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> it will be directly extracted to <code>$PKGER_BLD_DIR</code>, otherwise the file will be copied to the directory untouched.</li>
-</ul>
+<p>Contains all fields that describe the package being built.</p>
 <h2 id="required-fields"><a class="header" href="#required-fields">required fields</a></h2>
 <pre><code class="language-toml">[metadata]
 name = &quot;pkger&quot;
@@ -179,22 +173,26 @@ description = &quot;A package building tool utilizing Docker&quot;
 license = &quot;MIT&quot;
 </code></pre>
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
-<pre><code class="language-toml"># optional if building with `--simple` targets
-images = [
+<p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored when building with <code>--simple</code> flag.</p>
+<pre><code class="language-toml">images = [
     { name = &quot;centos8&quot; , target = &quot;rpm&quot; },
     { name = &quot;debian10&quot;, target = &quot;deb&quot; }
 ]
 </code></pre>
-<h4 id="common"><a class="header" href="#common">common</a></h4>
-<pre><code class="language-toml">release = &quot;1&quot; # defaults to &quot;0&quot;
-
-epoch = &quot;42&quot;
-
-source = &quot;&quot; # remote source or file system location
+<h3 id="sources"><a class="header" href="#sources">sources</a></h3>
+<p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified <strong>pkger</strong> will fetch both to the build directory.</p>
+<p>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> it will be directly extracted to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
+<pre><code class="language-toml">source = &quot;&quot; # remote source or file system location
 
 git = &quot;https://github.com/wojciechkepka/pkger.git&quot; # will default to branch = &quot;master&quot;
 # or specify a branch like this:
 # git = { url = &quot;https://github.com/wojciechkepka/pkger.git&quot;, branch = &quot;dev&quot; }
+</code></pre>
+<h3 id="common"><a class="header" href="#common">common</a></h3>
+<p>Optional fields shared across all targets.</p>
+<pre><code class="language-toml">release = &quot;1&quot; # defaults to &quot;0&quot;
+
+epoch = &quot;42&quot;
 
 maintainer = &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
 
@@ -209,13 +207,15 @@ exclude = [&quot;share&quot;, &quot;info&quot;] # directories to exclude from fi
 
 group = &quot;&quot; # acts as Group in RPM or Section in DEB build
 </code></pre>
-<h4 id="dependencies"><a class="header" href="#dependencies">dependencies</a></h4>
+<h3 id="dependencies"><a class="header" href="#dependencies">dependencies</a></h3>
+<p>Common fields that specify dependencies, conflicts and provides will be added to the spec of the final package. </p>
 <p>This fields can be specified as arrays:</p>
 <pre><code class="language-toml">depends   = []
 conflicts = []
 provides  = []
 </code></pre>
-<p>Or specified per image as a map:</p>
+<p>Or specified per image as a map below.</p>
+<p><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, choosing an appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type.</p>
 <pre><code class="language-toml">[metadata.build_depends]
 # common dependencies shared across all images
 all      = [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
@@ -224,66 +224,12 @@ all      = [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
 centos8  = [&quot;cargo&quot;, &quot;openssl-devel&quot;]
 debian10 = [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
-<p>if running a simple build and there is a need to specify dependencies for the target add dependencies
-for one of this images:</p>
+<p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:</p>
 <pre><code class="language-toml">pkger-rpm = [&quot;cargo&quot;]
 pkger-deb = [&quot;curl&quot;]
 pkger-pkg = [&quot;cargo&quot;]
 pkger-gzip = []
 
-</code></pre>
-<p>If specifying some deps as array and some as maps the arrays always have to come before the maps, otherwise TOML breaks</p>
-<h4 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h4>
-<pre><code class="language-toml">[metadata.deb]
-priority = &quot;&quot;
-installed_size = &quot;&quot;
-built_using = &quot;&quot;
-essential = true
-
-# same as all other dependencies but deb specific
-pre_depends = []
-recommends = []
-suggests = []
-breaks = []
-replaces = []
-enchances = []
-</code></pre>
-<h4 id="rpm-fields"><a class="header" href="#rpm-fields">RPM fields</a></h4>
-<pre><code class="language-toml">[metadata.rpm]
-vendor = &quot;&quot;
-icon = &quot;&quot;
-summary = &quot;shorter description&quot; # if not provided defaults to value of `description`
-config_noreplace = &quot;%{_sysconfdir}/%{name}/%{name}.conf&quot;
-
-pre_script = &quot;&quot;
-post_script = &quot;&quot;
-preun_script = &quot;&quot;
-postun_script = &quot;&quot;
-
-# acts the same as other dependencies - can be passed as array
-# obsoletes = [&quot;foo&quot;]
-# or as a map per image at the end of rpm fields definition
-[metadata.rpm.obsoletes]
-centos8 = [&quot;foo&quot;]
-</code></pre>
-<h4 id="pkg-fields"><a class="header" href="#pkg-fields">PKG fields</a></h4>
-<pre><code class="language-toml">[metadata.pkg]
-# location of the script in $PKGER_OUT_DIR that contains pre/post install/upgrade/remove functions
-# to be included in the final pkg
-install = &quot;.install&quot;
-
-# A list of files to be backed up when package will be removed or upgraded
-backup = [&quot;/etc/pkger.conf&quot;]
-
-# A list of packages that this package replaces
-replaces = []
-
-# This are dependencies that this package needs to offer full functionality.
-# Each dependency should contain a short description in this format:
-optdepends = [
-    &quot;libpng: PNG images support&quot;,
-    &quot;alsa-lib: sound support&quot;
-]
 </code></pre>
 
                     </main>
@@ -297,7 +243,7 @@ optdepends = [
                         
 
                         
-                            <a rel="next" href="scripts.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="rpm.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -315,7 +261,7 @@ optdepends = [
                 
 
                 
-                    <a rel="next" href="scripts.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="rpm.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

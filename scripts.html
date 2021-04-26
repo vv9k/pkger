@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li class="chapter-item expanded "><a href="scripts.html" class="active"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">3.3.</strong> Generate recipes</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">4.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">5.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">6.</strong> Formatting output</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html" class="active"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">5.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">6.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">7.</strong> Formatting output</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -172,20 +172,15 @@
 <pre><code class="language-toml">shell = &quot;/bin/bash&quot; # optionally change default `/bin/sh`
 </code></pre>
 <h2 id="configure-optional"><a class="header" href="#configure-optional">configure (Optional)</a></h2>
-<ul>
-<li>Optional configuration steps. If provided the steps will be executed before the build phase.</li>
-</ul>
+<p>Optional configuration steps. If provided the steps will be executed before the build phase.</p>
 <pre><code class="language-toml">[configure]
+shell = &quot;/bin/bash&quot;
 steps = [
     &quot;curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh&quot;
 ]
 </code></pre>
 <h2 id="build-required"><a class="header" href="#build-required">build (Required)</a></h2>
-<ul>
-<li>All build steps presented as a list of strings</li>
-<li>Steps will be executed with a working directory set to <code>$PKGER_BLD_DIR</code></li>
-<li>After successfully running all steps <strong>pkger</strong> will assemble the final package from <code>$PKGER_BLD_DIR</code> directory</li>
-</ul>
+<p>This is the phase where the package should be assembled/compiled/linked and so on. All steps executed during the build will have the working directory seto to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>. This directory will contain either extracted sources if <code>source</code> is specified in <a href="./metadata.html#optional-fields">metadata</a> or a git repository if <code>git</code> was specified.</p>
 <pre><code class="language-toml">[build]
 steps = [
     &quot;$HOME/.cargo/bin/cargo build --release .&quot;,
@@ -196,29 +191,25 @@ steps = [
 ]
 </code></pre>
 <h2 id="install-optional"><a class="header" href="#install-optional">install (Optional)</a></h2>
-<ul>
-<li>Optional installation steps. If provided the steps will be executed after the build phase.</li>
-<li>Working directory will be set to <code>$PKGER_OUT_DIR</code> by default so you can use relative paths during install</li>
-</ul>
+<p>Optional steps that (if provided) will be executed after the build phase. Working directory of each step will be set to <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> so you can use relative paths with commands like install. Each file that ends up in <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> will be available in the final package unless explicitly excluded by <code>exclude</code> field in <a href="./metadata.html#optional-fields">metadata</a>. So in the example below, the file that is installed will be available as <code>/usr/bin/pkger</code> with permissions preserved.</p>
 <pre><code class="language-toml">[install]
 steps = [
     &quot;install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger&quot;
 ]
 </code></pre>
-<p>After executing build script (or install if provided), <strong>pkger</strong> will copy all files from <code>$PKGER_OUT_DIR</code> to final package. So for example if this directory contains a file <code>$PKGER_OUT_DIR/usr/bin/pkger</code> this file will be added to the package as <code>/usr/bin/pkger</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="metadata.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="pkg.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
 
                         
-                            <a rel="next" href="generate.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="env.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -230,13 +221,13 @@ steps = [
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a rel="prev" href="metadata.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="pkg.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a rel="next" href="generate.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="env.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 
