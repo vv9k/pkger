@@ -1,6 +1,8 @@
-# Config
+# Configuration
 
-Config file has a following structure:
+By default **pkger** will look for the config file in the home directory of the user running the process in a file `.pkger.toml`. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use `--config` or `-c` parameter.
+
+The configuration file has a following structure:
 
 ```toml
 # required
@@ -11,19 +13,12 @@ output_dir = ""
 images_dir = ""
 docker = "unix:///var/run/docker.sock"
 ```
-`images_dir` - directory with images
-  - Each image is a directory containing a `Dockerfile` and files to be imported with it
-  - Image name is the directory name
 
-`recipes_dir` - directory with recipes
-  - Each recipe is a directory containing a `recipe.toml` file and source files (if not remote) 
+The required fields when running a build are `recipes_dir` and `output_dir`. First tells **pkger** where to look for [recipes](./recipes.md) to build, the second is the directory where the final packages will end up.
 
-`output_dir` - directory with built packages
-  - When **pkger** finishes building the package it will create a directory `$output_dir/$PKGER_OS/$PKGER_OS_VERSION/` where it will put the built package
+When using [custom images](./images.md) their location can be specified with `images_dir`.
 
-`docker` - specify docker uri in configuration.
+If Docker daemon that **pkger** should connect does not run on a default unix socket override the uri with `docker` parameter.
 
 If an option is available as both configuration parameter and cli argument **pkger** will favour the arguments passed during startup.
 
-
-By default **pkger** will look for the config file in the home directory of the user running the process in a file `.pkger.toml`. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use `--config` or `-c` parameter.

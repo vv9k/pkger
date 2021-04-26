@@ -13,19 +13,21 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
 ```
 
 ## configure (Optional)
- - Optional configuration steps. If provided the steps will be executed before the build phase.
+
+Optional configuration steps. If provided the steps will be executed before the build phase.
 
 ```toml
 [configure]
+shell = "/bin/bash"
 steps = [
     "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
 ]
 ```
 
 ## build (Required)
- - All build steps presented as a list of strings
- - Steps will be executed with a working directory set to `$PKGER_BLD_DIR`
- - After successfully running all steps **pkger** will assemble the final package from `$PKGER_BLD_DIR` directory
+
+This is the phase where the package should be assembled/compiled/linked and so on. All steps executed during the build will have the working directory seto to [`$PKGER_BLD_DIR`](./env.md#pkger-variables). This directory will contain either extracted sources if `source` is specified in [metadata](./metadata.md#optional-fields) or a git repository if `git` was specified.
+
 ```toml
 [build]
 steps = [
@@ -38,14 +40,12 @@ steps = [
 ```
 
 ## install (Optional)
- - Optional installation steps. If provided the steps will be executed after the build phase.
- - Working directory will be set to `$PKGER_OUT_DIR` by default so you can use relative paths during install
+
+Optional steps that (if provided) will be executed after the build phase. Working directory of each step will be set to [`$PKGER_OUT_DIR`](./env.md#pkger-variables) so you can use relative paths with commands like install. Each file that ends up in [`$PKGER_OUT_DIR`](./env.md#pkger-variables) will be available in the final package unless explicitly excluded by `exclude` field in [metadata](./metadata.md#optional-fields). So in the example below, the file that is installed will be available as `/usr/bin/pkger` with permissions preserved.
+
 ```toml
 [install]
 steps = [
     "install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger"
 ]
 ```
-
-
-After executing build script (or install if provided), **pkger** will copy all files from `$PKGER_OUT_DIR` to final package. So for example if this directory contains a file `$PKGER_OUT_DIR/usr/bin/pkger` this file will be added to the package as `/usr/bin/pkger`.

@@ -2,7 +2,7 @@
 
 The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts. To read more on each topic select a subsection in the menu.
 
-Here's an example working recipe for pkger:
+Here's an example working recipe for **pkger**:
 
 ```toml
 [metadata]
