@@ -12,6 +12,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
@@ -27,6 +28,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
@@ -41,6 +43,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Rust
@@ -54,6 +57,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -72,11 +76,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux]
+        build: [linux, macos]
         include:
         - build: linux
           os: ubuntu-latest
           target: x86_64-unknown-linux
+        - build: macos
+          os: macos-latest
+          target: x86_64-apple-darwin
 
     steps:
       - name: Set up Rust
@@ -90,6 +97,9 @@ jobs:
         run: echo ::set-output name=PKGER_ARCHIVE::pkger-${{steps.set_version.outputs.PKGER_VERSION}}-${{ matrix.target}}
       - run: cargo build --release
         name: Release build
+      - name: Install help2man mac
+        if: matrix.os == 'macos-latest'
+        run: brew install help2man
       - name: Install help2man ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
