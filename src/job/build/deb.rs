@@ -1,3 +1,4 @@
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
 use crate::util::create_tar_archive;
@@ -53,24 +54,23 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!("extract control archive");
             self.checked_exec(
-                &format!(
-                    "tar -xvf {} -C {}",
-                    control_tar_path.display(),
-                    deb_dir.display(),
-                ),
-                None,
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!(
+                        "tar -xvf {} -C {}",
+                        control_tar_path.display(),
+                        deb_dir.display(),
+                    ))
+                    .build(),
             )
             .await
             .map_err(|e| anyhow!("failed to extract archive with control file - {}", e))?;
 
             trace!("copy source files to build dir");
             self.checked_exec(
-                &format!("cp -rv . {}", base_dir.display()),
-                Some(self.container_out_dir),
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!("cp -rv . {}", base_dir.display()))
+                    .working_dir(self.container_out_dir)
+                    .build(),
             )
             .await
             .map_err(|e| anyhow!("failed to copy source files to build directory - {}", e))?;
@@ -82,10 +82,13 @@ impl<'job> BuildContainerCtx<'job> {
             };
 
             self.checked_exec(
-                &format!("dpkg-deb {} {}", dpkg_deb_opts, base_dir.display()),
-                None,
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!(
+                        "dpkg-deb {} {}",
+                        dpkg_deb_opts,
+                        base_dir.display()
+                    ))
+                    .build(),
             )
             .await
             .map_err(|e| anyhow!("failed to build deb package - {}", e))?;

@@ -1,3 +1,4 @@
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
 use crate::util::create_tar_archive;
@@ -53,34 +54,33 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!("copy source files to temporary location");
             self.checked_exec(
-                &format!(
-                    "cp -rv {} {}",
-                    self.container_out_dir.display(),
-                    tmp_buildroot.display(),
-                ),
-                None,
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!(
+                        "cp -rv {} {}",
+                        self.container_out_dir.display(),
+                        tmp_buildroot.display(),
+                    ))
+                    .build(),
             )
             .await
             .map_err(|e| anyhow!("failed to copy source file to temp dir - {}", e))?;
 
             trace!("prepare archived source files");
             self.checked_exec(
-                &format!("tar -zcvf {} .", source_tar_path.display(),),
-                Some(tmp_buildroot.as_path()),
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!("tar -zcvf {} .", source_tar_path.display(),))
+                    .working_dir(tmp_buildroot.as_path())
+                    .build(),
             )
             .await?;
 
             trace!("find source file paths");
             let files = self
                 .checked_exec(
-                    r#"find . -type f -name "*""#,
-                    Some(self.container_out_dir),
-                    None,
-                    None,
+                    &ExecOpts::default()
+                        .cmd(r#"find . -type f -name "*""#)
+                        .working_dir(self.container_out_dir)
+                        .build(),
                 )
                 .await
                 .map(|out| {
@@ -117,23 +117,21 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!("extract spec archive");
             self.checked_exec(
-                &format!(
-                    "tar -xvf {} -C {}",
-                    spec_tar_path.display(),
-                    specs.display(),
-                ),
-                None,
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!(
+                        "tar -xvf {} -C {}",
+                        spec_tar_path.display(),
+                        specs.display(),
+                    ))
+                    .build(),
             )
             .await?;
 
             trace!("rpmbuild");
             self.checked_exec(
-                &format!("rpmbuild -bb {}", specs.join(spec_file).display()),
-                None,
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!("rpmbuild -bb {}", specs.join(spec_file).display()))
+                    .build(),
             )
             .await
             .map_err(|e| anyhow!("failed to build rpm package - {}", e))?;

@@ -13,12 +13,12 @@ use crate::recipe::{BuildTarget, ImageTarget, Recipe};
 use crate::Config;
 use crate::Result;
 use crate::{
-    container::{DockerContainer, Output},
+    container::{DockerContainer, ExecOpts, Output},
     recipe::RecipeTarget,
 };
 
 use async_trait::async_trait;
-use moby::{ContainerOptions, Docker};
+use moby::{ContainerOptions, Docker, ExecContainerOptions};
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -341,28 +341,25 @@ impl<'job> BuildContainerCtx<'job> {
             let dirs_joined = dirs_joined.trim();
             trace!(directories = %dirs_joined);
 
-            self.checked_exec(&format!("mkdir -pv {}", dirs_joined), None, None, None)
-                .await
-                .map(|_| ())
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd(&format!("mkdir -pv {}", dirs_joined))
+                    .build(),
+            )
+            .await
+            .map(|_| ())
         }
         .instrument(span)
         .await
     }
 
-    async fn checked_exec(
-        &self,
-        cmd: &str,
-        working_dir: Option<&Path>,
-        shell: Option<&str>,
-        user: Option<&str>,
-    ) -> Result<Output<String>> {
+    async fn checked_exec(&self, opts: &ExecContainerOptions) -> Result<Output<String>> {
         let span = info_span!("checked-exec");
         async move {
-            let out = self.container.exec(&cmd, working_dir, shell, user).await?;
+            let out = self.container.exec(opts).await?;
             if out.exit_code != 0 {
                 Err(anyhow!(
-                    "command `{}` failed with exit code {}\nError:\n{}",
-                    &cmd,
+                    "command failed with exit code {}\nError:\n{}",
                     out.exit_code,
                     out.stderr.join("\n")
                 ))
@@ -394,10 +391,10 @@ impl<'job> BuildContainerCtx<'job> {
                 info!(exclude_dirs = ?exclude_paths);
 
                 self.checked_exec(
-                    &format!("rm -rvf {}", exclude_paths.join(" ")),
-                    Some(self.container_out_dir),
-                    None,
-                    None,
+                    &ExecOpts::default()
+                        .cmd(&format!("rm -rvf {}", exclude_paths.join(" ")))
+                        .working_dir(self.container_out_dir)
+                        .build(),
                 )
                 .await?;
             }
