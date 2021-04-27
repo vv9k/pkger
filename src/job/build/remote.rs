@@ -1,3 +1,4 @@
+use crate::container::ExecOpts;
 use crate::job::build::BuildContainerCtx;
 use crate::recipe::GitSource;
 use crate::util::create_tar_archive;
@@ -22,12 +23,14 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("clone-git");
         async move {
                 info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %self.container_bld_dir.display(), "cloning git source repository to build directory");
-                self.checked_exec(&format!(
+                self.checked_exec(
+                    &ExecOpts::default().cmd(
+                    &format!(
                     "git clone --single-branch --branch {} --recurse-submodules -- {} {}",
                     repo.branch(),
                     repo.url(),
                     self.container_bld_dir.display()
-                ), None, None, None)
+                )).build())
                 .await
                 .map(|_| ())
         }
@@ -39,9 +42,14 @@ impl<'job> BuildContainerCtx<'job> {
         let span = info_span!("download-http");
         async move {
             info!(url = %source, destination = %dest.display(), "fetching");
-            self.checked_exec(&format!("curl -LO {}", source), Some(dest), None, None)
-                .await
-                .map(|_| ())
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd(&format!("curl -LO {}", source))
+                    .working_dir(dest)
+                    .build(),
+            )
+            .await
+            .map(|_| ())
         }
         .instrument(span)
         .await
@@ -82,8 +90,9 @@ impl<'job> BuildContainerCtx<'job> {
                         .await?;
                 }
                 self.checked_exec(
-                    &format!(
-                        r#"
+                    &ExecOpts::default()
+                        .cmd(&format!(
+                            r#"
                         for file in *;
                         do
                             if [[ \$file == *.tar* ]]
@@ -96,11 +105,11 @@ impl<'job> BuildContainerCtx<'job> {
                                 cp -v \$file {0}
                             fi
                         done"#,
-                        self.container_bld_dir.display(),
-                    ),
-                    Some(self.container_tmp_dir),
-                    Some("/bin/bash"),
-                    None,
+                            self.container_bld_dir.display(),
+                        ))
+                        .working_dir(self.container_tmp_dir)
+                        .shell("/bin/bash")
+                        .build(),
                 )
                 .await?;
             }

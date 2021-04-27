@@ -1,3 +1,4 @@
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
 use crate::util::create_tar_archive;
@@ -40,30 +41,29 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!("copy source files to temporary location");
             self.checked_exec(
-                &format!("cp -rv . {}", src_dir.display()),
-                Some(self.container_out_dir),
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!("cp -rv . {}", src_dir.display()))
+                    .working_dir(self.container_out_dir)
+                    .build(),
             )
             .await
             .map_err(|e| anyhow!("failed to copy source file to temp dir - {}", e))?;
 
             trace!("prepare archived source files");
             self.checked_exec(
-                &format!("tar -zcvf {} .", source_tar_path.display()),
-                Some(src_dir.as_path()),
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
+                    .working_dir(src_dir.as_path())
+                    .build(),
             )
             .await?;
 
             trace!("calculate source MD5 checksum");
             let sum = self
                 .checked_exec(
-                    &format!("md5sum {}", source_tar_path.display()),
-                    None,
-                    None,
-                    None,
+                    &ExecOpts::default()
+                        .cmd(&format!("md5sum {}", source_tar_path.display()))
+                        .build(),
                 )
                 .await
                 .map(|out| out.stdout.join(""))?;
@@ -98,36 +98,54 @@ impl<'job> BuildContainerCtx<'job> {
 
             trace!("extract PKGBUILD archive");
             self.checked_exec(
-                &format!(
-                    "tar -xvf {} -C {}",
-                    pkgbuild_tar_path.display(),
-                    bld_dir.display(),
-                ),
-                None,
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!(
+                        "tar -xvf {} -C {}",
+                        pkgbuild_tar_path.display(),
+                        bld_dir.display(),
+                    ))
+                    .build(),
             )
             .await?;
 
             trace!("create build user");
-            self.checked_exec(&format!("useradd -m {}", BUILD_USER), None, None, None)
-                .await?;
-            self.checked_exec(&format!("passwd -d {}", BUILD_USER), None, None, None)
-                .await?;
             self.checked_exec(
-                &format!("chown -Rv {0}:{0} .", BUILD_USER),
-                Some(bld_dir.as_path()),
-                None,
-                None,
+                &ExecOpts::default()
+                    .cmd(&format!("useradd -m {}", BUILD_USER))
+                    .build(),
             )
             .await?;
-            self.checked_exec("chmod 644 PKGBUILD", Some(bld_dir.as_path()), None, None)
-                .await?;
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd(&format!("passwd -d {}", BUILD_USER))
+                    .build(),
+            )
+            .await?;
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd(&format!("chown -Rv {0}:{0} .", BUILD_USER))
+                    .working_dir(bld_dir.as_path())
+                    .build(),
+            )
+            .await?;
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd("chmod 644 PKGBUILD")
+                    .working_dir(bld_dir.as_path())
+                    .build(),
+            )
+            .await?;
 
             trace!("makepkg");
-            self.checked_exec("makepkg", Some(bld_dir.as_path()), None, Some(BUILD_USER))
-                .await
-                .map_err(|e| anyhow!("failed to build PKG package - {}", e))?;
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd("makepkg")
+                    .working_dir(bld_dir.as_path())
+                    .user(BUILD_USER)
+                    .build(),
+            )
+            .await
+            .map_err(|e| anyhow!("failed to build PKG package - {}", e))?;
 
             let pkg = format!("{}.pkg.tar.zst", package_name);
             let pkg_path = bld_dir.join(&pkg);

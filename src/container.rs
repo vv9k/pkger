@@ -9,7 +9,7 @@ use std::path::Path;
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tracing::{debug, error, info, info_span, trace, Instrument};
+use tracing::{error, info, info_span, trace, Instrument};
 
 /// Length of significant characters of a container ID.
 static CONTAINER_ID_LEN: usize = 12;
@@ -24,6 +24,110 @@ pub struct Output<T> {
     pub stdout: Vec<T>,
     pub stderr: Vec<T>,
     pub exit_code: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct ExecOpts<'opts> {
+    cmd: &'opts str,
+    allocate_tty: bool,
+    attach_stdout: bool,
+    attach_stderr: bool,
+    privileged: bool,
+    shell: &'opts str,
+    user: Option<&'opts str>,
+    working_dir: Option<&'opts Path>,
+    env: Option<&'opts [String]>,
+}
+
+impl<'opts> Default for ExecOpts<'opts> {
+    fn default() -> Self {
+        Self {
+            cmd: "",
+            allocate_tty: false,
+            attach_stderr: true,
+            attach_stdout: true,
+            privileged: false,
+            shell: DEFAULT_SHELL,
+            user: None,
+            working_dir: None,
+            env: None,
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl<'opts> ExecOpts<'opts> {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    pub fn cmd(mut self, command: &'opts str) -> Self {
+        self.cmd = command;
+        self
+    }
+
+    pub fn tty(mut self, allocate: bool) -> Self {
+        self.allocate_tty = allocate;
+        self
+    }
+
+    pub fn attach_stdout(mut self, attach: bool) -> Self {
+        self.attach_stdout = attach;
+        self
+    }
+
+    pub fn attach_stderr(mut self, attach: bool) -> Self {
+        self.attach_stderr = attach;
+        self
+    }
+
+    pub fn privileged(mut self, privileged: bool) -> Self {
+        self.privileged = privileged;
+        self
+    }
+
+    pub fn user(mut self, user: &'opts str) -> Self {
+        self.user = Some(user);
+        self
+    }
+
+    pub fn shell(mut self, shell: &'opts str) -> Self {
+        self.shell = shell;
+        self
+    }
+
+    pub fn working_dir(mut self, working_dir: &'opts Path) -> Self {
+        self.working_dir = Some(working_dir);
+        self
+    }
+
+    pub fn build(self) -> ExecContainerOptions {
+        let mut builder = ExecContainerOptions::builder();
+        let mut mut_builder = &mut builder;
+
+        mut_builder = mut_builder
+            .cmd(vec![self.shell, "-c", self.cmd])
+            .tty(self.allocate_tty)
+            .attach_stdout(self.attach_stdout)
+            .attach_stderr(self.attach_stderr)
+            .privileged(self.privileged);
+
+        if let Some(user) = self.user {
+            mut_builder = mut_builder.user(user);
+        }
+
+        if let Some(working_dir) = self.working_dir {
+            mut_builder = mut_builder.working_dir(working_dir.to_string_lossy().to_string());
+        }
+
+        if let Some(env) = self.env {
+            mut_builder = mut_builder.env(env);
+        }
+
+        mut_builder.build()
+    }
 }
 
 /// Wrapper type that allows easier manipulation of Docker containers
@@ -113,67 +217,9 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn exec<C, W, S, U>(
-        &self,
-        cmd: C,
-        dir: Option<W>,
-        shell: Option<S>,
-        user: Option<U>,
-    ) -> Result<Output<String>>
-    where
-        C: AsRef<str>,
-        W: AsRef<Path>,
-        S: AsRef<str>,
-        U: Into<String>,
-    {
+    pub async fn exec<'cmd>(&self, opts: &ExecContainerOptions) -> Result<Output<String>> {
         let span = info_span!("container-exec", id = %self.id());
         async move {
-            let shell = if let Some(shell) = shell {
-                shell.as_ref().to_string()
-            } else {
-                DEFAULT_SHELL.to_string()
-            };
-            debug!(shell = %shell, command = %cmd.as_ref(), "executing");
-            let sh_cmd = vec![shell.as_str(), "-c", cmd.as_ref()];
-
-            let opts = if let Some(dir) = dir {
-                let dir = dir.as_ref().to_string_lossy().to_string();
-                debug!(working_directory = %dir);
-                if let Some(user) = user {
-                    let user = user.into();
-                    debug!(user = %user);
-                    ExecContainerOptions::builder()
-                        .cmd(sh_cmd)
-                        .attach_stdout(true)
-                        .attach_stderr(true)
-                        .working_dir(dir)
-                        .user(user)
-                        .build()
-                } else {
-                    ExecContainerOptions::builder()
-                        .cmd(sh_cmd)
-                        .attach_stdout(true)
-                        .attach_stderr(true)
-                        .working_dir(dir)
-                        .build()
-                }
-            } else if let Some(user) = user {
-                let user = user.into();
-                debug!(user = %user);
-                ExecContainerOptions::builder()
-                    .cmd(sh_cmd)
-                    .attach_stdout(true)
-                    .attach_stderr(true)
-                    .user(user)
-                    .build()
-            } else {
-                ExecContainerOptions::builder()
-                    .cmd(sh_cmd)
-                    .attach_stdout(true)
-                    .attach_stderr(true)
-                    .build()
-            };
-
             let exec = Exec::create(&self.docker, self.id(), &opts).await?;
             let mut stream = exec.start();
 
