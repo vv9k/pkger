@@ -69,6 +69,8 @@ jobs:
         uses: actions/checkout@v1
       - name: Test
         run: cargo test
+      - uses: actions/checkout@v1
+        run: cargo run -- -d -c example/conf.toml build test
 
   build_and_upload_artifacts:
     name: Upload Artifacts
