@@ -356,10 +356,13 @@ optdepends = [
 </code></pre>
 <h1 id="scripts"><a class="header" href="#scripts">Scripts</a></h1>
 <p><strong>pkger</strong> has 3 defined build phases - <em>configure</em>, <em>build</em> and <em>install</em> of which only <em>build</em> is required to create a package.</p>
-<p>To set a working directory during the script phase set the <code>working_dir</code> variable like so:</p>
+<p>Each phase has field called <code>steps</code> that takes an array of steps to execute during a given phase. A step can be a simple string that will be executed in the default shell like <code>&quot;echo 123&quot;</code> or an entry that specifies on what targets it should be executed like:</p>
+<pre><code class="language-toml">{ cmd = &quot;echo only on deb targets&quot;, deb = true }
+</code></pre>
+<p>To set a working directory during the script phase set the <code>working_dir</code> parameter like so:</p>
 <pre><code class="language-toml">working_dir = &quot;/tmp&quot;
 </code></pre>
-<p>To use a different shell to execute each command set the <code>shell</code> variable:</p>
+<p>To use a different shell to execute each command set the <code>shell</code> parameter:</p>
 <pre><code class="language-toml">shell = &quot;/bin/bash&quot; # optionally change default `/bin/sh`
 </code></pre>
 <h2 id="configure-optional"><a class="header" href="#configure-optional">configure (Optional)</a></h2>
