@@ -2,12 +2,17 @@
 
 **pkger** has 3 defined build phases - *configure*, *build* and *install* of which only *build* is required to create a package.  
 
-To set a working directory during the script phase set the `working_dir` variable like so:
+Each phase has field called `steps` that takes an array of steps to execute during a given phase. A step can be a simple string that will be executed in the default shell like `"echo 123"` or an entry that specifies on what targets it should be executed like:
+```toml
+{ cmd = "echo only on deb targets", deb = true }
+```
+
+To set a working directory during the script phase set the `working_dir` parameter like so:
 ```toml
 working_dir = "/tmp"
 ```
 
-To use a different shell to execute each command set the `shell` variable:
+To use a different shell to execute each command set the `shell` parameter:
 ```toml
 shell = "/bin/bash" # optionally change default `/bin/sh`
 ```
