@@ -7,6 +7,11 @@ on:
       - "src"
       - "example"
       - "tests"
+      - "assets"
+      - "Cargo.*"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "LICENSE"
     branches:
       - master
   pull_request:
@@ -14,6 +19,11 @@ on:
       - "src"
       - "example"
       - "tests"
+      - "assets"
+      - "Cargo.*"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "LICENSE"
     branches:
       - master
 
@@ -28,9 +38,10 @@ jobs:
         with:
           mdbook-version: 'latest'
 
-      - run: mdbook build docs
+      - name: Build the book
+        run: mdbook build docs
  
-      - name: Deploy
+      - name: Deploy it
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

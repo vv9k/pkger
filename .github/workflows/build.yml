@@ -1,4 +1,4 @@
-name: pkger CI
+name: master
 
 on:
   workflow_dispatch:
@@ -6,77 +6,79 @@ on:
     paths-ignore:
       - "*.md"
       - "LICENSE"
+      - "docs"
     branches:
       - master
   pull_request:
     paths-ignore:
       - "*.md"
       - "LICENSE"
+      - "docs"
     branches:
       - master
 
 jobs:
-  check_linux:
-    name: Check linux
-    runs-on: ubuntu-latest
+  codestyle:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Set up Rust
+        uses: hecrj/setup-rust-action@v1
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
+          components: rustfmt
+          rust-version: stable
+      - uses: actions/checkout@v1
+      - run: cargo fmt --all -- --check
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
+  lint:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Set up Rust
+        uses: hecrj/setup-rust-action@v1
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          components: clippy
+      - uses: actions/checkout@v1
+      - run: cargo clippy --all-targets -- -D clippy::all
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
+  compile:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -Dclippy::all
+      - name: Set up Rust
+        uses: hecrj/setup-rust-action@v1
+      - uses: actions/checkout@master
+      - run: cargo check --all
 
   test:
-    name: Test Suite
-    needs: [check_linux, fmt, clippy]
-    runs-on: ubuntu-latest
+    needs: [codestyle, lint, compile]
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Setup Rust
+        uses: hecrj/setup-rust-action@v1
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-      - uses: actions-rs/cargo@v1
-        with:
-          command: run
-          args: -- -d -c example/conf.toml build test
+          rust-version: ${{ matrix.rust }}
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Test
+        run: cargo test
+      - uses: actions/checkout@v1
+        run: cargo run -- -d -c example/conf.toml build test
