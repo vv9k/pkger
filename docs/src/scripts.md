@@ -20,6 +20,7 @@ shell = "/bin/bash" # optionally change default `/bin/sh`
 ## configure (Optional)
 
 Optional configuration steps. If provided the steps will be executed before the build phase.
+The working directory will be set to [`$PKGER_BLD_DIR`](./env.md#pkger-variables)
 
 ```toml
 [configure]

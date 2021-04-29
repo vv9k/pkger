@@ -1,3 +1,6 @@
+# 0.3.0
+- Configure script now has a working directory set to `$PKGER_BLD_DIR`
+
 # 0.2.1
 - Fix setting default working directory in build and install phase
 
