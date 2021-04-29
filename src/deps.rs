@@ -137,7 +137,7 @@ mod tests {
         want = $(
             $image:ident => $($dep:literal),+
         );+) => {
-            let input: YamlValue = toml::from_str($inp).unwrap();
+            let input: YamlValue = serde_yaml::from_str($inp).unwrap();
             dbg!(&input);
             let input = input.as_mapping().unwrap().get(&serde_yaml::Value::String("build_depends".to_string())).unwrap().clone();
             let got = Dependencies::try_from(input).unwrap();
@@ -158,10 +158,10 @@ mod tests {
     fn parses_deps() {
         test_deps!(
         input = r#"
-[build_depends]
-all = ["gcc", "pkg-config", "git"]
-centos8 = ["cargo", "openssl-devel"]
-debian10 = ["curl", "libssl-dev"]
+build_depends:
+  all: ["gcc", "pkg-config", "git"]
+  centos8: ["cargo", "openssl-devel"]
+  debian10: ["curl", "libssl-dev"]
 "#,
         want =
             all      => "gcc", "pkg-config", "git";

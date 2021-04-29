@@ -25,7 +25,7 @@ pub struct PkgerOpts {
     /// matter, duplicates and errors are silently ignored.
     pub hide: Option<String>,
     #[clap(short, long)]
-    /// Path to the config file (default - "./conf.toml").
+    /// Path to the config file (default - "~/.pkger.yml").
     pub config: Option<String>,
 
     #[clap(subcommand)]
