@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::Result;
 
+use serde_yaml::{Mapping, Sequence, Value as YamlValue};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 
@@ -26,16 +27,16 @@ impl Default for Dependencies {
     }
 }
 
-impl TryFrom<toml::value::Table> for Dependencies {
+impl TryFrom<Mapping> for Dependencies {
     type Error = crate::Error;
 
-    fn try_from(table: toml::value::Table) -> Result<Self, Self::Error> {
+    fn try_from(table: Mapping) -> Result<Self, Self::Error> {
         let mut deps = Self::default();
         for (image, image_deps) in table {
-            if image_deps.is_array() {
+            if image_deps.is_sequence() {
                 let mut deps_set = HashSet::new();
-                for dep in image_deps.as_array().unwrap() {
-                    if !dep.is_str() {
+                for dep in image_deps.as_sequence().unwrap() {
+                    if !dep.is_string() {
                         return Err(anyhow!(
                             "expected a string as dependency, found `{:?}`",
                             dep
@@ -44,7 +45,13 @@ impl TryFrom<toml::value::Table> for Dependencies {
 
                     deps_set.insert(dep.as_str().unwrap().to_string());
                 }
-                deps.inner_mut().insert(image.to_string(), deps_set);
+                deps.inner_mut().insert(
+                    image
+                        .as_str()
+                        .map(|s| s.to_string())
+                        .ok_or_else(|| anyhow!("expected image name"))?,
+                    deps_set,
+                );
             } else {
                 return Err(anyhow!(
                     "expected array of dependencies, found `{:?}`",
@@ -56,13 +63,13 @@ impl TryFrom<toml::value::Table> for Dependencies {
     }
 }
 
-impl TryFrom<toml::value::Array> for Dependencies {
+impl TryFrom<Sequence> for Dependencies {
     type Error = crate::Error;
-    fn try_from(array: toml::value::Array) -> Result<Self> {
+    fn try_from(array: Sequence) -> Result<Self> {
         let mut deps = Self::default();
         let mut dep_set = HashSet::new();
         for dep in array {
-            if let toml::Value::String(dep) = dep {
+            if let YamlValue::String(dep) = dep {
                 dep_set.insert(dep);
             } else {
                 return Err(anyhow!(
@@ -78,12 +85,12 @@ impl TryFrom<toml::value::Array> for Dependencies {
     }
 }
 
-impl TryFrom<toml::Value> for Dependencies {
+impl TryFrom<YamlValue> for Dependencies {
     type Error = crate::Error;
-    fn try_from(deps: toml::Value) -> Result<Self> {
+    fn try_from(deps: YamlValue) -> Result<Self> {
         match deps {
-            toml::Value::Table(table) => Self::try_from(table),
-            toml::Value::Array(array) => Self::try_from(array),
+            YamlValue::Mapping(table) => Self::try_from(table),
+            YamlValue::Sequence(array) => Self::try_from(array),
             _ => Err(anyhow!(
                 "expected a map or array of dependencies, found `{:?}`",
                 deps
@@ -130,9 +137,9 @@ mod tests {
         want = $(
             $image:ident => $($dep:literal),+
         );+) => {
-            let input: toml::Value = toml::from_str($inp).unwrap();
+            let input: YamlValue = serde_yaml::from_str($inp).unwrap();
             dbg!(&input);
-            let input = input.as_table().unwrap().get("build_depends").unwrap().clone();
+            let input = input.as_mapping().unwrap().get(&serde_yaml::Value::String("build_depends".to_string())).unwrap().clone();
             let got = Dependencies::try_from(input).unwrap();
 
             $(
@@ -151,10 +158,10 @@ mod tests {
     fn parses_deps() {
         test_deps!(
         input = r#"
-[build_depends]
-all = ["gcc", "pkg-config", "git"]
-centos8 = ["cargo", "openssl-devel"]
-debian10 = ["curl", "libssl-dev"]
+build_depends:
+  all: ["gcc", "pkg-config", "git"]
+  centos8: ["cargo", "openssl-devel"]
+  debian10: ["curl", "libssl-dev"]
 "#,
         want =
             all      => "gcc", "pkg-config", "git";

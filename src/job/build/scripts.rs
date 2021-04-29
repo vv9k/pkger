@@ -25,9 +25,9 @@ macro_rules! run_script {
             }
 
             for cmd in &$script.steps {
-                if !cmd.images.is_empty() {
-                    trace!(images = ?cmd.images, "only execute on");
-                    if !cmd.images.contains(&$ctx.image.name) {
+                if let Some(images) = &cmd.images {
+                    trace!(images = ?images, "only execute on");
+                    if !images.contains(&$ctx.image.name) {
                         trace!(image = %$ctx.image.name, "not found in images");
                         if !cmd.has_target_specified() {
                             trace!("skipping");
@@ -41,6 +41,7 @@ macro_rules! run_script {
                     continue;
                 }
 
+                trace!(command = %cmd.cmd, "running");
                 $ctx.checked_exec(&opts.clone().cmd(&cmd.cmd).build())
                     .await?;
             }

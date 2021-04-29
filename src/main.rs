@@ -22,6 +22,7 @@ use crate::recipe::{BuildTarget, Recipes};
 pub use anyhow::{Error, Result};
 use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 use serde::Deserialize;
+use serde_yaml::{Mapping, Value as YamlValue};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs;
@@ -34,7 +35,7 @@ use tokio::task;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
-static DEFAULT_CONFIG_FILE: &str = ".pkger.toml";
+static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Deserialize, Debug)]
@@ -46,7 +47,7 @@ pub struct Config {
 }
 impl Config {
     fn from_path<P: AsRef<Path>>(val: P) -> Result<Self> {
-        Ok(toml::from_slice(&fs::read(val.as_ref())?)?)
+        Ok(serde_yaml::from_slice(&fs::read(val.as_ref())?)?)
     }
 }
 
@@ -353,26 +354,24 @@ impl Pkger {
         trace!(opts = ?opts);
 
         let git = if let Some(url) = opts.git_url {
-            let mut git_src = toml::value::Table::new();
-            git_src.insert("url".to_string(), toml::Value::String(url));
+            let mut git_src = Mapping::new();
+            git_src.insert(YamlValue::from("url"), YamlValue::from(url));
             if let Some(branch) = opts.git_branch {
-                git_src.insert("branch".to_string(), toml::Value::String(branch));
+                git_src.insert(YamlValue::from("branch"), YamlValue::from(branch));
             }
-            Some(toml::Value::Table(git_src))
+            Some(YamlValue::Mapping(git_src))
         } else {
             None
         };
 
-        let mut env = toml::value::Map::new();
+        let mut env = Mapping::new();
         if let Some(env_str) = opts.env {
             for kv in env_str.split(',') {
                 let mut kv_split = kv.split('=');
                 if let Some(k) = kv_split.next() {
                     if let Some(v) = kv_split.next() {
-                        if let Some(entry) =
-                            env.insert(k.to_string(), toml::Value::String(v.to_string()))
-                        {
-                            warn!(key = k, old = %entry.to_string(), new = v, "key already exists, overwriting")
+                        if let Some(entry) = env.insert(YamlValue::from(k), YamlValue::from(v)) {
+                            warn!(key = k, old = ?entry.as_str(), new = v, "key already exists, overwriting")
                         }
                     } else {
                         warn!(entry = ?kv, "env entry missing a `=`");
@@ -385,11 +384,11 @@ impl Pkger {
 
         macro_rules! vec_as_deps {
             ($it:expr) => {{
-                let vec = $it.into_iter().map(toml::Value::from).collect::<Vec<_>>();
+                let vec = $it.into_iter().map(YamlValue::from).collect::<Vec<_>>();
                 if vec.is_empty() {
                     None
                 } else {
-                    Some(toml::Value::Array(vec))
+                    Some(YamlValue::Sequence(vec))
                 }
             }};
         }
@@ -463,7 +462,7 @@ impl Pkger {
             install: None,
         };
 
-        let rendered = toml::to_string(&recipe)?;
+        let rendered = serde_yaml::to_string(&recipe)?;
 
         if let Some(output_dir) = opts.output_dir {
             fs::write(output_dir.as_path(), rendered)?;
