@@ -35,7 +35,7 @@ use tokio::task;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
-static DEFAULT_CONFIG_FILE: &str = ".pkger.toml";
+static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Deserialize, Debug)]
@@ -47,7 +47,7 @@ pub struct Config {
 }
 impl Config {
     fn from_path<P: AsRef<Path>>(val: P) -> Result<Self> {
-        Ok(toml::from_slice(&fs::read(val.as_ref())?)?)
+        Ok(serde_yaml::from_slice(&fs::read(val.as_ref())?)?)
     }
 }
 
@@ -462,7 +462,7 @@ impl Pkger {
             install: None,
         };
 
-        let rendered = toml::to_string(&recipe)?;
+        let rendered = serde_yaml::to_string(&recipe)?;
 
         if let Some(output_dir) = opts.output_dir {
             fs::write(output_dir.as_path(), rendered)?;
