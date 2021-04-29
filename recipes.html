@@ -166,44 +166,51 @@
                         <h1 id="recipes"><a class="header" href="#recipes">Recipes</a></h1>
 <p>The recipe is divided into 2 required (<em>metadata</em>, <em>build</em>) and 3 optional (<em>config</em>, <em>install</em>, <em>env</em>) parts. To read more on each topic select a subsection in the menu.</p>
 <p>Here's an example working recipe for <strong>pkger</strong>:</p>
-<pre><code class="language-toml">[metadata]
-name = &quot;pkger&quot;
-description = &quot;pkger&quot;
-arch = &quot;x86_64&quot;
-license = &quot;MIT&quot;
-version = &quot;0.1.0&quot;
-maintainer = &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
-url = &quot;https://github.com/wojciech/pkger&quot;
-git = &quot;https://github.com/wojciechkepka/pkger.git&quot;
-provides = [&quot;pkger&quot;]
+<pre><code class="language-yaml">metadata:
+  name: pkger
+  description: pkger
+  arch: x86_64
+  license: MIT
+  version: 0.1.0
+  maintainer: &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
+  url: &quot;https://github.com/wojciech/pkger&quot;
+  git: &quot;https://github.com/wojciechkepka/pkger.git&quot;
+  provides:
+    - pkger
+  depends:
+    pkger-deb:
+      - libssl-dev
+    pkger-rpm:
+      - openssl-devel
+  build_depends:
+    all:
+      - gcc
+      - pkg-config
+    pkger-rpm:
+      - cargo
+    pkger-deb:
+      - curl
+      - libssl-dev
+    pkger-pkg:
+      - cargo
+configure:
+  steps:
+    - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
+      deb: true
+    - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+      deb: true
+build:
+  steps:
+    - cmd: cargo build --color=never
+      rpm: true
+      pkg: true
+    - cmd: $HOME/.cargo/bin/cargo build --color=never
+      deb: true
+install:
+  steps:
+    - cmd: dir -p usr/bin
+    - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
 
-[metadata.depends]
-pkger-deb = [&quot;libssl-dev&quot;]
-pkger-rpm = [&quot;openssl-devel&quot;]
-
-[metadata.build_depends]
-all = [&quot;gcc&quot;, &quot;pkg-config&quot;]
-pkger-rpm = [&quot;cargo&quot;]
-pkger-deb = [&quot;curl&quot;, &quot;libssl-dev&quot;]
-pkger-pkg = [&quot;cargo&quot;]
-
-[configure]
-steps = [
-    {cmd = &quot;curl -o /tmp/install_rust.sh https://sh.rustup.rs&quot;, deb = true },
-    {cmd = &quot;sh /tmp/install_rust.sh -y --default-toolchain stable&quot;, deb = true }
-]
-
-[build]
-steps = [
-    {cmd = &quot;cargo build --color=never&quot;, rpm = true, pkg = true },
-    {cmd = &quot;$HOME/.cargo/bin/cargo build --color=never&quot;, deb = true }
-]
-
-[install]
-steps = [
-    &quot;mkdir -p usr/bin&quot;,
-    &quot;install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/&quot;
-]
 </code></pre>
 
                     </main>

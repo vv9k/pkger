@@ -166,70 +166,75 @@
                         <h1 id="metadata-required"><a class="header" href="#metadata-required">Metadata (Required)</a></h1>
 <p>Contains all fields that describe the package being built.</p>
 <h2 id="required-fields"><a class="header" href="#required-fields">required fields</a></h2>
-<pre><code class="language-toml">[metadata]
-name = &quot;pkger&quot;
-version = &quot;0.1.0&quot;
-description = &quot;A package building tool utilizing Docker&quot;
-license = &quot;MIT&quot;
+<pre><code class="language-yaml">metadata:
+  name: pkger
+  description: pkger
+  license: MIT
+  version: 0.1.0
 </code></pre>
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
 <p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored when building with <code>--simple</code> flag.</p>
-<pre><code class="language-toml">images = [
-    { name = &quot;centos8&quot; , target = &quot;rpm&quot; },
-    { name = &quot;debian10&quot;, target = &quot;deb&quot; }
-]
+<pre><code class="language-yaml">  images:
+    - name: centos8
+      target: rpm
+    - name: debian10
+      target: deb
+    - name: arch
+      target: pkg
 </code></pre>
 <h3 id="sources"><a class="header" href="#sources">sources</a></h3>
 <p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified <strong>pkger</strong> will fetch both to the build directory.</p>
 <p>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> it will be directly extracted to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
-<pre><code class="language-toml">source = &quot;&quot; # remote source or file system location
+<pre><code class="language-yaml">  source: &quot;&quot; # remote source or file system location
 
-git = &quot;https://github.com/wojciechkepka/pkger.git&quot; # will default to branch = &quot;master&quot;
-# or specify a branch like this:
-# git = { url = &quot;https://github.com/wojciechkepka/pkger.git&quot;, branch = &quot;dev&quot; }
+  git: https://github.com/wojciechkepka/pkger.git # will default to branch = &quot;master&quot;
+
+  # or specify a branch like this:
+  git:
+    url: https://github.com/wojciechkepka/pkger.git
+    branch: dev
 </code></pre>
 <h3 id="common"><a class="header" href="#common">common</a></h3>
 <p>Optional fields shared across all targets.</p>
-<pre><code class="language-toml">release = &quot;1&quot; # defaults to &quot;0&quot;
+<pre><code class="language-yaml">  release: &quot;1&quot; # defaults to &quot;0&quot;
 
-epoch = &quot;42&quot;
+  epoch: &quot;42&quot;
 
-maintainer = &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
+  maintainer: &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
 
 # The website of the package being built
-url = &quot;https://github.com/wojciechkepka/pkger&quot;
+  url: https://github.com/wojciechkepka/pkger
 
-arch = &quot;x86_64&quot; # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
+  arch: x86_64 # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
 
-skip_default_deps = true # skip installing default dependencies, it might break the builds
+  skip_default_deps: true # skip installing default dependencies, it might break the builds
 
-exclude = [&quot;share&quot;, &quot;info&quot;] # directories to exclude from final package
+  exclude: [&quot;share&quot;, &quot;info&quot;] # directories to exclude from final package
 
-group = &quot;&quot; # acts as Group in RPM or Section in DEB build
+  group: &quot;&quot; # acts as Group in RPM or Section in DEB build
 </code></pre>
 <h3 id="dependencies"><a class="header" href="#dependencies">dependencies</a></h3>
 <p>Common fields that specify dependencies, conflicts and provides will be added to the spec of the final package. </p>
 <p>This fields can be specified as arrays:</p>
-<pre><code class="language-toml">depends   = []
-conflicts = []
-provides  = []
+<pre><code class="language-yaml">  depends: []
+  conflicts: []
+  provides: []
 </code></pre>
 <p>Or specified per image as a map below.</p>
 <p><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, choosing an appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type.</p>
-<pre><code class="language-toml">[metadata.build_depends]
-# common dependencies shared across all images
-all      = [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
+<pre><code class="language-yaml">  build_depends:
+    # common dependencies shared across all images
+    all: [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
 
-# dependencies for custom images
-centos8  = [&quot;cargo&quot;, &quot;openssl-devel&quot;]
-debian10 = [&quot;curl&quot;, &quot;libssl-dev&quot;]
+    # dependencies for custom images
+    centos8: [&quot;cargo&quot;, &quot;openssl-devel&quot;]
+    debian10: [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
 <p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:</p>
-<pre><code class="language-toml">pkger-rpm = [&quot;cargo&quot;]
-pkger-deb = [&quot;curl&quot;]
-pkger-pkg = [&quot;cargo&quot;]
-pkger-gzip = []
-
+<pre><code class="language-yaml">  pkger-rpm: [&quot;cargo&quot;]
+  pkger-deb: [&quot;curl&quot;]
+  pkger-pkg: [&quot;cargo&quot;]
+  pkger-gzip: []
 </code></pre>
 
                     </main>

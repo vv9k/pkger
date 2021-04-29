@@ -165,22 +165,22 @@
                     <main>
                         <h1 id="rpm-fields"><a class="header" href="#rpm-fields">RPM fields</a></h1>
 <p>Optional fields that will be used when building RPM target.</p>
-<pre><code class="language-toml">[metadata.rpm]
-vendor = &quot;&quot;
-icon = &quot;&quot;
-summary = &quot;shorter description&quot; # if not provided defaults to value of `description`
-config_noreplace = &quot;%{_sysconfdir}/%{name}/%{name}.conf&quot;
+<pre><code class="language-yaml">  rpm:
+    vendor: &quot;&quot;
+    icon: &quot;&quot;
+    summary: &quot;shorter description&quot; # if not provided defaults to value of `description`
+    config_noreplace: &quot;%{_sysconfdir}/%{name}/%{name}.conf&quot;
 
-pre_script = &quot;&quot;
-post_script = &quot;&quot;
-preun_script = &quot;&quot;
-postun_script = &quot;&quot;
+    pre_script: &quot;&quot;
+    post_script: &quot;&quot;
+    preun_script: &quot;&quot;
+    postun_script: &quot;&quot;
 
-# acts the same as other dependencies - can be passed as array
-# obsoletes = [&quot;foo&quot;]
-# or as a map per image at the end of rpm fields definition
-[metadata.rpm.obsoletes]
-centos8 = [&quot;foo&quot;]
+    # acts the same as other dependencies - can be passed as array
+    #obsoletes: [&quot;foo&quot;]
+    # or as a map
+    obsoletes:
+      centos8: [&quot;foo&quot;]
 </code></pre>
 
                     </main>

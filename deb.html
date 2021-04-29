@@ -165,19 +165,19 @@
                     <main>
                         <h1 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h1>
 <p>Optional fields that may be used when building a DEB package.</p>
-<pre><code class="language-toml">[metadata.deb]
-priority = &quot;&quot;
-installed_size = &quot;&quot;
-built_using = &quot;&quot;
-essential = true
-
-# same as all other dependencies but deb specific
-pre_depends = []
-recommends = []
-suggests = []
-breaks = []
-replaces = []
-enchances = []
+<pre><code class="language-yaml">  deb:
+    priority: &quot;&quot;
+    installed_size: &quot;&quot;
+    built_using: &quot;&quot;
+    essential: true
+    
+    # same as all other dependencies but deb specific
+    pre_depends: []
+    recommends: []
+    suggests: []
+    breaks: []
+    replaces: []
+    enchances: []
 </code></pre>
 
                     </main>
