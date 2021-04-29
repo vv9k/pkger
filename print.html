@@ -366,7 +366,8 @@ optdepends = [
 <pre><code class="language-toml">shell = &quot;/bin/bash&quot; # optionally change default `/bin/sh`
 </code></pre>
 <h2 id="configure-optional"><a class="header" href="#configure-optional">configure (Optional)</a></h2>
-<p>Optional configuration steps. If provided the steps will be executed before the build phase.</p>
+<p>Optional configuration steps. If provided the steps will be executed before the build phase.
+The working directory will be set to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a></p>
 <pre><code class="language-toml">[configure]
 shell = &quot;/bin/bash&quot;
 steps = [
