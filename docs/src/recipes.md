@@ -4,43 +4,50 @@ The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*con
 
 Here's an example working recipe for **pkger**:
 
-```toml
-[metadata]
-name = "pkger"
-description = "pkger"
-arch = "x86_64"
-license = "MIT"
-version = "0.1.0"
-maintainer = "Wojciech Kępka <wojciech@wkepka.dev>"
-url = "https://github.com/wojciech/pkger"
-git = "https://github.com/wojciechkepka/pkger.git"
-provides = ["pkger"]
+```yaml
+metadata:
+  name: pkger
+  description: pkger
+  arch: x86_64
+  license: MIT
+  version: 0.1.0
+  maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
+  url: "https://github.com/wojciech/pkger"
+  git: "https://github.com/wojciechkepka/pkger.git"
+  provides:
+    - pkger
+  depends:
+    pkger-deb:
+      - libssl-dev
+    pkger-rpm:
+      - openssl-devel
+  build_depends:
+    all:
+      - gcc
+      - pkg-config
+    pkger-rpm:
+      - cargo
+    pkger-deb:
+      - curl
+      - libssl-dev
+    pkger-pkg:
+      - cargo
+configure:
+  steps:
+    - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
+      deb: true
+    - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+      deb: true
+build:
+  steps:
+    - cmd: cargo build --color=never
+      rpm: true
+      pkg: true
+    - cmd: $HOME/.cargo/bin/cargo build --color=never
+      deb: true
+install:
+  steps:
+    - cmd: dir -p usr/bin
+    - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
 
-[metadata.depends]
-pkger-deb = ["libssl-dev"]
-pkger-rpm = ["openssl-devel"]
-
-[metadata.build_depends]
-all = ["gcc", "pkg-config"]
-pkger-rpm = ["cargo"]
-pkger-deb = ["curl", "libssl-dev"]
-pkger-pkg = ["cargo"]
-
-[configure]
-steps = [
-    {cmd = "curl -o /tmp/install_rust.sh https://sh.rustup.rs", deb = true },
-    {cmd = "sh /tmp/install_rust.sh -y --default-toolchain stable", deb = true }
-]
-
-[build]
-steps = [
-    {cmd = "cargo build --color=never", rpm = true, pkg = true },
-    {cmd = "$HOME/.cargo/bin/cargo build --color=never", deb = true }
-]
-
-[install]
-steps = [
-    "mkdir -p usr/bin",
-    "install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/"
-]
 ```

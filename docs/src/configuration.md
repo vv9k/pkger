@@ -1,17 +1,17 @@
 # Configuration
 
-By default **pkger** will look for the config file in the home directory of the user running the process in a file `.pkger.toml`. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use `--config` or `-c` parameter.
+By default **pkger** will look for the config file in the home directory of the user running the process in a file `.pkger.yml`. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use `--config` or `-c` parameter.
 
 The configuration file has a following structure:
 
-```toml
+```yaml
 # required
-recipes_dir = ""
-output_dir = ""
+recipes_dir: ""
+output_dir: ""
 
 # optional
-images_dir = ""
-docker = "unix:///var/run/docker.sock"
+images_dir: ""
+docker: "unix:///var/run/docker.sock"
 ```
 
 The required fields when running a build are `recipes_dir` and `output_dir`. First tells **pkger** where to look for [recipes](./recipes.md) to build, the second is the directory where the final packages will end up.
