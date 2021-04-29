@@ -1,53 +1,52 @@
-# Recipes
-
-The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts. To read more on each topic select a subsection in the menu.
-
-Here's an example working recipe for **pkger**:
-
-```yaml
 metadata:
   name: pkger
   description: pkger
   arch: x86_64
   license: MIT
   version: 0.1.0
-  maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
   url: "https://github.com/wojciech/pkger"
   git: "https://github.com/wojciechkepka/pkger.git"
+  maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
   provides:
     - pkger
+  images:
+    - name: centos8
+      target: rpm
+    - name: debian10
+      target: deb
+    - name: arch
+      target: pkg
   depends:
-    pkger-deb:
+    debian10:
       - libssl-dev
-    pkger-rpm:
+    centos8:
       - openssl-devel
   build_depends:
     all:
       - gcc
       - pkg-config
-    pkger-rpm:
+    centos8:
       - cargo
-    pkger-deb:
+      - openssl-devel
+    debian10:
       - curl
       - libssl-dev
-    pkger-pkg:
+    arch:
       - cargo
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
-      deb: true
+      images: ["debian10"]
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
-      deb: true
+      images: ["debian10"]
 build:
   steps:
     - cmd: cargo build --color=never
-      rpm: true
-      pkg: true
+      images: ["centos8", "arch"]
     - cmd: $HOME/.cargo/bin/cargo build --color=never
-      deb: true
+      images: ["debian10"]
 install:
   steps:
-    - cmd: dir -p usr/bin
+    - cmd: mkdir -p usr/bin
     - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
 
-```

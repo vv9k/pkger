@@ -1,10 +1,3 @@
-# Recipes
-
-The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts. To read more on each topic select a subsection in the menu.
-
-Here's an example working recipe for **pkger**:
-
-```yaml
 metadata:
   name: pkger
   description: pkger
@@ -50,4 +43,3 @@ install:
     - cmd: dir -p usr/bin
     - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
 
-```

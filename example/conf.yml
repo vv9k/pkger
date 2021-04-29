@@ -1,0 +1,4 @@
+images_dir: "example/images"
+recipes_dir: "example/recipes"
+output_dir: "example/output"
+

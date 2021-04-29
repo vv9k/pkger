@@ -12,6 +12,7 @@ use crate::deps::Dependencies;
 use crate::{Error, Result};
 
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value as YamlValue;
 use std::convert::TryFrom;
 
 macro_rules! let_some_deps {
@@ -32,7 +33,7 @@ pub struct MetadataRep {
     pub description: String,
     pub license: String,
 
-    pub images: Option<Vec<toml::Value>>,
+    pub images: Option<Vec<YamlValue>>,
 
     // Common optional
     pub maintainer: Option<String>,
@@ -42,7 +43,7 @@ pub struct MetadataRep {
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
     /// Git repository as source
-    pub git: Option<toml::Value>,
+    pub git: Option<YamlValue>,
     /// Whether to install default dependencies before build
     pub skip_default_deps: Option<bool>,
     /// Directories to exclude when creating the package
@@ -54,10 +55,10 @@ pub struct MetadataRep {
     /// Used to force the package to be seen as newer than any previous version with a lower epoch
     pub epoch: Option<String>,
 
-    pub build_depends: Option<toml::Value>,
-    pub depends: Option<toml::Value>,
-    pub conflicts: Option<toml::Value>,
-    pub provides: Option<toml::Value>,
+    pub build_depends: Option<YamlValue>,
+    pub depends: Option<YamlValue>,
+    pub conflicts: Option<YamlValue>,
+    pub provides: Option<YamlValue>,
 
     // Only DEB
     pub deb: Option<DebRep>,
@@ -76,7 +77,7 @@ pub struct PkgRep {
     /// A list of files that can contain user-made changes and should be preserved during upgrade
     /// or removal of a package
     pub backup: Option<Vec<String>>,
-    pub replaces: Option<toml::Value>,
+    pub replaces: Option<YamlValue>,
     /// Optional dependencies needed for full functionality of the package
     pub optdepends: Option<Vec<String>>,
 }
@@ -113,12 +114,12 @@ pub struct DebRep {
     pub built_using: Option<String>,
     pub essential: Option<bool>,
 
-    pub pre_depends: Option<toml::Value>,
-    pub recommends: Option<toml::Value>,
-    pub suggests: Option<toml::Value>,
-    pub breaks: Option<toml::Value>,
-    pub replaces: Option<toml::Value>,
-    pub enchances: Option<toml::Value>,
+    pub pre_depends: Option<YamlValue>,
+    pub recommends: Option<YamlValue>,
+    pub suggests: Option<YamlValue>,
+    pub breaks: Option<YamlValue>,
+    pub replaces: Option<YamlValue>,
+    pub enchances: Option<YamlValue>,
 }
 
 #[derive(Clone, Debug)]
@@ -158,7 +159,7 @@ impl TryFrom<DebRep> for DebInfo {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RpmRep {
-    pub obsoletes: Option<toml::Value>,
+    pub obsoletes: Option<YamlValue>,
     pub vendor: Option<String>,
     pub icon: Option<String>,
     pub summary: Option<String>,

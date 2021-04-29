@@ -12,18 +12,7 @@ on:
       - "README.md"
       - "CHANGELOG.md"
       - "LICENSE"
-    branches:
-      - master
-  pull_request:
-    paths-ignore:
-      - "src"
-      - "example"
-      - "tests"
-      - "assets"
-      - "Cargo.*"
-      - "README.md"
-      - "CHANGELOG.md"
-      - "LICENSE"
+      - ".github"
     branches:
       - master
 

@@ -2,10 +2,10 @@
 
 Optional environment variables that should be available during the [scripts](./scripts.md).
 
-```toml
-[env]
-HTTPS_PROXY = "http://proxy.domain.com:1234"
-RUST_LOG = "trace"
+```yaml
+  env:
+    HTTPS_PROXY: http://proxy.domain.com:1234
+    RUST_LOG: trace
 ```
 
 # **pkger** variables

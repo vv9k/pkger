@@ -1,0 +1,87 @@
+metadata:
+  name: test-pkger
+  description: pkger testing suite
+  arch: x86_64
+  license: MIT
+  version: 0.1.0
+  skip_default_deps: true
+  exclude:
+    - share
+    - info
+  images:
+    - name: debian10
+    - name: centos8
+env:
+  ENV_VAR_TEST: 'test.com:1010'
+configure:
+  working_dir: /var/lib
+  steps:
+    - cmd: >-
+        echo SHELL=$0;
+        if [ "$0" = "/bin/sh" ]; then exit 0; else echo 'Shell is configure script
+        is not set to properly'; exit 1; fi
+    - cmd: >-
+        echo PWD=$PWD;
+        if [ "$PWD" = "/var/lib" ]; then exit 0; else echo 'Working directory of
+        configure script is not set properly'; exit 1; fi
+build:
+  shell: /bin/bash
+  steps:
+    - cmd: >-
+        echo SHELL=$0;
+        if [[ $0 == /bin/bash ]]; then exit 0; else echo 'Shell is configure
+        script is not set to properly'; exit 1; fi
+    - cmd: >-
+        echo PWD=$PWD;
+        if [[ $PWD == $PKGER_BLD_DIR ]]; then exit 0; else echo 'Working directory
+        of build script is not set properly'; exit 1; fi
+    - cmd: >-
+        echo 'Testing environment variables';
+        echo ENV_VAR_TEST=$ENV_VAR_TEST;
+        if [[ ! '$ENV_VAR_TEST' =~ /test[.]com[:]1010/ ]]; then exit 0; else echo
+        'Environment variable ENV_VAR_TEST is not set properly'; exit 1; fi
+    - cmd: >-
+        echo 'Testing pkger env variables';
+        echo PKGER_OS=$PKGER_OS;
+        if [[ $PKGER_OS =~ debian|centos ]]; then exit 0; else echo 'Environment
+        variable PKGER_OS is not set properly'; exit 1; fi
+    - cmd: >-
+        echo PKGER_OS_VERSION=$PKGER_OS_VERSION;
+        if [[ $PKGER_OS_VERSION =~ 10|8 ]]; then exit 0; else echo 'Environment
+        variable PKGER_OS_VERSION is not set properly'; exit 1; fi
+    - cmd: >-
+        echo PKGER_BLD_DIR=$PKGER_BLD_DIR;
+        if [[ $PKGER_BLD_DIR =~ /tmp/test-pkger-build-[0-9]* ]]; then exit 0; else
+        echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi
+    - cmd: >-
+        echo PKGER_OUT_DIR=$PKGER_OUT_DIR;
+        if [[ $PKGER_OUT_DIR =~ /tmp/test-pkger-out-[0-9]* ]]; then exit 0; else
+        echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi
+    - cmd: echo 'Testing pkger command syntax'
+    # test if pkger commands work correctly
+    - images: ["centos8"]
+      cmd: touch /tmp/only_centos
+    # assure the file exists on centos8
+    - images: ["centos8"]
+      cmd: >-
+        if [ ! -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos should
+        exist on image centos8'; exit 1; fi
+    # assure the file doesn't exist on debian10
+    - images: ["debian10"]
+      cmd: >-
+        if [ -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos shouldnt
+        exist on image debian10'; exit 1; fi
+    - images: ["centos8", "debian10"]
+      cmd: touch /tmp/pkger_group
+    # assure the file exists on both images
+    - images: ["centos8", "debian10"]
+      cmd: >-
+        if [ ! -f '/tmp/pkger_group' ]; then echo 'File /tmp/pkger_group should
+        exist on image both centos8 and debian10'; exit 1; fi
+install:
+  steps:
+    - cmd: >-
+        echo $PWD;
+        if [ "$PWD" = "$PKGER_OUT_DIR" ]; then exit 0; else echo 'Working
+        directory of install script is not set properly'; exit 1; fi
+    - cmd: mkdir -p share/test/123 info/dir/to/remove

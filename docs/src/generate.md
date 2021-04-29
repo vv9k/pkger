@@ -1,6 +1,6 @@
 # Generate recipes
 
-To generate a recipe declaratively from CLI use subcommand `gen-recipe`. By default it requires only the name of the package and prints the recipe to stdout. If `output_dir` is provided **pkger** will create a directory with the name of the package and a `recipe.toml` containing generated recipe.
+To generate a recipe declaratively from CLI use subcommand `gen-recipe`. By default it requires only the name of the package and prints the recipe to stdout. If `output_dir` is provided **pkger** will create a directory with the name of the package and a `recipe.yml` containing generated recipe.
 
 Example generated recipe with no options printed to stdout:
 ```

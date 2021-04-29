@@ -2,6 +2,7 @@ use crate::recipe::BuildTarget;
 use crate::{Error, Result};
 
 use serde::{Deserialize, Serialize};
+use serde_yaml::{Mapping, Value as YamlValue};
 use std::convert::TryFrom;
 
 #[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
@@ -19,12 +20,12 @@ impl ImageTarget {
     }
 }
 
-impl TryFrom<toml::value::Table> for ImageTarget {
+impl TryFrom<Mapping> for ImageTarget {
     type Error = Error;
 
-    fn try_from(map: toml::value::Table) -> Result<Self> {
-        if let Some(image) = map.get("name") {
-            if !image.is_str() {
+    fn try_from(map: Mapping) -> Result<Self> {
+        if let Some(image) = map.get(&YamlValue::from("name")) {
+            if !image.is_string() {
                 return Err(anyhow!(
                     "expected a string as image name, found `{:?}`",
                     image
@@ -32,8 +33,8 @@ impl TryFrom<toml::value::Table> for ImageTarget {
             }
             let image = image.as_str().unwrap().to_string();
 
-            let target = if let Some(target) = map.get("target") {
-                if !target.is_str() {
+            let target = if let Some(target) = map.get(&YamlValue::from("target")) {
+                if !target.is_string() {
                     return Err(anyhow!(
                         "expected a string as image target, found `{:?}`",
                         image
@@ -52,12 +53,12 @@ impl TryFrom<toml::value::Table> for ImageTarget {
     }
 }
 
-impl TryFrom<toml::Value> for ImageTarget {
+impl TryFrom<YamlValue> for ImageTarget {
     type Error = Error;
-    fn try_from(value: toml::Value) -> Result<Self> {
+    fn try_from(value: YamlValue) -> Result<Self> {
         match value {
-            toml::Value::Table(map) => Self::try_from(map),
-            toml::Value::String(image) => Ok(Self {
+            YamlValue::Mapping(map) => Self::try_from(map),
+            YamlValue::String(image) => Ok(Self {
                 image,
                 target: BuildTarget::default(),
             }),

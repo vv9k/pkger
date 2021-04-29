@@ -1,5 +1,6 @@
 use crate::{Error, Result};
 
+use serde_yaml::{Mapping, Value as YamlValue};
 use std::convert::TryFrom;
 
 #[derive(Clone, Debug)]
@@ -18,18 +19,18 @@ impl From<&str> for GitSource {
     }
 }
 
-impl TryFrom<toml::value::Table> for GitSource {
+impl TryFrom<Mapping> for GitSource {
     type Error = Error;
-    fn try_from(table: toml::value::Table) -> Result<Self> {
-        if let Some(url) = table.get("url") {
-            if !url.is_str() {
+    fn try_from(table: Mapping) -> Result<Self> {
+        if let Some(url) = table.get(&YamlValue::from("url")) {
+            if !url.is_string() {
                 return Err(anyhow!("expected a string as url, found `{:?}`", url));
             }
 
             let url = url.as_str().unwrap().to_string();
 
-            if let Some(branch) = table.get("branch") {
-                if !branch.is_str() {
+            if let Some(branch) = table.get(&YamlValue::from("branch")) {
+                if !branch.is_string() {
                     return Err(anyhow!("expected a string as branch, found `{:?}`", branch));
                 }
 
@@ -49,12 +50,12 @@ impl TryFrom<toml::value::Table> for GitSource {
     }
 }
 
-impl TryFrom<toml::Value> for GitSource {
+impl TryFrom<YamlValue> for GitSource {
     type Error = Error;
-    fn try_from(value: toml::Value) -> Result<Self> {
+    fn try_from(value: YamlValue) -> Result<Self> {
         match value {
-            toml::Value::Table(table) => Self::try_from(table),
-            toml::Value::String(s) => Ok(Self::from(s.as_str())),
+            YamlValue::Mapping(table) => Self::try_from(table),
+            YamlValue::String(s) => Ok(Self::from(s.as_str())),
             value => Err(anyhow!(
                 "expected a table or a string as git source, found `{:?}`",
                 value
