@@ -14,13 +14,14 @@ use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 use pkgbuild::PkgBuild;
 use rpmspec::RpmSpec;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Mapping;
 use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
 use std::path::Path;
 use std::{collections::HashMap, path::PathBuf};
 use tracing::{info_span, trace, warn};
 
-const DEFAULT_RECIPE_FILE: &str = "recipe.toml";
+const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
 
 #[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 pub struct RecipeTarget {
@@ -303,19 +304,19 @@ impl Recipe {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RecipeRep {
     pub metadata: MetadataRep,
-    pub env: Option<toml::value::Table>,
+    pub env: Option<Mapping>,
     pub configure: Option<ConfigureRep>,
     pub build: BuildRep,
     pub install: Option<InstallRep>,
 }
 
 impl RecipeRep {
-    pub fn from_toml_bytes(data: &[u8]) -> Result<Self> {
-        Ok(toml::from_slice(&data)?)
+    pub fn from_yaml_bytes(data: &[u8]) -> Result<Self> {
+        Ok(serde_yaml::from_slice(&data)?)
     }
 
     pub fn read_from<P: AsRef<Path>>(path: P) -> Result<Self> {
-        Self::from_toml_bytes(&fs::read(&path)?)
+        Self::from_yaml_bytes(&fs::read(&path)?)
     }
 }
 
@@ -342,14 +343,8 @@ macro_rules! impl_step_rep {
             type Error = Error;
 
             fn try_from(rep: $ty_rep) -> Result<Self> {
-                let mut steps = Vec::with_capacity(rep.steps.len());
-
-                for result in rep.steps.into_iter().map(Cmd::try_from) {
-                    steps.push(result?);
-                }
-
                 Ok(Self {
-                    steps,
+                    steps: rep.steps,
                     working_dir: rep.working_dir,
                     shell: rep.shell,
                 })
@@ -370,7 +365,7 @@ macro_rules! impl_step_rep {
 
         #[derive(Clone, Deserialize, Serialize, Debug, Default)]
         pub struct $ty_rep {
-            pub steps: Vec<toml::Value>,
+            pub steps: Vec<Cmd>,
             pub working_dir: Option<PathBuf>,
             pub shell: Option<String>,
         }
@@ -386,11 +381,11 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    const TEST_RECIPE: &[u8] = include_bytes!("../../example/recipes/test/recipe.toml");
+    const TEST_RECIPE: &[u8] = include_bytes!("../../example/recipes/test/recipe.yml");
 
     #[test]
     fn parses_recipe_from_rep() {
-        let rep = RecipeRep::from_toml_bytes(&TEST_RECIPE).unwrap();
+        let rep = RecipeRep::from_yaml_bytes(&TEST_RECIPE).unwrap();
         let parsed = Recipe::try_from(rep.clone()).unwrap();
 
         let rep_config = rep.configure.unwrap();

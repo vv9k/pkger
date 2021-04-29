@@ -1,17 +1,22 @@
+use serde_yaml::Mapping;
 use std::collections::HashMap;
-use toml::value::Table as TomlTable;
 
 #[derive(Clone, Debug)]
 pub struct Env(HashMap<String, String>);
 
-impl From<Option<TomlTable>> for Env {
-    fn from(env: Option<TomlTable>) -> Self {
+impl From<Option<Mapping>> for Env {
+    fn from(env: Option<Mapping>) -> Self {
         let mut data = HashMap::new();
 
         if let Some(env) = env {
-            env.into_iter().for_each(|(k, v)| {
-                data.insert(k, v.to_string().trim_matches('"').to_string());
-            });
+            env.into_iter()
+                .filter(|(k, v)| k.is_string() && v.is_string())
+                .for_each(|(k, v)| {
+                    data.insert(
+                        k.as_str().unwrap().to_string(),
+                        v.as_str().unwrap().to_string(),
+                    );
+                });
         }
 
         Env(data)
