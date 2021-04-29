@@ -83,6 +83,8 @@ impl<'job> BuildContainerCtx<'job> {
             if let Some(dir) = &build_script.working_dir {
                 trace!(working_dir = %dir.display());
                 opts = opts.working_dir(dir.as_path());
+            } else {
+                opts = opts.working_dir(self.container_bld_dir);
             }
 
             if let Some(shell) = &build_script.shell {
@@ -127,6 +129,8 @@ impl<'job> BuildContainerCtx<'job> {
             if let Some(dir) = &install_script.working_dir {
                 trace!(working_dir = %dir.display());
                 opts = opts.working_dir(dir.as_path());
+            } else {
+                opts = opts.working_dir(self.container_out_dir);
             }
 
             if let Some(shell) = &install_script.shell {
