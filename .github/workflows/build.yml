@@ -81,4 +81,4 @@ jobs:
       - name: Test
         run: cargo test
       - name: Build test package with custom images
-        run: cargo run -- -d -c example/conf.toml build test
+        run: cargo run -- -d -c example/conf.yml build test
