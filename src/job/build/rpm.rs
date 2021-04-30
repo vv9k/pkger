@@ -127,9 +127,6 @@ impl<'job> BuildContainerCtx<'job> {
             )
             .await?;
 
-            self.checked_exec(&ExecOpts::default().cmd("ls -l /root/rpmbuild/").build())
-                .await?;
-
             trace!("rpmbuild");
             self.checked_exec(
                 &ExecOpts::default()
