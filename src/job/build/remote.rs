@@ -95,14 +95,14 @@ impl<'job> BuildContainerCtx<'job> {
                             r#"
                         for file in *;
                         do
-                            if [[ \$file == *.tar* ]]
+                            if [[ $file == *.tar* ]]
                             then
-                                tar xvf \$file -C {0}
-                            elif [[ \$file == *.zip ]]
+                                tar xvf $file -C {0}
+                            elif [[ $file == *.zip ]]
                             then
-                                unzip -v \$file -d {0}
+                                unzip -v $file -d {0}
                             else
-                                cp -v \$file {0}
+                                cp -v $file {0}
                             fi
                         done"#,
                             self.container_bld_dir.display(),
