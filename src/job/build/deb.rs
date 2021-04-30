@@ -1,7 +1,7 @@
+use crate::archive::create_tarball;
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::util::create_tar_archive;
 use crate::Result;
 
 use std::path::{Path, PathBuf};
@@ -42,7 +42,7 @@ impl<'job> BuildContainerCtx<'job> {
             debug!(control = %control);
 
             let entries = vec![("./control", control.as_bytes())];
-            let control_tar = cloned_span.in_scope(|| create_tar_archive(entries.into_iter()))?;
+            let control_tar = cloned_span.in_scope(|| create_tarball(entries.into_iter()))?;
             let control_tar_path = tmp_dir.join([&name, "-control.tar"].join(""));
 
             trace!("copy control archive to container");

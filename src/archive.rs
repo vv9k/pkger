@@ -10,7 +10,8 @@ use std::io::prelude::*;
 use std::path::Path;
 use tracing::{info_span, trace};
 
-pub fn unpack_archive<T: io::Read, P: AsRef<Path>>(
+/// Unpacks a given tar archive to the path specified by `output_dir`
+pub fn unpack_tarball<T: io::Read, P: AsRef<Path>>(
     archive: &mut tar::Archive<T>,
     output_dir: P,
 ) -> Result<()> {
@@ -32,6 +33,8 @@ pub fn unpack_archive<T: io::Read, P: AsRef<Path>>(
     Ok(())
 }
 
+/// Save the give tar archive as gzip encoded tar to path specified by `output_dir` with the
+/// filename set to `name`.
 pub fn save_tar_gz<T: io::Read>(
     archive: tar::Archive<T>,
     name: &str,
@@ -55,7 +58,9 @@ pub fn save_tar_gz<T: io::Read>(
     Ok(())
 }
 
-pub fn create_tar_archive<'archive, E, P>(entries: E) -> Result<Vec<u8>>
+/// Creates a tar archive from an iterator of entries consisting of a path and the content of the
+/// entry corresponding to the path.
+pub fn create_tarball<'archive, E, P>(entries: E) -> Result<Vec<u8>>
 where
     E: Iterator<Item = (P, &'archive [u8])>,
     P: AsRef<Path>,
