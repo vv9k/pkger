@@ -1,5 +1,4 @@
-use crate::os::Os;
-use crate::recipe::BuildTarget;
+use crate::recipe::{BuildTarget, Os};
 use crate::{Error, Result};
 
 use serde::{Deserialize, Serialize};
