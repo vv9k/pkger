@@ -204,6 +204,7 @@ impl Recipe {
             .release(self.metadata.release())
             .add_files_entries(files)
             .add_sources_entries(sources)
+            .add_macro("__os_install_post", None::<&str>, "%{nil}") // disable binary stripping
             .install_script(&install_script)
             .description(&self.metadata.description);
 
