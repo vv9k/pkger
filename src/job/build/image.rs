@@ -173,7 +173,7 @@ RUN {} {} {} >/dev/null"#,
                     ImageBuildChunk::Digest { aux } => {
                         return ImageState::new(
                             &aux.id,
-                            &self.target.image_target,
+                            &self.target,
                             CACHED,
                             &SystemTime::now(),
                             &docker,

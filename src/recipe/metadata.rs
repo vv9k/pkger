@@ -1,11 +1,13 @@
 mod arch;
 mod git;
 mod image;
+mod os;
 mod target;
 
 pub use arch::BuildArch;
 pub use git::GitSource;
 pub use image::ImageTarget;
+pub use os::{Distro, Os, PackageManager};
 pub use target::BuildTarget;
 
 use crate::deps::Dependencies;

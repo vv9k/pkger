@@ -3,11 +3,11 @@ mod metadata;
 
 pub use envs::Env;
 pub use metadata::{
-    BuildTarget, DebInfo, DebRep, GitSource, ImageTarget, Metadata, MetadataRep, PkgInfo, PkgRep,
-    RpmInfo, RpmRep,
+    BuildTarget, DebInfo, DebRep, Distro, GitSource, ImageTarget, Metadata, MetadataRep, Os,
+    PackageManager, PkgInfo, PkgRep, RpmInfo, RpmRep,
 };
 
-use crate::{cmd::Cmd, os::Os};
+use crate::cmd::Cmd;
 use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
@@ -38,6 +38,7 @@ impl RecipeTarget {
         &self.image_target.build_target
     }
 
+    #[allow(dead_code)]
     pub fn recipe(&self) -> &str {
         &self.name
     }

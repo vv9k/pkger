@@ -9,7 +9,6 @@ mod fmt;
 mod image;
 mod job;
 mod opts;
-mod os;
 mod recipe;
 mod util;
 
