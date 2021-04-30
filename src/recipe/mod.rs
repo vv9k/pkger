@@ -7,7 +7,7 @@ pub use metadata::{
     RpmInfo, RpmRep,
 };
 
-use crate::cmd::Cmd;
+use crate::{cmd::Cmd, os::Os};
 use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
@@ -32,6 +32,22 @@ pub struct RecipeTarget {
 impl RecipeTarget {
     pub fn new(name: String, image_target: ImageTarget) -> Self {
         Self { name, image_target }
+    }
+
+    pub fn build_target(&self) -> &BuildTarget {
+        &self.image_target.build_target
+    }
+
+    pub fn recipe(&self) -> &str {
+        &self.name
+    }
+
+    pub fn image(&self) -> &str {
+        &self.image_target.image
+    }
+
+    pub fn image_os(&self) -> &Option<Os> {
+        &self.image_target.os
     }
 }
 

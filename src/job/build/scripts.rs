@@ -37,7 +37,7 @@ macro_rules! run_script {
                     }
                 }
 
-                if !cmd.should_run_on(&$ctx.target) {
+                if !cmd.should_run_on($ctx.target.build_target()) {
                     debug!(command = %cmd.cmd, "skipping, shouldn't run on target");
                     continue;
                 }
