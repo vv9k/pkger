@@ -2,7 +2,7 @@ use crate::container::ExecOpts;
 use crate::job::build::BuildContainerCtx;
 use crate::{Error, Result};
 
-use tracing::{info, info_span, trace, Instrument};
+use tracing::{debug, info, info_span, trace, Instrument};
 
 macro_rules! run_script {
     ($phase:literal, $script:expr, $dir:expr,  $ctx:ident) => {{
@@ -16,6 +16,7 @@ macro_rules! run_script {
                 trace!(working_dir = %dir.display());
                 opts = opts.working_dir(dir.as_path());
             } else {
+                trace!(working_dir = %$dir.display(), "using default");
                 opts = opts.working_dir($dir);
             }
 
@@ -30,18 +31,18 @@ macro_rules! run_script {
                     if !images.contains(&$ctx.image.name) {
                         trace!(image = %$ctx.image.name, "not found in images");
                         if !cmd.has_target_specified() {
-                            trace!("skipping");
+                            debug!(command = %cmd.cmd, "skipping, excluded by image filter");
                             continue;
                         }
                     }
                 }
 
                 if !cmd.should_run_on(&$ctx.target) {
-                    trace!(command = %cmd.cmd, "skipping, shouldn't run on target");
+                    debug!(command = %cmd.cmd, "skipping, shouldn't run on target");
                     continue;
                 }
 
-                trace!(command = %cmd.cmd, "running");
+                debug!(command = %cmd.cmd, "running");
                 $ctx.checked_exec(&opts.clone().cmd(&cmd.cmd).build())
                     .await?;
             }
