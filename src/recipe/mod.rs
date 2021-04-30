@@ -3,8 +3,8 @@ mod metadata;
 
 pub use envs::Env;
 pub use metadata::{
-    BuildTarget, DebInfo, DebRep, Distro, GitSource, ImageTarget, Metadata, MetadataRep, Os,
-    PackageManager, PkgInfo, PkgRep, RpmInfo, RpmRep,
+    BuildTarget, DebInfo, DebRep, Dependencies, Distro, GitSource, ImageTarget, Metadata,
+    MetadataRep, Os, PackageManager, PkgInfo, PkgRep, RpmInfo, RpmRep,
 };
 
 use crate::cmd::Cmd;
