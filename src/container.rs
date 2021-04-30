@@ -107,6 +107,8 @@ impl<'opts> ExecOpts<'opts> {
         let mut builder = ExecContainerOptions::builder();
         let mut mut_builder = &mut builder;
 
+        trace!(exec = ?self);
+
         mut_builder = mut_builder
             .cmd(vec![self.shell, "-c", self.cmd])
             .tty(self.allocate_tty)
