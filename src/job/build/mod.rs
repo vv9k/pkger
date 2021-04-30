@@ -47,7 +47,6 @@ pub struct BuildCtx {
     container_out_dir: PathBuf,
     container_tmp_dir: PathBuf,
     out_dir: PathBuf,
-    build_target: BuildTarget,
     target: RecipeTarget,
     config: Arc<Config>,
     image_state: Arc<RwLock<ImagesState>>,
@@ -64,7 +63,7 @@ impl Ctx for BuildCtx {
     }
 
     async fn run(&mut self) -> Self::JobResult {
-        let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.build_target.as_ref());
+        let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.target.build_target().as_ref());
         async move {
             info!(id = %self.id, "running job" );
             let image_state = self
@@ -79,7 +78,7 @@ impl Ctx for BuildCtx {
             cleanup!(container_ctx);
 
             let image_state = if image_state.tag != image::CACHED {
-                let mut deps = deps::pkger_deps(&self.build_target, &self.recipe);
+                let mut deps = deps::pkger_deps(self.target.build_target(), &self.recipe);
                 deps.extend(container_ctx.recipe_deps(&image_state));
                 let new_state = container_ctx
                     .cache_image(&self.docker, &image_state, &deps)
@@ -148,7 +147,7 @@ impl BuildCtx {
         recipe: Recipe,
         image: FsImage,
         docker: Docker,
-        build_target: BuildTarget,
+        target: ImageTarget,
         config: Arc<Config>,
         image_state: Arc<RwLock<ImagesState>>,
         is_running: Arc<AtomicBool>,
@@ -173,10 +172,7 @@ impl BuildCtx {
             PathBuf::from(format!("/tmp/{}-tmp-{}", &recipe.metadata.name, &timestamp,));
         trace!(id = %id, "creating new build context");
 
-        let target = RecipeTarget::new(
-            recipe.metadata.name.clone(),
-            ImageTarget::new(&image.name, &build_target),
-        );
+        let target = RecipeTarget::new(recipe.metadata.name.clone(), target);
 
         BuildCtx {
             id,
@@ -187,7 +183,6 @@ impl BuildCtx {
             container_out_dir,
             container_tmp_dir,
             out_dir: PathBuf::from(&config.output_dir),
-            build_target,
             target,
             config,
             image_state,
@@ -228,7 +223,7 @@ impl BuildCtx {
                 &self.recipe,
                 &self.image,
                 self.is_running.clone(),
-                self.build_target.clone(),
+                &self.target,
                 self.container_out_dir.as_path(),
                 self.container_bld_dir.as_path(),
                 self.container_tmp_dir.as_path(),
@@ -273,7 +268,7 @@ pub struct BuildContainerCtx<'job> {
     pub opts: ContainerOptions,
     pub recipe: &'job Recipe,
     pub image: &'job FsImage,
-    pub target: BuildTarget,
+    pub target: &'job RecipeTarget,
     pub container_out_dir: &'job Path,
     pub container_bld_dir: &'job Path,
     pub container_tmp_dir: &'job Path,
@@ -288,7 +283,7 @@ impl<'job> BuildContainerCtx<'job> {
         recipe: &'job Recipe,
         image: &'job FsImage,
         is_running: Arc<AtomicBool>,
-        target: BuildTarget,
+        target: &'job RecipeTarget,
         container_out_dir: &'job Path,
         container_bld_dir: &'job Path,
         container_tmp_dir: &'job Path,
@@ -320,7 +315,7 @@ impl<'job> BuildContainerCtx<'job> {
         image_state: &ImageState,
         output_dir: &Path,
     ) -> Result<PathBuf> {
-        match self.target {
+        match self.target.build_target() {
             BuildTarget::Rpm => self.build_rpm(&image_state, &output_dir).await,
             BuildTarget::Gzip => self.build_gzip(&output_dir).await,
             BuildTarget::Deb => self.build_deb(&image_state, &output_dir).await,

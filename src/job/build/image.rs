@@ -28,7 +28,7 @@ impl BuildCtx {
             } else {
                 Default::default()
             };
-            deps.extend(deps::pkger_deps(&self.build_target, &self.recipe));
+            deps.extend(deps::pkger_deps(self.target.build_target(), &self.recipe));
             trace!(resolved_deps = ?deps);
 
             let result = cloned_span.in_scope(|| {
@@ -78,7 +78,7 @@ impl BuildCtx {
                     ImageBuildChunk::Digest { aux } => {
                         let state = ImageState::new(
                             &aux.id,
-                            &self.image.name,
+                            &self.target,
                             LATEST,
                             &SystemTime::now(),
                             &self.docker,
@@ -173,7 +173,7 @@ RUN {} {} {} >/dev/null"#,
                     ImageBuildChunk::Digest { aux } => {
                         return ImageState::new(
                             &aux.id,
-                            &state.image,
+                            &self.target.image_target,
                             CACHED,
                             &SystemTime::now(),
                             &docker,

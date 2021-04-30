@@ -2,8 +2,7 @@ use crate::os::Os;
 use crate::Result;
 use crate::{
     job::{Ctx, OneShotCtx},
-    recipe::BuildTarget,
-    recipe::RecipeTarget,
+    recipe::{BuildTarget, RecipeTarget},
 };
 
 use moby::{image::ImageDetails, ContainerOptions, Docker};
@@ -164,7 +163,7 @@ pub struct ImageState {
 impl ImageState {
     pub async fn new(
         id: &str,
-        image: &str,
+        target: &RecipeTarget,
         tag: &str,
         timestamp: &SystemTime,
         docker: &Docker,
@@ -173,7 +172,7 @@ impl ImageState {
     ) -> Result<ImageState> {
         let name = format!(
             "{}-{}",
-            image,
+            target.image(),
             timestamp
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -181,15 +180,19 @@ impl ImageState {
         );
         let span = info_span!("create-image-state", image = %name);
         async move {
-            let os = find_os(id, docker).await?;
-            debug!(os = %os.name(), version = %os.version(), "parsed image info");
+            let os = if let Some(os) = target.image_os() {
+                os.clone()
+            } else {
+                find_os(id, docker).await?
+            };
+            debug!(os = ?os, "parsed image info");
 
             let image_handle = docker.images().get(id);
             let details = image_handle.inspect().await?;
 
             Ok(ImageState {
                 id: id.to_string(),
-                image: image.to_string(),
+                image: target.image().to_string(),
                 os,
                 tag: tag.to_string(),
                 timestamp: *timestamp,

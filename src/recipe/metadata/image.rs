@@ -1,3 +1,4 @@
+use crate::os::Os;
 use crate::recipe::BuildTarget;
 use crate::{Error, Result};
 
@@ -8,14 +9,20 @@ use std::convert::TryFrom;
 #[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 pub struct ImageTarget {
     pub image: String,
-    pub target: BuildTarget,
+    pub build_target: BuildTarget,
+    pub os: Option<Os>,
 }
 
 impl ImageTarget {
-    pub fn new<I: Into<String>>(image: I, target: &BuildTarget) -> Self {
+    pub fn new<I, O>(image: I, target: &BuildTarget, os: Option<O>) -> Self
+    where
+        I: Into<String>,
+        O: AsRef<str>,
+    {
         Self {
             image: image.into(),
-            target: target.clone(),
+            build_target: target.clone(),
+            os: os.map(|os| Os::new(os, None::<&str>).unwrap()),
         }
     }
 }
@@ -46,7 +53,24 @@ impl TryFrom<Mapping> for ImageTarget {
                 BuildTarget::default()
             };
 
-            Ok(ImageTarget { image, target })
+            let os = if let Some(os) = map.get(&YamlValue::from("os")) {
+                if !os.is_string() {
+                    return Err(anyhow!(
+                        "expected a string as image os, found `{:?}`",
+                        image
+                    ));
+                } else {
+                    Some(Os::new(os.as_str().unwrap(), None::<&str>)?)
+                }
+            } else {
+                None
+            };
+
+            Ok(ImageTarget {
+                image,
+                build_target: target,
+                os,
+            })
         } else {
             Err(anyhow!("image name not found in `{:?}`", map))
         }
@@ -60,7 +84,8 @@ impl TryFrom<YamlValue> for ImageTarget {
             YamlValue::Mapping(map) => Self::try_from(map),
             YamlValue::String(image) => Ok(Self {
                 image,
-                target: BuildTarget::default(),
+                build_target: BuildTarget::default(),
+                os: None,
             }),
             value => Err(anyhow!(
                 "expected a map or string for image, found `{:?}`",

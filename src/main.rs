@@ -17,7 +17,7 @@ use crate::docker::DockerConnectionPool;
 use crate::image::{FsImage, FsImages, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
 use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
-use crate::recipe::{BuildTarget, Recipes};
+use crate::recipe::{BuildTarget, ImageTarget, Recipes};
 
 pub use anyhow::{Error, Result};
 use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
@@ -246,7 +246,7 @@ impl Pkger {
                         recipe.clone(),
                         (*image).clone(),
                         self.docker.connect(),
-                        target.clone(),
+                        ImageTarget::new(&image.name, &target, None::<&str>),
                         self.config.clone(),
                         self.images_state.clone(),
                         self.is_running.clone(),
@@ -285,7 +285,7 @@ impl Pkger {
                             recipe.clone(),
                             (*image).clone(),
                             self.docker.connect(),
-                            it.target.clone(),
+                            it.clone(),
                             self.config.clone(),
                             self.images_state.clone(),
                             self.is_running.clone(),

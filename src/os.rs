@@ -5,7 +5,7 @@ use std::convert::{AsRef, TryFrom};
 
 //####################################################################################################
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, Eq, PartialEq, Hash)]
 pub struct Os {
     distribution: Distro,
     version: Option<String>,
@@ -53,7 +53,7 @@ impl Os {
 //####################################################################################################
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum Distro {
     Arch,
     CentOS,

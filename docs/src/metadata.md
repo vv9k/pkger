@@ -22,8 +22,11 @@ To specify which images a recipe should use add images parameter with a list of 
       target: rpm
     - name: debian10
       target: deb
+
+    # if pkger fails to find out the operating system you can specify it by os parameter
     - name: arch
       target: pkg
+      os: Arch
 ```
 
 ### sources
