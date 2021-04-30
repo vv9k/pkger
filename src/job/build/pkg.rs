@@ -1,7 +1,7 @@
+use crate::archive::create_tarball;
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::util::create_tar_archive;
 use crate::Result;
 
 use std::path::{Path, PathBuf};
@@ -84,7 +84,7 @@ impl<'job> BuildContainerCtx<'job> {
             debug!(PKGBUILD = %pkgbuild);
 
             let entries = vec![("PKGBUILD".to_string(), pkgbuild.as_bytes())];
-            let pkgbuild_tar = cloned_span.in_scope(|| create_tar_archive(entries.into_iter()))?;
+            let pkgbuild_tar = cloned_span.in_scope(|| create_tarball(entries.into_iter()))?;
             let pkgbuild_tar_path = tmp_dir.join("PKGBUILD.tar");
 
             trace!("copy PKGBUILD archive to container");

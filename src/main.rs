@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate anyhow;
 
+mod archive;
 mod container;
 mod docker;
 mod fmt;
@@ -8,7 +9,6 @@ mod image;
 mod job;
 mod opts;
 mod recipe;
-mod util;
 
 use crate::docker::DockerConnectionPool;
 use crate::image::{FsImage, FsImages, ImagesState};

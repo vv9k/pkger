@@ -1,7 +1,7 @@
+use crate::archive::create_tarball;
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::util::create_tar_archive;
 use crate::Result;
 
 use std::path::Path;
@@ -104,7 +104,7 @@ impl<'job> BuildContainerCtx<'job> {
             debug!(spec_file = %spec_file, spec = %spec);
 
             let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
-            let spec_tar = cloned_span.in_scope(|| create_tar_archive(entries.into_iter()))?;
+            let spec_tar = cloned_span.in_scope(|| create_tarball(entries.into_iter()))?;
 
             let spec_tar_path = specs.join([&name, "-spec.tar"].join(""));
 

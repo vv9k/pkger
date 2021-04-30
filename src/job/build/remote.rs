@@ -1,7 +1,7 @@
+use crate::archive::create_tarball;
 use crate::container::ExecOpts;
 use crate::job::build::BuildContainerCtx;
 use crate::recipe::GitSource;
-use crate::util::create_tar_archive;
 use crate::Result;
 
 use std::fs;
@@ -64,7 +64,7 @@ impl<'job> BuildContainerCtx<'job> {
         }
 
         let archive =
-            span.in_scope(|| create_tar_archive(entries.iter().map(|(p, b)| (*p, &b[..]))))?;
+            span.in_scope(|| create_tarball(entries.iter().map(|(p, b)| (*p, &b[..]))))?;
 
         self.container
             .inner()

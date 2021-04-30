@@ -1,4 +1,4 @@
-use crate::util::unpack_archive;
+use crate::archive::unpack_tarball;
 use crate::Result;
 
 use futures::{StreamExt, TryStreamExt};
@@ -308,7 +308,7 @@ impl<'job> DockerContainer<'job> {
 
             let mut archive = tar::Archive::new(&files[..]);
 
-            cloned_span.in_scope(|| unpack_archive(&mut archive, dest))
+            cloned_span.in_scope(|| unpack_tarball(&mut archive, dest))
         }
         .instrument(span)
         .await
