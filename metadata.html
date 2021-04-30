@@ -179,8 +179,11 @@
       target: rpm
     - name: debian10
       target: deb
+
+    # if pkger fails to find out the operating system you can specify it by os parameter
     - name: arch
       target: pkg
+      os: Arch
 </code></pre>
 <h3 id="sources"><a class="header" href="#sources">sources</a></h3>
 <p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified <strong>pkger</strong> will fetch both to the build directory.</p>
