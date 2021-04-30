@@ -1,16 +1,17 @@
 mod arch;
+mod deps;
 mod git;
 mod image;
 mod os;
 mod target;
 
 pub use arch::BuildArch;
+pub use deps::Dependencies;
 pub use git::GitSource;
 pub use image::ImageTarget;
 pub use os::{Distro, Os, PackageManager};
 pub use target::BuildTarget;
 
-use crate::deps::Dependencies;
 use crate::{Error, Result};
 
 use serde::{Deserialize, Serialize};

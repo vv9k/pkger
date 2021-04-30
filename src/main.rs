@@ -3,7 +3,6 @@ extern crate anyhow;
 
 mod cmd;
 mod container;
-mod deps;
 mod docker;
 mod fmt;
 mod image;
