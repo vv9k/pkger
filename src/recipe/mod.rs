@@ -1,13 +1,14 @@
+mod cmd;
 mod envs;
 mod metadata;
 
+pub use cmd::Cmd;
 pub use envs::Env;
 pub use metadata::{
     BuildTarget, DebInfo, DebRep, Dependencies, Distro, GitSource, ImageTarget, Metadata,
     MetadataRep, Os, PackageManager, PkgInfo, PkgRep, RpmInfo, RpmRep,
 };
 
-use crate::cmd::Cmd;
 use crate::{Error, Result};
 
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};

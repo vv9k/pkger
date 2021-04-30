@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate anyhow;
 
-mod cmd;
 mod container;
 mod docker;
 mod fmt;
