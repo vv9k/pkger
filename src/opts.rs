@@ -126,6 +126,9 @@ pub struct GenRecipeOpts {
     pub provides: Option<Vec<String>>,
 
     #[clap(long)]
+    pub patches: Option<Vec<String>>,
+
+    #[clap(long)]
     /// A comma separated list of k=v entries like:
     /// `HTTP_PROXY=proxy.corp.local,PATH=$PATH:/opt/dev/bin`
     pub env: Option<String>,

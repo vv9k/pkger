@@ -60,11 +60,14 @@ impl<'job> BuildContainerCtx<'job> {
         let mut entries = Vec::new();
         for f in files {
             debug!(parent: &span, entry = %f.display(), "adding");
-            entries.push((*f, fs::read(f)?));
+            let filename = f
+                .file_name()
+                .map(|s| format!("./{}", s.to_string_lossy()))
+                .unwrap_or_default();
+            entries.push((filename, fs::read(f)?));
         }
 
-        let archive =
-            span.in_scope(|| create_tarball(entries.iter().map(|(p, b)| (*p, &b[..]))))?;
+        let archive = span.in_scope(|| create_tarball(entries.iter().map(|(p, b)| (p, &b[..]))))?;
 
         self.container
             .inner()

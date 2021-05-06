@@ -445,6 +445,7 @@ impl Pkger {
             depends: vec_as_deps!(opts.depends),
             conflicts: vec_as_deps!(opts.conflicts),
             provides: vec_as_deps!(opts.provides),
+            patches: vec_as_deps!(opts.patches),
 
             deb: Some(deb),
             rpm: Some(rpm),

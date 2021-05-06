@@ -42,5 +42,9 @@ pub fn pkger_deps(target: &BuildTarget, recipe: &Recipe) -> HashSet<&'static str
         }
     }
 
+    if recipe.metadata.patches.is_some() {
+        deps.insert("patch");
+    }
+
     deps
 }

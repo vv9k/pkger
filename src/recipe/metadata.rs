@@ -3,6 +3,7 @@ mod deps;
 mod git;
 mod image;
 mod os;
+mod patches;
 mod target;
 
 pub use arch::BuildArch;
@@ -10,6 +11,7 @@ pub use deps::Dependencies;
 pub use git::GitSource;
 pub use image::ImageTarget;
 pub use os::{Distro, Os, PackageManager};
+pub use patches::{Patch, Patches};
 pub use target::BuildTarget;
 
 use crate::{Error, Result};
@@ -18,10 +20,10 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value as YamlValue;
 use std::convert::TryFrom;
 
-macro_rules! let_some_deps {
-    ($from:expr) => {
-        if let Some(deps) = $from {
-            Some(Dependencies::try_from(deps)?)
+macro_rules! if_let_some_ty {
+    ($from:expr, $ty:tt) => {
+        if let Some(it) = $from {
+            $ty::try_from(it).map(Some)?
         } else {
             None
         }
@@ -62,6 +64,10 @@ pub struct MetadataRep {
     pub depends: Option<YamlValue>,
     pub conflicts: Option<YamlValue>,
     pub provides: Option<YamlValue>,
+
+    /// Patches to be applied to the source code. Can be specified only for certain images same
+    /// as dependencies.
+    pub patches: Option<YamlValue>,
 
     // Only DEB
     pub deb: Option<DebRep>,
@@ -104,7 +110,7 @@ impl TryFrom<PkgRep> for PkgInfo {
         Ok(Self {
             install: rep.install,
             backup: rep.backup,
-            replaces: let_some_deps!(rep.replaces),
+            replaces: if_let_some_ty!(rep.replaces, Dependencies),
             optdepends: rep.optdepends,
         })
     }
@@ -150,12 +156,12 @@ impl TryFrom<DebRep> for DebInfo {
             built_using: rep.built_using,
             essential: rep.essential,
 
-            pre_depends: let_some_deps!(rep.pre_depends),
-            recommends: let_some_deps!(rep.recommends),
-            suggests: let_some_deps!(rep.suggests),
-            breaks: let_some_deps!(rep.breaks),
-            replaces: let_some_deps!(rep.replaces),
-            enchances: let_some_deps!(rep.enchances),
+            pre_depends: if_let_some_ty!(rep.pre_depends, Dependencies),
+            recommends: if_let_some_ty!(rep.recommends, Dependencies),
+            suggests: if_let_some_ty!(rep.suggests, Dependencies),
+            breaks: if_let_some_ty!(rep.breaks, Dependencies),
+            replaces: if_let_some_ty!(rep.replaces, Dependencies),
+            enchances: if_let_some_ty!(rep.enchances, Dependencies),
         })
     }
 }
@@ -178,7 +184,7 @@ impl TryFrom<RpmRep> for RpmInfo {
 
     fn try_from(rep: RpmRep) -> Result<Self> {
         Ok(Self {
-            obsoletes: let_some_deps!(rep.obsoletes),
+            obsoletes: if_let_some_ty!(rep.obsoletes, Dependencies),
             vendor: rep.vendor,
             icon: rep.icon,
             summary: rep.summary,
@@ -239,6 +245,8 @@ pub struct Metadata {
     pub conflicts: Option<Dependencies>,
     pub provides: Option<Dependencies>,
 
+    pub patches: Option<Patches>,
+
     pub deb: Option<DebInfo>,
 
     pub rpm: Option<RpmInfo>,
@@ -285,42 +293,23 @@ impl TryFrom<MetadataRep> for Metadata {
             maintainer: rep.maintainer,
             url: rep.url,
             source: rep.source,
-            git: {
-                if let Some(val) = rep.git {
-                    GitSource::try_from(val).map(Some)?
-                } else {
-                    None
-                }
-            },
+            git: if_let_some_ty!(rep.git, GitSource),
             skip_default_deps: rep.skip_default_deps,
             exclude: rep.exclude,
             group: rep.group,
             release: rep.release,
             epoch: rep.epoch,
 
-            build_depends: let_some_deps!(rep.build_depends),
+            build_depends: if_let_some_ty!(rep.build_depends, Dependencies),
+            depends: if_let_some_ty!(rep.depends, Dependencies),
+            conflicts: if_let_some_ty!(rep.conflicts, Dependencies),
+            provides: if_let_some_ty!(rep.provides, Dependencies),
 
-            depends: let_some_deps!(rep.depends),
-            conflicts: let_some_deps!(rep.conflicts),
-            provides: let_some_deps!(rep.provides),
+            patches: if_let_some_ty!(rep.patches, Patches),
 
-            deb: if let Some(deb) = rep.deb {
-                Some(DebInfo::try_from(deb)?)
-            } else {
-                None
-            },
-
-            rpm: if let Some(rpm) = rep.rpm {
-                Some(RpmInfo::try_from(rpm)?)
-            } else {
-                None
-            },
-
-            pkg: if let Some(pkg) = rep.pkg {
-                Some(PkgInfo::try_from(pkg)?)
-            } else {
-                None
-            },
+            deb: if_let_some_ty!(rep.deb, DebInfo),
+            rpm: if_let_some_ty!(rep.rpm, RpmInfo),
+            pkg: if_let_some_ty!(rep.pkg, PkgInfo),
         })
     }
 }

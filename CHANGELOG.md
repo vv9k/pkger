@@ -2,6 +2,7 @@
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`
 - Recipes and config files now use YAML syntax [#52](https://github.com/wojciechkepka/pkger/pull/52)
 - Add extra field to metadata that specifies image os if pkger fails to find it out
+- Add ability to apply patches to source based on target image
 
 # 0.2.1
 - Fix setting default working directory in build and install phase

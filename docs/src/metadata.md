@@ -98,9 +98,22 @@ Or specified per image as a map below.
 if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:
 
 ```yaml
-  pkger-rpm: ["cargo"]
-  pkger-deb: ["curl"]
-  pkger-pkg: ["cargo"]
-  pkger-gzip: []
+    pkger-rpm: ["cargo"]
+    pkger-deb: ["curl"]
+    pkger-pkg: ["cargo"]
+    pkger-gzip: []
 ```
 
+
+### Patches
+
+To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file name in which case **pkger** will look for the patch in the recipe directory, if the path is absolute it will be read directly from the file system and finally if the patch starts with an `http` or `https` prefix the patch will be fetched from remote source.
+
+```yaml
+  patches:
+    - some-local.patch
+    - /some/absolute/path/to.patch
+    - https://someremotesource.com/other.patch
+    - patch: with-strip-level.patch
+      strip: 2 # this specifies the number of directories to strip before applying the patch (known as -pN or --stripN option in UNIX patch tool
+```
