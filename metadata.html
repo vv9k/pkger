@@ -234,10 +234,19 @@
     debian10: [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
 <p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:</p>
-<pre><code class="language-yaml">  pkger-rpm: [&quot;cargo&quot;]
-  pkger-deb: [&quot;curl&quot;]
-  pkger-pkg: [&quot;cargo&quot;]
-  pkger-gzip: []
+<pre><code class="language-yaml">    pkger-rpm: [&quot;cargo&quot;]
+    pkger-deb: [&quot;curl&quot;]
+    pkger-pkg: [&quot;cargo&quot;]
+    pkger-gzip: []
+</code></pre>
+<h3 id="patches"><a class="header" href="#patches">Patches</a></h3>
+<p>To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file name in which case <strong>pkger</strong> will look for the patch in the recipe directory, if the path is absolute it will be read directly from the file system and finally if the patch starts with an <code>http</code> or <code>https</code> prefix the patch will be fetched from remote source.</p>
+<pre><code class="language-yaml">  patches:
+    - some-local.patch
+    - /some/absolute/path/to.patch
+    - https://someremotesource.com/other.patch
+    - patch: with-strip-level.patch
+      strip: 2 # this specifies the number of directories to strip before applying the patch (known as -pN or --stripN option in UNIX patch tool
 </code></pre>
 
                     </main>
