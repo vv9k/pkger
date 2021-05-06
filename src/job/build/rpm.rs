@@ -78,7 +78,7 @@ impl<'job> BuildContainerCtx<'job> {
             let files = self
                 .checked_exec(
                     &ExecOpts::default()
-                        .cmd(r#"find . -type f -name "*""#)
+                        .cmd(r#"find . -type f -o -type l -name "*""#)
                         .working_dir(self.container_out_dir)
                         .build(),
                 )
