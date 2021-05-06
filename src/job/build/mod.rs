@@ -7,15 +7,12 @@ mod remote;
 mod rpm;
 mod scripts;
 
+use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::image::{FsImage, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
-use crate::recipe::{BuildTarget, ImageTarget, Recipe};
+use crate::recipe::{BuildTarget, ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::Config;
 use crate::Result;
-use crate::{
-    container::{DockerContainer, ExecOpts, Output},
-    recipe::RecipeTarget,
-};
 
 use async_trait::async_trait;
 use moby::{ContainerOptions, Docker, ExecContainerOptions};
@@ -26,7 +23,7 @@ use std::str;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
-use tracing::{info, info_span, trace, warn, Instrument};
+use tracing::{debug, info, info_span, trace, warn, Instrument};
 
 macro_rules! cleanup {
     ($ctx:ident) => {
@@ -111,6 +108,16 @@ impl Ctx for BuildCtx {
             cleanup!(container_ctx);
 
             container_ctx.fetch_source().await?;
+
+            cleanup!(container_ctx);
+
+            if let Some(patches) = &self.recipe.metadata.patches {
+                let patches = container_ctx.collect_patches(&patches).await?;
+
+                cleanup!(container_ctx);
+
+                container_ctx.apply_patches(patches).await?;
+            }
 
             cleanup!(container_ctx);
 
@@ -392,6 +399,94 @@ impl<'job> BuildContainerCtx<'job> {
                         .build(),
                 )
                 .await?;
+            }
+
+            Ok(())
+        }
+        .instrument(span)
+        .await
+    }
+
+    async fn collect_patches(&self, patches: &Patches) -> Result<Vec<(Patch, PathBuf)>> {
+        let span = info_span!("collect-patches");
+        async move {
+            let mut out = Vec::new();
+            let patch_dir = self.container_tmp_dir.join("patches");
+            self.create_dirs(&[patch_dir.as_path()]).await?;
+
+            let mut to_copy = Vec::new();
+
+            for patch in patches.resolve_names(&self.image.name) {
+                let src = patch.patch();
+                if src.starts_with("http") {
+                    trace!(source = %src, "found http source");
+                    self.get_http_source(src, &patch_dir).await?;
+                    out.push((
+                        patch.clone(),
+                        patch_dir.join(src.split('/').last().unwrap_or_default()),
+                    ));
+                    continue;
+                }
+
+                let patch_p = PathBuf::from(src);
+                if patch_p.is_absolute() {
+                    trace!(path = %patch_p.display(), "found absolute path");
+                    out.push((
+                        patch.clone(),
+                        patch_dir.join(patch_p.file_name().unwrap_or_default()),
+                    ));
+                    to_copy.push(patch_p);
+                    continue;
+                }
+
+                let patch_recipe_p = self.recipe.recipe_dir.join(src);
+                trace!(patch = %patch_recipe_p.display(), "using patch from recipe_dir");
+                out.push((patch.clone(), patch_dir.join(src)));
+                to_copy.push(patch_recipe_p);
+            }
+
+            let to_copy = to_copy.iter().map(PathBuf::as_path).collect::<Vec<_>>();
+
+            let patches_archive = self.container_tmp_dir.join("patches.tar");
+            self.copy_files_into(&to_copy, &patches_archive).await?;
+
+            self.checked_exec(
+                &ExecOpts::default()
+                    .cmd(&format!(
+                        "tar xf {} -C {}",
+                        patches_archive.display(),
+                        patch_dir.display()
+                    ))
+                    .build(),
+            )
+            .await
+            .map(|_| out)
+        }
+        .instrument(span)
+        .await
+    }
+
+    async fn apply_patches(&self, patches: Vec<(Patch, PathBuf)>) -> Result<()> {
+        let span = info_span!("apply-patches");
+        async move {
+            trace!(patches = ?patches);
+            for (patch, location) in patches {
+                debug!(patch = ?patch, "applying");
+                if let Err(e) = self
+                    .checked_exec(
+                        &ExecOpts::default()
+                            .cmd(&format!(
+                                "patch -p{} < {}",
+                                patch.strip_level(),
+                                location.display()
+                            ))
+                            .working_dir(self.container_bld_dir)
+                            .build(),
+                    )
+                    .await
+                {
+                    warn!(patch = ?patch, reason = %e, "applying failed");
+                }
             }
 
             Ok(())

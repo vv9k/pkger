@@ -168,5 +168,15 @@ build_depends:
             centos8  => "cargo", "openssl-devel", "gcc", "pkg-config", "git";
             debian10 => "curl", "libssl-dev", "gcc", "pkg-config", "git"
         );
+        test_deps!(
+        input = r#"
+build_depends:
+  - gcc
+  - pkg-config
+  - git
+"#,
+        want =
+            all      => "gcc", "pkg-config", "git"
+        );
     }
 }

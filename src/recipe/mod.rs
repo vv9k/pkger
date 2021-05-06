@@ -6,7 +6,7 @@ pub use cmd::Cmd;
 pub use envs::Env;
 pub use metadata::{
     BuildTarget, DebInfo, DebRep, Dependencies, Distro, GitSource, ImageTarget, Metadata,
-    MetadataRep, Os, PackageManager, PkgInfo, PkgRep, RpmInfo, RpmRep,
+    MetadataRep, Os, PackageManager, Patch, Patches, PkgInfo, PkgRep, RpmInfo, RpmRep,
 };
 
 use crate::{Error, Result};
@@ -81,7 +81,8 @@ impl Recipes {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
-                    match RecipeRep::try_from(entry).map(Recipe::try_from) {
+                    let path = entry.path();
+                    match RecipeRep::try_from(entry).map(|rep| Recipe::new(rep, path)) {
                         Ok(result) => {
                             let recipe = result?;
                             trace!(recipe = ?recipe);
@@ -113,12 +114,11 @@ pub struct Recipe {
     pub configure_script: Option<ConfigureScript>,
     pub build_script: BuildScript,
     pub install_script: Option<InstallScript>,
+    pub recipe_dir: PathBuf,
 }
 
-impl TryFrom<RecipeRep> for Recipe {
-    type Error = Error;
-
-    fn try_from(rep: RecipeRep) -> Result<Self> {
+impl Recipe {
+    pub fn new(rep: RecipeRep, path: PathBuf) -> Result<Self> {
         Ok(Self {
             metadata: Metadata::try_from(rep.metadata)?,
             env: Env::from(rep.env),
@@ -133,6 +133,7 @@ impl TryFrom<RecipeRep> for Recipe {
             } else {
                 None
             },
+            recipe_dir: path.to_path_buf(),
         })
     }
 }
@@ -405,7 +406,7 @@ mod tests {
     #[test]
     fn parses_recipe_from_rep() {
         let rep = RecipeRep::from_yaml_bytes(&TEST_RECIPE).unwrap();
-        let parsed = Recipe::try_from(rep.clone()).unwrap();
+        let parsed = Recipe::new(rep.clone(), PathBuf::new()).unwrap();
 
         let rep_config = rep.configure.unwrap();
         let config = parsed.configure_script.unwrap();
