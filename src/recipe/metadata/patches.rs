@@ -103,8 +103,8 @@ impl TryFrom<&Mapping> for Patch {
         let name = name.as_str().unwrap().to_string();
         let level = mapping
             .get(&YamlValue::from("strip"))
-            .map(|v| v.clone())
-            .unwrap_or(YamlValue::from(0));
+            .cloned()
+            .unwrap_or_else(|| YamlValue::from(0));
 
         if !level.is_number() {
             return Err(anyhow!(
@@ -229,10 +229,11 @@ mod tests {
 
             $(
             let mut names = got.resolve_names(stringify!($image));
-            let mut $image = Vec::new();
+            let mut $image = vec![
                 $(
-            $image.push(Patch::new($patch, $level));
-                )+
+                    Patch::new($patch, $level)
+                ),+
+            ];
 
             names.sort();
             $image.sort();

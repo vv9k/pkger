@@ -118,7 +118,7 @@ pub struct Recipe {
 }
 
 impl Recipe {
-    pub fn new(rep: RecipeRep, path: PathBuf) -> Result<Self> {
+    pub fn new(rep: RecipeRep, recipe_dir: PathBuf) -> Result<Self> {
         Ok(Self {
             metadata: Metadata::try_from(rep.metadata)?,
             env: Env::from(rep.env),
@@ -133,7 +133,7 @@ impl Recipe {
             } else {
                 None
             },
-            recipe_dir: path.to_path_buf(),
+            recipe_dir,
         })
     }
 }
