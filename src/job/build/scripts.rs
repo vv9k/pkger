@@ -2,6 +2,7 @@ use crate::container::ExecOpts;
 use crate::job::build::BuildContainerCtx;
 use crate::{Error, Result};
 
+use std::path::PathBuf;
 use tracing::{debug, info, info_span, trace, Instrument};
 
 macro_rules! run_script {
@@ -11,10 +12,17 @@ macro_rules! run_script {
             trace!(script = ?$script);
             info!(concat!("executing ", $phase, " scripts"));
             let mut opts = ExecOpts::default();
+            let mut _dir;
 
             if let Some(dir) = &$script.working_dir {
                 trace!(working_dir = %dir.display());
-                opts = opts.working_dir(dir.as_path());
+                let mut dir_s = dir.to_string_lossy().to_string();
+                let bld_dir = $ctx.container_bld_dir.to_string_lossy().to_string();
+                let out_dir = $ctx.container_out_dir.to_string_lossy().to_string();
+                dir_s = dir_s.replace("$PKGER_BLD_DIR", bld_dir.as_str());
+                dir_s = dir_s.replace("$PKGER_OUT_DIR", out_dir.as_str());
+                _dir = PathBuf::from(dir_s);
+                opts = opts.working_dir(_dir.as_path());
             } else {
                 trace!(working_dir = %$dir.display(), "using default");
                 opts = opts.working_dir($dir);

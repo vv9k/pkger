@@ -11,7 +11,10 @@ Each phase has field called `steps` that takes an array of steps to execute duri
 
 To set a working directory during the script phase set the `working_dir` parameter like so:
 ```yaml
-  working_dir: "/tmp"
+  working_dir: /tmp
+
+  # you can also use the available pkger variables here
+  working_dir: $PKGER_BLD_DIR/test-123
 ```
 
 To use a different shell to execute each command set the `shell` parameter:
