@@ -63,11 +63,7 @@ struct Pkger {
 impl Pkger {
     fn new(config: Config) -> Result<Self> {
         let _pkger_dir = create_pkger_dirs()?;
-        let user_images = if let Some(path) = &config.images_dir {
-            Some(FsImages::new(&path))
-        } else {
-            None
-        };
+        let user_images = config.images_dir.as_ref().map(|path| FsImages::new(&path));
         let recipes = Recipes::new(&config.recipes_dir);
         let pkger = Pkger {
             config: Arc::new(config),
