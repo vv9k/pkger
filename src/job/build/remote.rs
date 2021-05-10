@@ -9,16 +9,6 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, Instrument};
 
 impl<'job> BuildContainerCtx<'job> {
-    pub async fn archive_output_dir(&self) -> Result<Vec<u8>> {
-        let span = info_span!("archive-output", container_dir = %self.container_out_dir.display());
-        async move {
-            info!("copying final archive");
-            self.container.copy_from(self.container_out_dir).await
-        }
-        .instrument(span)
-        .await
-    }
-
     pub async fn clone_git_to_bld_dir(&self, repo: &GitSource) -> Result<()> {
         let span = info_span!("clone-git");
         async move {
