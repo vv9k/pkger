@@ -506,6 +506,8 @@ steps = []
 <li><code>pkger build [RECIPES]</code></li>
 </ul>
 <p>For this to have any effect the recipes have to have image targets defined (more on that <a href="./metadata.html#optional-fields">here</a>)</p>
+<h3 id="output"><a class="header" href="#output">Output</a></h3>
+<p>After successfully building a package <strong>pkger</strong> will put the output artifact to <code>output_dir</code> specified in <a href="./configuration.html">configuration</a> joined by the image name that was used to build the package. Each image will have a separate directory with all of its output packages.</p>
 <h1 id="formatting-output"><a class="header" href="#formatting-output">Formatting output</a></h1>
 <p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or <code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set <code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
 <p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells <strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output. Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
