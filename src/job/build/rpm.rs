@@ -130,7 +130,11 @@ impl<'job> BuildContainerCtx<'job> {
             trace!("rpmbuild");
             self.checked_exec(
                 &ExecOpts::default()
-                    .cmd(&format!("rpmbuild -bb {}", specs.join(spec_file).display()))
+                    .cmd(&format!(
+                        "setarch {0} rpmbuild -bb --target {0} {1}",
+                        self.recipe.metadata.arch.rpm_name(),
+                        specs.join(spec_file).display()
+                    ))
                     .build(),
             )
             .await
