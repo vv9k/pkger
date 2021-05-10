@@ -30,7 +30,7 @@ impl<'job> BuildContainerCtx<'job> {
 
             let debbld_dir = PathBuf::from("/root/debbuild");
             let tmp_dir = debbld_dir.join("tmp");
-            let base_dir = debbld_dir.join(&name);
+            let base_dir = debbld_dir.join(&package_name);
             let deb_dir = base_dir.join("DEBIAN");
             let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
 
@@ -93,7 +93,7 @@ impl<'job> BuildContainerCtx<'job> {
             .await
             .map_err(|e| anyhow!("failed to build deb package - {}", e))?;
 
-            let deb_name = [&name, ".deb"].join("");
+            let deb_name = [&package_name, ".deb"].join("");
 
             self.container
                 .download_files(debbld_dir.join(&deb_name).as_path(), output_dir)
