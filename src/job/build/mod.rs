@@ -133,12 +133,6 @@ impl Ctx for BuildCtx {
                 .create_package(&image_state, out_dir.as_path())
                 .await?;
 
-            cleanup!(container_ctx);
-
-            let _bytes = container_ctx.archive_output_dir().await?;
-
-            cleanup!(container_ctx);
-
             container_ctx.container.remove().await?;
 
             Ok(package)
