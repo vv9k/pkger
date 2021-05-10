@@ -259,6 +259,13 @@ impl Pkger {
                 continue;
             };
 
+            let mut names = recipe_images.iter().map(|it| &it.image);
+            for image_name in self.images_filter.iter() {
+                if !names.any(|name| name == image_name) {
+                    warn!(recipe = %recipe.metadata.name, image = %image_name, "image specified as argument but missing from recipe");
+                }
+            }
+
             for it in recipe_images {
                 if !self.images_filter.is_empty() && !self.images_filter.contains(&it.image) {
                     debug!(image = %it.image, "skipping");
