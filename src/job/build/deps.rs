@@ -20,6 +20,7 @@ pub fn pkger_deps(target: &BuildTarget, recipe: &Recipe) -> HashSet<&'static str
     match target {
         BuildTarget::Rpm => {
             deps.insert("rpm-build");
+            deps.insert("setarch");
         }
         BuildTarget::Deb => {
             deps.insert("dpkg");
