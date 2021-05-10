@@ -240,8 +240,7 @@ impl BuildCtx {
     async fn create_out_dir(&self, image: &ImageState) -> Result<PathBuf> {
         let span = info_span!("create-out-dir");
         async move {
-            let os_ver = image.os.version();
-            let out_dir = self.out_dir.join(format!("{}/{}", image.os.name(), os_ver));
+            let out_dir = self.out_dir.join(&image.image);
 
             if out_dir.exists() {
                 trace!(dir = %out_dir.display(), "already exists, skipping");
