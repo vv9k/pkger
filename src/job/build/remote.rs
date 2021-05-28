@@ -93,7 +93,7 @@ impl<'job> BuildContainerCtx<'job> {
                                 tar xvf $file -C {0}
                             elif [[ $file == *.zip ]]
                             then
-                                unzip -v $file -d {0}
+                                unzip $file -d {0}
                             else
                                 cp -v $file {0}
                             fi
