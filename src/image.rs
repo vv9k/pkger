@@ -329,7 +329,7 @@ fn extract_version(text: &str) -> Option<String> {
     let mut chars = text.chars();
     if let Some(idx) = chars.position(|c| c.is_numeric()) {
         let mut end_idx = idx;
-        while let Some(ch) = chars.next() {
+        for ch in chars {
             let is_valid = ch.is_numeric() || ch == '.' || ch == '-';
             if !is_valid {
                 break;
