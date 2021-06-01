@@ -53,7 +53,7 @@ impl Os {
 //####################################################################################################
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Eq, Hash)]
+#[derive(Copy, Debug, Deserialize, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum Distro {
     Arch,
     CentOS,
@@ -81,15 +81,23 @@ impl TryFrom<&str> for Distro {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self> {
         use Distro::*;
-        match &s.to_lowercase()[..] {
-            "arch" => Ok(Arch),
-            "centos" => Ok(CentOS),
-            "debian" => Ok(Debian),
-            "fedora" => Ok(Fedora),
-            "redhat" => Ok(RedHat),
-            "ubuntu" => Ok(Ubuntu),
-            os => Err(anyhow!("unknown distribution `{}`", os)),
+        const DISTROS: [(&str, Distro); 7] = [
+            ("arch", Arch),
+            ("centos", CentOS),
+            ("debian", Debian),
+            ("fedora", Fedora),
+            ("redhat", RedHat),
+            ("red hat", RedHat),
+            ("ubuntu", Ubuntu),
+        ];
+        let out = s.to_lowercase();
+        for (name, distro) in DISTROS.iter() {
+            if out.contains(name) {
+                return Ok(*distro);
+            }
         }
+
+        Err(anyhow!("unknown distribution `{}`", out))
     }
 }
 
