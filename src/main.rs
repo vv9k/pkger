@@ -195,7 +195,7 @@ impl Pkger {
                 let location = self._pkger_dir.path().join("images");
                 for target in &self.simple_targets {
                     let target = BuildTarget::try_from(target.as_str())?;
-                    let image = image::create_fsimage(&location, &target)?;
+                    let image = FsImage::new(&location, &target)?;
                     targets.push((image,target));
                 }
                 self.spawn_simple_tasks(&targets[..], &mut tasks);

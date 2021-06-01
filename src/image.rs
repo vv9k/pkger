@@ -16,53 +16,6 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 
 //####################################################################################################
 
-/// Finds out the operating system and version of the image with id `image_id`
-pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
-    let span = info_span!("find-os");
-    async move {
-        let out = OneShotCtx::new(
-            docker,
-            &ContainerOptions::builder(&image_id)
-                .cmd(vec!["cat", "/etc/issue", "/etc/os-release"])
-                .build(),
-            true,
-            true,
-        )
-        .run()
-        .await
-        .map_err(|e| anyhow!("failed to check image os - {}", e))?;
-
-        trace!(stderr = %String::from_utf8_lossy(&out.stderr));
-
-        let out = String::from_utf8_lossy(&out.stdout);
-
-        let os_name = extract_key(&out, "ID");
-        let version = extract_key(&out, "VERSION_ID");
-        Os::new(os_name.unwrap_or_default(), version)
-    }
-    .instrument(span)
-    .await
-}
-
-pub fn create_fsimage(images_dir: &Path, target: &BuildTarget) -> Result<FsImage> {
-    let (image, name) = match &target {
-        BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
-        BuildTarget::Deb => ("debian:latest", "pkger-deb"),
-        BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
-        BuildTarget::Gzip => ("ubuntu:latest", "pkger-gzip"),
-    };
-
-    let image_dir = images_dir.join(name);
-    fs::create_dir_all(&image_dir)?;
-
-    let dockerfile = format!("FROM {}", image);
-    fs::write(image_dir.join("Dockerfile"), dockerfile.as_bytes())?;
-
-    FsImage::new(image_dir)
-}
-
-//####################################################################################################
-
 #[derive(Debug, Default)]
 /// A wrapper type that contains multiple images found on the filesystem
 pub struct FsImages {
@@ -96,7 +49,7 @@ impl FsImages {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
-                    match FsImage::new(entry.path()) {
+                    match FsImage::load(entry.path()) {
                         Ok(image) => {
                             trace!(image = ?image);
                             self.inner.insert(filename, image);
@@ -128,8 +81,25 @@ pub struct FsImage {
 }
 
 impl FsImage {
-    /// Creates a new FsImage from the given path
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<FsImage> {
+    pub fn new(images_dir: &Path, target: &BuildTarget) -> Result<FsImage> {
+        let (image, name) = match &target {
+            BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
+            BuildTarget::Deb => ("debian:latest", "pkger-deb"),
+            BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
+            BuildTarget::Gzip => ("ubuntu:latest", "pkger-gzip"),
+        };
+
+        let image_dir = images_dir.join(name);
+        fs::create_dir_all(&image_dir)?;
+
+        let dockerfile = format!("FROM {}", image);
+        fs::write(image_dir.join("Dockerfile"), dockerfile.as_bytes())?;
+
+        FsImage::load(image_dir)
+    }
+
+    /// Loads an `FsImage` from the given `path`
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<FsImage> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
             return Err(anyhow!(
@@ -288,14 +258,130 @@ impl ImagesState {
 
 //####################################################################################################
 
-fn extract_key(out: &str, key: &str) -> Option<String> {
-    let key = [key, "="].join("");
-    if let Some(line) = out.lines().find(|line| line.starts_with(&key)) {
-        let line = line.strip_prefix(&key).unwrap();
-        if line.starts_with('"') {
-            return Some(line.trim_matches('"').to_string());
-        }
-        return Some(line.to_string());
+/// Finds out the operating system and version of the image with id `image_id`
+pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
+    let span = info_span!("find-os");
+    match os_from_osrelease(image_id, docker)
+        .instrument(span.clone())
+        .await
+    {
+        Ok(os) => return Ok(os),
+        Err(e) => trace!(reason = %e),
     }
-    None
+
+    match os_from_issue(image_id, docker)
+        .instrument(span.clone())
+        .await
+    {
+        Ok(os) => return Ok(os),
+        Err(e) => trace!(reason = %e),
+    }
+
+    match os_from_rhrelease(image_id, docker)
+        .instrument(span.clone())
+        .await
+    {
+        Ok(os) => return Ok(os),
+        Err(e) => trace!(reason = %e),
+    }
+
+    Err(anyhow!("failed to determine distribution"))
+}
+
+async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
+    let out = OneShotCtx::new(
+        docker,
+        &ContainerOptions::builder(&image_id)
+            .cmd(vec!["cat", "/etc/os-release"])
+            .build(),
+        true,
+        true,
+    )
+    .run()
+    .await?;
+
+    trace!(stderr = %String::from_utf8_lossy(&out.stderr));
+
+    let out = String::from_utf8_lossy(&out.stdout);
+    trace!(stdout = %out);
+
+    fn extract_key(out: &str, key: &str) -> Option<String> {
+        let key = [key, "="].join("");
+        if let Some(line) = out.lines().find(|line| line.starts_with(&key)) {
+            let line = line.strip_prefix(&key).unwrap();
+            if line.starts_with('"') {
+                return Some(line.trim_matches('"').to_string());
+            }
+            return Some(line.to_string());
+        }
+        None
+    }
+
+    let os_name = extract_key(&out, "ID");
+    let version = extract_key(&out, "VERSION_ID");
+    Os::new(
+        os_name.ok_or_else(|| anyhow!("os name is missing"))?,
+        version,
+    )
+}
+
+fn extract_version(text: &str) -> Option<String> {
+    let mut chars = text.chars();
+    if let Some(idx) = chars.position(|c| c.is_numeric()) {
+        let mut end_idx = idx;
+        while let Some(ch) = chars.next() {
+            let is_valid = ch.is_numeric() || ch == '.' || ch == '-';
+            if !is_valid {
+                break;
+            }
+            end_idx += 1;
+        }
+        Some(text[idx..=end_idx].to_string())
+    } else {
+        None
+    }
+}
+
+async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
+    let out = OneShotCtx::new(
+        docker,
+        &ContainerOptions::builder(&image_id)
+            .cmd(vec!["cat", "/etc/redhat-release"])
+            .build(),
+        true,
+        true,
+    )
+    .run()
+    .await?;
+
+    trace!(stderr = %String::from_utf8_lossy(&out.stderr));
+
+    let out = String::from_utf8_lossy(&out.stdout);
+    trace!(stdout = %out);
+
+    let os_version = extract_version(&out);
+
+    Os::new(out, os_version)
+}
+
+async fn os_from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
+    let out = OneShotCtx::new(
+        docker,
+        &ContainerOptions::builder(&image_id)
+            .cmd(vec!["cat", "/etc/issue"])
+            .build(),
+        true,
+        true,
+    )
+    .run()
+    .await?;
+
+    trace!(stderr = %String::from_utf8_lossy(&out.stderr));
+
+    let out = String::from_utf8_lossy(&out.stdout);
+    trace!(stdout = %out);
+
+    let os_version = extract_version(&out);
+
+    Os::new(out, os_version)
 }
