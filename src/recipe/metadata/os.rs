@@ -87,6 +87,7 @@ impl TryFrom<&str> for Distro {
             "debian" => Ok(Debian),
             "fedora" => Ok(Fedora),
             "redhat" => Ok(RedHat),
+            "ubuntu" => Ok(Ubuntu),
             os => Err(anyhow!("unknown distribution `{}`", os)),
         }
     }
