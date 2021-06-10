@@ -5,6 +5,7 @@
 - Add ability to apply patches to source based on target image
 - Directory structure of `output_dir` changed, now all images have a separate directory with output packages
 - Fix ubuntu builds
+- Add `list < recipes | images >` subcommand
 
 # 0.2.1
 - Fix setting default working directory in build and install phase
