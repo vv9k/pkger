@@ -1,5 +1,7 @@
+use anyhow::Error;
 use clap::{Clap, Subcommand};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[derive(Debug, Clap)]
 #[clap(
@@ -45,6 +47,31 @@ pub enum PkgerCmd {
     Build(BuildOpts),
     /// Creates a directory with a recipe generated from provided arguments
     GenRecipe(Box<GenRecipeOpts>),
+    List(ListOpts),
+}
+
+#[derive(Debug, Clap)]
+pub struct ListOpts {
+    /// What objects to list, can be one of: `images`, `recipes`
+    pub object: ListObject,
+}
+
+#[derive(Debug, Clap)]
+pub enum ListObject {
+    Images,
+    Recipes,
+}
+
+impl FromStr for ListObject {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        match s {
+            "images" => Ok(ListObject::Images),
+            "recipes" => Ok(ListObject::Recipes),
+            _ => Err(anyhow!("unknown object {}", s)),
+        }
+    }
 }
 
 #[derive(Debug, Clap)]

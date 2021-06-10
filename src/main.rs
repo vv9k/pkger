@@ -13,7 +13,7 @@ mod recipe;
 use crate::docker::DockerConnectionPool;
 use crate::image::{FsImage, FsImages, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
-use crate::opts::{BuildOpts, GenRecipeOpts, PkgerCmd, PkgerOpts};
+use crate::opts::{BuildOpts, GenRecipeOpts, ListObject, PkgerCmd, PkgerOpts};
 use crate::recipe::{BuildTarget, ImageTarget, Recipes};
 
 pub use anyhow::{Error, Result};
@@ -93,8 +93,35 @@ impl Pkger {
                 Ok(())
             }
             PkgerCmd::GenRecipe(gen_recipe_opts) => self.gen_recipe(gen_recipe_opts),
+            PkgerCmd::List(list_opts) => match list_opts.object {
+                ListObject::Images => {
+                    self.load_user_images()?;
+                    self.list_images();
+                    Ok(())
+                }
+                ListObject::Recipes => {
+                    self.load_recipes()?;
+                    self.list_recipes();
+                    Ok(())
+                }
+            },
         }
     }
+
+    fn list_recipes(&self) {
+        for name in self.recipes.inner_ref().keys() {
+            println!("{}", name);
+        }
+    }
+
+    fn list_images(&self) {
+        if let Some(images) = Option::as_ref(&self.user_images) {
+            for image in images.images().keys() {
+                println!("{}", image);
+            }
+        }
+    }
+
     fn process_build_opts(&mut self, opts: &BuildOpts) -> Result<()> {
         let span = info_span!("process-build-opts");
         let _enter = span.enter();
