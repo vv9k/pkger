@@ -1109,9 +1109,7 @@ dependencies = [
  "colored",
  "ctrlc",
  "dirs-next",
- "flate2",
  "futures 0.3.15",
- "moby",
  "pkger-core",
  "pretty_assertions",
  "serde",
@@ -1127,7 +1125,7 @@ dependencies = [
 
 [[package]]
 name = "pkger-core"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "deb-control",
@@ -1140,9 +1138,6 @@ dependencies = [
  "serde_yaml",
  "tar",
  "tracing",
- "tracing-core",
- "tracing-futures",
- "tracing-subscriber",
 ]
 
 [[package]]

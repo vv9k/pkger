@@ -11,10 +11,10 @@ use crate::image::{FsImage, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
 use crate::{Config, Context, Error, Result};
 use pkger_core::container::{DockerContainer, ExecOpts, Output};
+use pkger_core::docker::{ContainerOptions, Docker, ExecContainerOptions};
 use pkger_core::recipe::{BuildTarget, ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 
 use async_trait::async_trait;
-use moby::{ContainerOptions, Docker, ExecContainerOptions};
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;

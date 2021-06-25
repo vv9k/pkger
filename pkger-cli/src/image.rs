@@ -1,8 +1,7 @@
 use crate::job::{Ctx, OneShotCtx};
 use crate::{Context, Error, Result};
+use pkger_core::docker::{image::ImageDetails, ContainerOptions, Docker};
 use pkger_core::recipe::{BuildTarget, Os, RecipeTarget};
-
-use moby::{image::ImageDetails, ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;

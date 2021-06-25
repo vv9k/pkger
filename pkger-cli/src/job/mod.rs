@@ -4,6 +4,8 @@ mod oneshot;
 pub use build::BuildCtx;
 pub use oneshot::OneShotCtx;
 
+use pkger_core::docker;
+
 use async_trait::async_trait;
 use std::time::{Duration, Instant};
 
@@ -66,9 +68,9 @@ impl<'job> JobCtx<'job> {
             JobCtx::Build(mut ctx) => match ctx.run().await {
                 Err(e) => {
                     let duration = start.elapsed();
-                    let reason = match e.downcast::<moby::Error>() {
+                    let reason = match e.downcast::<docker::Error>() {
                         Ok(err) => match err {
-                            moby::Error::Fault { code: _, message } => message,
+                            docker::Error::Fault { code: _, message } => message,
                             e => e.to_string(),
                         },
                         Err(e) => e.to_string(),
@@ -84,9 +86,9 @@ impl<'job> JobCtx<'job> {
             JobCtx::OneShot(mut ctx) => {
                 if let Err(e) = ctx.run().await {
                     let duration = start.elapsed();
-                    let reason = match e.downcast::<moby::Error>() {
+                    let reason = match e.downcast::<docker::Error>() {
                         Ok(err) => match err {
-                            moby::Error::Fault { code: _, message } => message,
+                            docker::Error::Fault { code: _, message } => message,
                             e => e.to_string(),
                         },
                         Err(e) => e.to_string(),

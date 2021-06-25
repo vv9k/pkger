@@ -2,7 +2,7 @@
 name = "pkger"
 version = "0.4.0"
 description = "Package building tool utilizing Docker"
-authors = ["wojciech.kepka <wojtek.kepka@protonmail.com>"]
+authors = ["wojciech.kepka <wojciech@wkepka.dev>"]
 repository = "https://github.com/wojciechkepka/pkger"
 homepage = "https://github.com/wojciechkepka/pkger"
 keywords = ["unix", "linux", "deb", "rpm", "docker"]
@@ -13,20 +13,25 @@ edition = "2018"
 
 [dependencies]
 pkger-core = { path = "../pkger-core" }
-async-trait = "0.1"
-chrono = "0.4"
+
 clap = "3.0.0-beta.2"
+
+async-trait = "0.1"
+
+chrono = "0.4"
 colored = "2"
 ctrlc = "3"
+
 dirs-next = "2"
-flate2 = "1"
-futures = "0.3"
-moby = {git = "https://github.com/wojciechkepka/moby", branch = "master"}
+tempdir = "0.3"
+
 serde = {version = "1.0", features = ["derive"]}
 serde_cbor = "0.11"
 serde_yaml = "0.8"
-tempdir = "0.3"
+
+futures = "0.3"
 tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
+
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-futures = "0.1"

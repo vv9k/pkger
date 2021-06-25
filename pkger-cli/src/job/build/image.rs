@@ -3,10 +3,10 @@ use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
 use crate::{Error, Result};
+use pkger_core::docker::{image::ImageBuildChunk, BuildOptions, Docker};
 use pkger_core::recipe::RecipeTarget;
 
 use futures::StreamExt;
-use moby::{image::ImageBuildChunk, BuildOptions, Docker};
 use std::collections::HashSet;
 use std::fs;
 use std::sync::{Arc, RwLock};

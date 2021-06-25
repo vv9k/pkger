@@ -1,9 +1,9 @@
 use crate::job::{Ctx, JobCtx};
 use crate::Result;
 use pkger_core::container::{DockerContainer, Output};
+use pkger_core::docker::{ContainerOptions, Docker};
 
 use async_trait::async_trait;
-use moby::{ContainerOptions, Docker};
 use std::time::SystemTime;
 use tracing::{info_span, Instrument};
 

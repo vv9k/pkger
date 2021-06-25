@@ -1,5 +1,5 @@
 use crate::archive::unpack_tarball;
-use crate::Result;
+use crate::{Context, Result};
 
 use futures::{StreamExt, TryStreamExt};
 use moby::{
@@ -190,13 +190,13 @@ impl<'job> DockerContainer<'job> {
             self.container
                 .stop(None)
                 .await
-                .map_err(|e| anyhow!("failed to stop container - {}", e))?;
+                .context("failed to stop container")?;
 
             info!("deleting container");
             self.container
                 .delete()
                 .await
-                .map_err(|e| anyhow!("failed to delete container - {}", e))?;
+                .context("failed to delete container")?;
 
             Ok(())
         }
@@ -292,7 +292,7 @@ impl<'job> DockerContainer<'job> {
                 .copy_from(path)
                 .try_concat()
                 .await
-                .map_err(|e| anyhow!("failed to copy from container - {}", e))
+                .context("failed to copy from container")
         }
         .instrument(span)
         .await

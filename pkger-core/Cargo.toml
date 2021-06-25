@@ -1,20 +1,27 @@
 [package]
 name = "pkger-core"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2018"
+authors = ["wojciech.kepka <wojciech@wkepka.dev>"]
+license = "MIT"
 
 [dependencies]
-anyhow = "1"
-tar = "0.4"
-tracing = "0.1"
-serde_yaml = "0.8"
-futures = "0.3"
-serde = {version = "1.0", features = ["derive"]}
-flate2 = "1"
-moby = {git = "https://github.com/wojciechkepka/moby", branch = "master"}
 deb-control = "0.3"
 rpmspec = "0.3"
-tracing-core = "0.1"
 pkgbuild = "0.1"
-tracing-futures = "0.1"
-tracing-subscriber = {version = "0.2", features = ["fmt", "chrono"]}
+
+moby = {git = "https://github.com/wojciechkepka/moby", branch = "master"}
+
+anyhow = "1"
+
+tar = "0.4"
+flate2 = "1"
+
+tracing = "0.1"
+
+serde_yaml = "0.8"
+
+futures = "0.3"
+
+serde = {version = "1.0", features = ["derive"]}
+
