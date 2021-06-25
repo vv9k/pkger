@@ -7,12 +7,11 @@ mod remote;
 mod rpm;
 mod scripts;
 
-use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::image::{FsImage, ImageState, ImagesState};
 use crate::job::{Ctx, JobCtx};
-use crate::recipe::{BuildTarget, ImageTarget, Patch, Patches, Recipe, RecipeTarget};
-use crate::Config;
-use crate::Result;
+use crate::{Config, Context, Error, Result};
+use pkger_core::container::{DockerContainer, ExecOpts, Output};
+use pkger_core::recipe::{BuildTarget, ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 
 use async_trait::async_trait;
 use moby::{ContainerOptions, Docker, ExecContainerOptions};
@@ -28,7 +27,7 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 macro_rules! cleanup {
     ($ctx:ident) => {
         if !$ctx.is_running().await? {
-            return Err(anyhow!("job interrupted by ctrl-c signal"));
+            return Err(Error::msg("job interrupted by ctrl-c signal"));
         }
     };
 }
@@ -63,10 +62,7 @@ impl Ctx for BuildCtx {
         let span = info_span!("build", recipe = %self.recipe.metadata.name, image = %self.image.name, target = %self.target.build_target().as_ref());
         async move {
             info!(id = %self.id, "running job" );
-            let image_state = self
-                .image_build()
-                .await
-                .map_err(|e| anyhow!("failed to build image - {}", e))?;
+            let image_state = self.image_build().await.context("failed to build image")?;
 
             let out_dir = self.create_out_dir(&image_state).await?;
 
@@ -249,7 +245,7 @@ impl BuildCtx {
                 trace!(dir = %out_dir.display(), "creating directory");
                 fs::create_dir_all(out_dir.as_path())
                     .map(|_| out_dir)
-                    .map_err(|e| anyhow!("failed to create output directory - {}", e))
+                    .context("failed to create output directory")
             }
         }
         .instrument(span)
@@ -353,11 +349,11 @@ impl<'job> BuildContainerCtx<'job> {
         async move {
             let out = self.container.exec(opts).await?;
             if out.exit_code != 0 {
-                Err(anyhow!(
+                Err(Error::msg(format!(
                     "command failed with exit code {}\nError:\n{}",
                     out.exit_code,
                     out.stderr.join("\n")
-                ))
+                )))
             } else {
                 Ok(out)
             }

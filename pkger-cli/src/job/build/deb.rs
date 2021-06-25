@@ -1,8 +1,8 @@
-use crate::archive::create_tarball;
-use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::Result;
+use crate::{Context, Result};
+use pkger_core::archive::create_tarball;
+use pkger_core::container::ExecOpts;
 
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
@@ -36,7 +36,7 @@ impl<'job> BuildContainerCtx<'job> {
 
             self.create_dirs(&dirs[..])
                 .await
-                .map_err(|e| anyhow!("failed to create dirs - {}", e))?;
+                .context("failed to create dirs")?;
 
             let control = self.recipe.as_deb_control(&image_state.image).render();
             debug!(control = %control);
@@ -50,7 +50,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .inner()
                 .copy_file_into(control_tar_path.as_path(), &control_tar)
                 .await
-                .map_err(|e| anyhow!("failed to copy archive with control file - {}", e))?;
+                .context("failed to copy archive with control file")?;
 
             trace!("extract control archive");
             self.checked_exec(
@@ -63,7 +63,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to extract archive with control file - {}", e))?;
+            .context("failed to extract archive with control file")?;
 
             trace!("copy source files to build dir");
             self.checked_exec(
@@ -73,7 +73,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to copy source files to build directory - {}", e))?;
+            .context("failed to copy source files to build directory")?;
 
             let dpkg_deb_opts = if image_state.os.version().parse::<u8>().unwrap_or_default() < 10 {
                 "--build"
@@ -91,7 +91,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to build deb package - {}", e))?;
+            .context("failed to build deb package")?;
 
             let deb_name = [&package_name, ".deb"].join("");
 
@@ -99,7 +99,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .download_files(debbld_dir.join(&deb_name).as_path(), output_dir)
                 .await
                 .map(|_| output_dir.join(deb_name))
-                .map_err(|e| anyhow!("failed to download files - {}", e))
+                .context("failed to download finished package")
         }
         .instrument(span)
         .await

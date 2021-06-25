@@ -1,6 +1,6 @@
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::recipe::{BuildTarget, Recipe};
+use pkger_core::recipe::{BuildTarget, Recipe};
 
 use std::collections::HashSet;
 

@@ -1,6 +1,6 @@
-use crate::archive::save_tar_gz;
 use crate::job::build::BuildContainerCtx;
-use crate::Result;
+use crate::{Context, Result};
+use pkger_core::archive::{save_tar_gz, tar};
 
 use std::path::{Path, PathBuf};
 use tracing::{info, info_span, Instrument};
@@ -24,7 +24,7 @@ impl<'job> BuildContainerCtx<'job> {
             cloned_span
                 .in_scope(|| {
                     save_tar_gz(archive, &archive_name, output_dir)
-                        .map_err(|e| anyhow!("failed to save package as tar.gz - {}", e))
+                        .context("failed to save package as tar.gz")
                 })
                 .map(|_| output_dir.join(archive_name))
         }

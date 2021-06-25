@@ -2,7 +2,7 @@ mod cmd;
 mod envs;
 mod metadata;
 
-pub use cmd::Cmd;
+pub use cmd::Command;
 pub use envs::Env;
 pub use metadata::{
     BuildTarget, DebInfo, DebRep, Dependencies, Distro, GitSource, ImageTarget, Metadata,
@@ -354,7 +354,7 @@ macro_rules! impl_step_rep {
     ($ty:ident, $ty_rep:ident) => {
         #[derive(Clone, Debug)]
         pub struct $ty {
-            pub steps: Vec<Cmd>,
+            pub steps: Vec<Command>,
             pub working_dir: Option<PathBuf>,
             pub shell: Option<String>,
         }
@@ -385,7 +385,7 @@ macro_rules! impl_step_rep {
 
         #[derive(Clone, Deserialize, Serialize, Debug, Default)]
         pub struct $ty_rep {
-            pub steps: Vec<Cmd>,
+            pub steps: Vec<Command>,
             pub working_dir: Option<PathBuf>,
             pub shell: Option<String>,
         }

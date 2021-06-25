@@ -1,6 +1,6 @@
-use crate::container::ExecOpts;
 use crate::job::build::BuildContainerCtx;
 use crate::{Error, Result};
+use pkger_core::container::ExecOpts;
 
 use std::path::PathBuf;
 use tracing::{debug, info, info_span, trace, Instrument};

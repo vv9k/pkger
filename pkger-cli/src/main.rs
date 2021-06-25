@@ -1,23 +1,17 @@
-#[macro_use]
-extern crate anyhow;
-
-mod archive;
-mod container;
-mod docker;
 mod fmt;
 mod image;
 mod job;
 mod opts;
-mod recipe;
 
-use crate::docker::DockerConnectionPool;
 use crate::image::{FsImage, FsImages, ImagesState};
 use crate::job::{BuildCtx, JobCtx, JobResult};
 use crate::opts::{BuildOpts, GenRecipeOpts, ListObject, PkgerCmd, PkgerOpts};
-use crate::recipe::{BuildTarget, ImageTarget, Recipes};
+use pkger_core::docker::DockerConnectionPool;
+use pkger_core::recipe::{
+    BuildTarget, DebRep, ImageTarget, MetadataRep, PkgRep, RecipeRep, Recipes, RpmRep,
+};
+use pkger_core::{Context, Error, Result};
 
-pub use anyhow::{Error, Result};
-use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 use serde::Deserialize;
 use serde_yaml::{Mapping, Value as YamlValue};
 use std::collections::HashMap;
@@ -204,7 +198,7 @@ impl Pkger {
                     }
                 }
             }
-            .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?,
+            .context("Failed to initialize docker connection")?,
         );
         Ok(())
     }
@@ -349,28 +343,21 @@ impl Pkger {
             if let Some(images) = images {
                 images
             } else {
-                return Err(anyhow!("no user images to load"));
+                return Err(Error::msg("no user images to load"));
             }
         } else {
-            return Err(anyhow!("failed to get mutable reference to user images"));
+            return Err(Error::msg("failed to get mutable reference to user images"));
         };
-        if let Err(e) = images.load() {
-            Err(anyhow!("failed to load images - {}", e))
-        } else {
-            Ok(())
-        }
+
+        images.load().context("failed to load images")
     }
 
     fn load_recipes(&mut self) -> Result<()> {
         if let Some(recipes) = Arc::get_mut(&mut self.recipes) {
-            if let Err(e) = recipes.load() {
-                Err(anyhow!("failed to load recipes - {}", e))
-            } else {
-                Ok(())
-            }
+            recipes.load().context("failed to load recipes")
         } else {
-            Err(anyhow!(
-                "failed to load recipes - couldn't get mutable reference to recipes"
+            Err(Error::msg(
+                "failed to load recipes - couldn't get mutable reference to recipes",
             ))
         }
     }

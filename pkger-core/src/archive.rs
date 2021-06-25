@@ -1,5 +1,8 @@
 //! Helper functions that don't fit anywhere else
 
+pub use flate2;
+pub use tar;
+
 use crate::Result;
 
 use flate2::write::GzEncoder;

@@ -1,9 +1,6 @@
-use crate::recipe::Os;
-use crate::Result;
-use crate::{
-    job::{Ctx, OneShotCtx},
-    recipe::{BuildTarget, RecipeTarget},
-};
+use crate::job::{Ctx, OneShotCtx};
+use crate::{Context, Error, Result};
+use pkger_core::recipe::{BuildTarget, Os, RecipeTarget};
 
 use moby::{image::ImageDetails, ContainerOptions, Docker};
 use serde::{Deserialize, Serialize};
@@ -39,10 +36,10 @@ impl FsImages {
         let _enter = span.enter();
 
         if !self.path.is_dir() {
-            return Err(anyhow!(
+            return Err(Error::msg(format!(
                 "images path `{}` is not a directory",
                 self.path.display()
-            ));
+            )));
         }
 
         for entry in fs::read_dir(self.path.as_path())? {
@@ -102,10 +99,10 @@ impl FsImage {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<FsImage> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
-            return Err(anyhow!(
+            return Err(Error::msg(format!(
                 "Dockerfile missing from image `{}`",
                 path.display()
-            ));
+            )));
         }
         Ok(FsImage {
             // we can unwrap here because we know the Dockerfile exists
@@ -232,26 +229,13 @@ impl ImagesState {
         if !Path::new(&self.state_file).exists() {
             trace!(state_file = %self.state_file.display(), "doesn't exist, creating");
             fs::File::create(&self.state_file)
-                .map_err(|e| {
-                    anyhow!(
-                        "failed to create state file in {} - {}",
-                        self.state_file.display(),
-                        e
-                    )
-                })
+                .context("failed to save state file")
                 .map(|_| ())
         } else {
             trace!(state_file = %self.state_file.display(), "file exists, overwriting");
-            match serde_cbor::to_vec(&self) {
-                Ok(d) => fs::write(&self.state_file, d).map_err(|e| {
-                    anyhow!(
-                        "failed to save state file in {} - {}",
-                        self.state_file.display(),
-                        e
-                    )
-                }),
-                Err(e) => return Err(anyhow!("failed to serialize image state - {}", e)),
-            }
+            serde_cbor::to_vec(&self)
+                .context("failed to deserialize image state")
+                .and_then(|d| fs::write(&self.state_file, d).context("failed to save state file"))
         }
     }
 }
@@ -285,7 +269,7 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
         Err(e) => trace!(reason = %e),
     }
 
-    Err(anyhow!("failed to determine distribution"))
+    Err(Error::msg("failed to determine distribution"))
 }
 
 async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
@@ -319,10 +303,7 @@ async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
 
     let os_name = extract_key(&out, "ID");
     let version = extract_key(&out, "VERSION_ID");
-    Os::new(
-        os_name.ok_or_else(|| anyhow!("os name is missing"))?,
-        version,
-    )
+    Os::new(os_name.context("os name is missing")?, version)
 }
 
 fn extract_version(text: &str) -> Option<String> {

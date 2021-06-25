@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// { cmd = "echo 123", images = ["centos8", "debian10"] }
 ///
 /// { cmd = "echo 321", rpm = true } # execute only when building rpm target
-pub struct Cmd {
+pub struct Command {
     pub cmd: String,
     pub images: Option<Vec<String>>,
     pub rpm: Option<bool>,
@@ -21,7 +21,7 @@ pub struct Cmd {
     pub gzip: Option<bool>,
 }
 
-impl From<&str> for Cmd {
+impl From<&str> for Command {
     fn from(s: &str) -> Self {
         Self {
             cmd: s.to_string(),
@@ -34,7 +34,7 @@ impl From<&str> for Cmd {
     }
 }
 
-impl Cmd {
+impl Command {
     pub fn has_target_specified(&self) -> bool {
         self.rpm.is_some() || self.deb.is_some() || self.pkg.is_some() || self.gzip.is_some()
     }

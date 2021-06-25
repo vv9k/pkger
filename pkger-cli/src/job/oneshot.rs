@@ -1,6 +1,6 @@
-use crate::container::{DockerContainer, Output};
 use crate::job::{Ctx, JobCtx};
 use crate::Result;
+use pkger_core::container::{DockerContainer, Output};
 
 use async_trait::async_trait;
 use moby::{ContainerOptions, Docker};

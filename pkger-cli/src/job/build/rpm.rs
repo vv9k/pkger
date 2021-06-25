@@ -1,8 +1,8 @@
-use crate::archive::create_tarball;
-use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::Result;
+use crate::{Context, Result};
+use pkger_core::archive::create_tarball;
+use pkger_core::container::ExecOpts;
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -50,7 +50,7 @@ impl<'job> BuildContainerCtx<'job> {
 
             self.create_dirs(&dirs[..])
                 .await
-                .map_err(|e| anyhow!("failed to create directories - {}", e))?;
+                .context("failed to create directories")?;
 
             trace!("copy source files to temporary location");
             self.checked_exec(
@@ -63,7 +63,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to copy source file to temp dir - {}", e))?;
+            .context("failed to copy source files to temp directory")?;
 
             trace!("prepare archived source files");
             self.checked_exec(
@@ -91,7 +91,7 @@ impl<'job> BuildContainerCtx<'job> {
                         .map(|s| s.trim_start_matches('.').to_string())
                         .collect::<Vec<_>>()
                 })
-                .map_err(|e| anyhow!("failed to find source files - {}", e))?;
+                .context("failed to find source files")?;
             trace!(source_files = ?files);
 
             let spec = cloned_span.in_scope(|| {
@@ -113,7 +113,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .inner()
                 .copy_file_into(spec_tar_path.as_path(), &spec_tar)
                 .await
-                .map_err(|e| anyhow!("failed to copy archive with spec - {}", e))?;
+                .context("failed to copy archive with spec")?;
 
             trace!("extract spec archive");
             self.checked_exec(
@@ -138,13 +138,13 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to build rpm package - {}", e))?;
+            .context("failed to build rpm package")?;
 
             self.container
                 .download_files(rpms.join(&arch).as_path(), output_dir)
                 .await
                 .map(|_| output_dir.join(format!("{}.rpm", buildroot_name)))
-                .map_err(|e| anyhow!("failed to download files - {}", e))
+                .context("failed to download finished package")
         }
         .instrument(span)
         .await

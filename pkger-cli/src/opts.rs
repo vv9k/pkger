@@ -1,4 +1,4 @@
-use anyhow::Error;
+use crate::Error;
 use clap::{Clap, Subcommand};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -69,7 +69,7 @@ impl FromStr for ListObject {
         match s {
             "images" => Ok(ListObject::Images),
             "recipes" => Ok(ListObject::Recipes),
-            _ => Err(anyhow!("unknown object {}", s)),
+            _ => Err(Error::msg(format!("unknown object {}", s))),
         }
     }
 }

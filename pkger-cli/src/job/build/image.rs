@@ -2,8 +2,8 @@ use crate::image::{FsImage, ImageState, ImagesState};
 use crate::job::build::deps;
 use crate::job::build::BuildContainerCtx;
 use crate::job::BuildCtx;
-use crate::recipe::RecipeTarget;
-use crate::Result;
+use crate::{Error, Result};
+use pkger_core::recipe::RecipeTarget;
 
 use futures::StreamExt;
 use moby::{image::ImageBuildChunk, BuildOptions, Docker};
@@ -70,7 +70,7 @@ impl BuildCtx {
                         error,
                         error_detail: _,
                     } => {
-                        return Err(anyhow!(error));
+                        return Err(Error::msg(error));
                     }
                     ImageBuildChunk::Update { stream } => {
                         info!("{}", stream);
@@ -97,7 +97,7 @@ impl BuildCtx {
                 }
             }
 
-            Err(anyhow!("stream ended before image id was received"))
+            Err(Error::msg("stream ended before image id was received"))
         }
         .instrument(span)
         .await
@@ -118,10 +118,10 @@ impl<'job> BuildContainerCtx<'job> {
             let tag = format!("{}:{}", state.image, state.tag);
 
             if pkg_mngr_name.is_empty() {
-                return Err(anyhow!(
+                return Err(Error::msg(format!(
                     "caching image failed - no package manger found for os `{}`",
                     state.os.name()
-                ));
+                )));
             }
 
             let deps_joined = deps.iter().map(|s| s.to_string()).collect::<Vec<_>>();
@@ -165,7 +165,7 @@ RUN {} {} {} >/dev/null"#,
                         error,
                         error_detail: _,
                     } => {
-                        return Err(anyhow!(error));
+                        return Err(Error::msg(error));
                     }
                     ImageBuildChunk::Update { stream } => {
                         info!("{}", stream);
@@ -186,7 +186,7 @@ RUN {} {} {} >/dev/null"#,
                 }
             }
 
-            Err(anyhow!("id of image not received"))
+            Err(Error::msg("id of image not received"))
         }
         .instrument(span)
         .await

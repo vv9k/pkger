@@ -1,8 +1,8 @@
-use crate::archive::create_tarball;
-use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::job::build::BuildContainerCtx;
-use crate::Result;
+use crate::{Context, Result};
+use pkger_core::archive::create_tarball;
+use pkger_core::container::ExecOpts;
 
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
@@ -37,7 +37,7 @@ impl<'job> BuildContainerCtx<'job> {
 
             self.create_dirs(&dirs[..])
                 .await
-                .map_err(|e| anyhow!("failed to create dirs - {}", e))?;
+                .context("failed to create dirs")?;
 
             trace!("copy source files to temporary location");
             self.checked_exec(
@@ -47,7 +47,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to copy source file to temp dir - {}", e))?;
+            .context("failed to copy source files to temp directory")?;
 
             trace!("prepare archived source files");
             self.checked_exec(
@@ -71,7 +71,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .split_ascii_whitespace()
                 .next()
                 .map(|s| s.to_string())
-                .ok_or_else(|| anyhow!("failed to calculate MD5 checksum of source"))?;
+                .context("failed to calculate MD5 checksum of source")?;
 
             let sources = vec![source_tar_path.to_string_lossy().to_string()];
             let checksums = vec![sum];
@@ -92,9 +92,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .inner()
                 .copy_file_into(pkgbuild_tar_path.as_path(), &pkgbuild_tar)
                 .await
-                .map_err(|e| {
-                    anyhow!("failed to copy archive with PKGBUILD to container - {}", e)
-                })?;
+                .context("failed to copy archive with PKGBUILD to container")?;
 
             trace!("extract PKGBUILD archive");
             self.checked_exec(
@@ -145,7 +143,7 @@ impl<'job> BuildContainerCtx<'job> {
                     .build(),
             )
             .await
-            .map_err(|e| anyhow!("failed to build PKG package - {}", e))?;
+            .context("failed to build PKG package")?;
 
             let pkg = format!("{}.pkg.tar.zst", package_name);
             let pkg_path = bld_dir.join(&pkg);
@@ -154,7 +152,7 @@ impl<'job> BuildContainerCtx<'job> {
                 .download_files(&pkg_path, output_dir)
                 .await
                 .map(|_| output_dir.join(pkg))
-                .map_err(|e| anyhow!("failed to download files - {}", e))
+                .context("failed to download finished package")
         }
         .instrument(span)
         .await
