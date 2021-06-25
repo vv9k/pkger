@@ -43,10 +43,11 @@ impl Cmd {
             return true;
         }
         match &target {
-            BuildTarget::Rpm => self.rpm.unwrap_or_default(),
-            BuildTarget::Deb => self.deb.unwrap_or_default(),
-            BuildTarget::Pkg => self.pkg.unwrap_or_default(),
-            BuildTarget::Gzip => self.gzip.unwrap_or_default(),
+            BuildTarget::Rpm => self.rpm,
+            BuildTarget::Deb => self.deb,
+            BuildTarget::Pkg => self.pkg,
+            BuildTarget::Gzip => self.gzip,
         }
+        .unwrap_or_default()
     }
 }
