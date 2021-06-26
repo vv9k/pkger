@@ -1,0 +1,11 @@
+[package]
+name = "rpmspec"
+description = "Crate for RPM spec generation"
+version = "0.3.0"
+authors = ["wojciechkepka <wojciech@wkepka.dev>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+pkgspec = { path = "../pkgspec" }
+paste = "1"

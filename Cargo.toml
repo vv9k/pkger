@@ -2,5 +2,9 @@
 
 members = [
     "pkger-cli",
-    "pkger-core"
+    "pkger-core",
+    "libs/pkgspec",
+    "libs/rpmspec",
+    "libs/debcontrol",
+    "libs/pkgbuild"
 ]

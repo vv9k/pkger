@@ -1,0 +1,14 @@
+[package]
+name = "pkgbuild"
+description = "Crate for PKGBUILD generation"
+version = "0.1.1"
+authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+pkgspec = { path = "../pkgspec" }
+paste = "1"
+
+[dev-dependencies]
+pretty_assertions = "0.3"

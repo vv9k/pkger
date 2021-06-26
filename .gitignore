@@ -3,3 +3,4 @@ target
 .pkger.state
 example/output
 docs/book/
+**/Cargo.lock
