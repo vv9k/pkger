@@ -8,6 +8,7 @@ use pkger_core::image::{state::DEFAULT_STATE_FILE, Image, ImagesState};
 use pkger_core::recipe::{self, BuildTarget, ImageTarget, Recipe};
 use pkger_core::{ErrContext, Result};
 
+use futures::stream::FuturesUnordered;
 use std::convert::TryFrom;
 use std::fs;
 use std::path::PathBuf;
@@ -218,7 +219,7 @@ impl Application {
     async fn process_tasks(&mut self, tasks: Vec<BuildTask>) -> Result<()> {
         let span = info_span!("process-jobs");
         async move {
-            let mut jobs = Vec::new();
+            let jobs = FuturesUnordered::new();
             for task in tasks {
                 let (recipe, image, target, is_simple) =  match task {
                     BuildTask::Custom { recipe, target } => {
