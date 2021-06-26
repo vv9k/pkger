@@ -1,12 +1,13 @@
 use crate::build::{container, deps, Context};
 use crate::docker::{image::ImageBuildChunk, BuildOptions, Docker};
-use crate::image::{Image, ImageState, ImagesState};
+use crate::image::{ImageState, ImagesState};
 use crate::recipe::RecipeTarget;
 use crate::{Error, Result};
 
 use futures::StreamExt;
 use std::collections::HashSet;
 use std::fs;
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempdir::TempDir;
@@ -15,91 +16,89 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 pub static CACHED: &str = "cached";
 pub static LATEST: &str = "latest";
 
-impl Context {
-    pub async fn image_build(&mut self) -> Result<ImageState> {
-        let span = info_span!("image-build");
-        let cloned_span = span.clone();
+pub async fn build(ctx: &mut Context) -> Result<ImageState> {
+    let span = info_span!("image-build");
+    let cloned_span = span.clone();
 
-        async move {
-            let mut deps = if let Some(deps) = &self.recipe.metadata.build_depends {
-                deps.resolve_names(&self.image.name)
+    async move {
+        let mut deps = if let Some(deps) = &ctx.recipe.metadata.build_depends {
+            deps.resolve_names(&ctx.target.image())
+        } else {
+            Default::default()
+        };
+        deps.extend(deps::pkger_deps(ctx.target.build_target(), &ctx.recipe));
+        trace!(resolved_deps = ?deps);
+
+        let result = cloned_span.in_scope(|| {
+            find_cached_state(&ctx.image.path, &ctx.target, &ctx.image_state, ctx.simple)
+        });
+
+        if let Some(state) = result {
+            let state_deps = state
+                .deps
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<HashSet<_>>();
+            if deps != state_deps {
+                info!(old = ?state.deps, new = ?deps, "dependencies changed");
             } else {
-                Default::default()
-            };
-            deps.extend(deps::pkger_deps(self.target.build_target(), &self.recipe));
-            trace!(resolved_deps = ?deps);
+                trace!("unchanged");
 
-            let result = cloned_span.in_scope(|| {
-                find_cached_state(&self.image, &self.target, &self.image_state, self.simple)
-            });
-
-            if let Some(state) = result {
-                let state_deps = state
-                    .deps
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<HashSet<_>>();
-                if deps != state_deps {
-                    info!(old = ?state.deps, new = ?deps, "dependencies changed");
+                if state.exists(&ctx.docker).await {
+                    trace!("state exists in docker");
+                    return Ok(state);
                 } else {
-                    trace!("unchanged");
-
-                    if state.exists(&self.docker).await {
-                        trace!("state exists in docker");
-                        return Ok(state);
-                    } else {
-                        warn!("found cached state but image doesn't exist in docker")
-                    }
+                    warn!("found cached state but image doesn't exist in docker")
                 }
             }
-
-            debug!(image = %self.image.name, "building from scratch");
-            let images = self.docker.images();
-            let opts = BuildOptions::builder(self.image.path.to_string_lossy().to_string())
-                .tag(&format!("{}:{}", &self.image.name, LATEST))
-                .build();
-
-            let mut stream = images.build(&opts);
-
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
-                match chunk {
-                    ImageBuildChunk::Error {
-                        error,
-                        error_detail: _,
-                    } => {
-                        return Err(Error::msg(error));
-                    }
-                    ImageBuildChunk::Update { stream } => {
-                        info!("{}", stream);
-                    }
-                    ImageBuildChunk::Digest { aux } => {
-                        let state = ImageState::new(
-                            &aux.id,
-                            &self.target,
-                            LATEST,
-                            &SystemTime::now(),
-                            &self.docker,
-                            &Default::default(),
-                            self.simple,
-                        )
-                        .await?;
-
-                        if let Ok(mut image_state) = self.image_state.write() {
-                            (*image_state).update(&self.target, &state)
-                        }
-
-                        return Ok(state);
-                    }
-                    _ => {}
-                }
-            }
-
-            Err(Error::msg("stream ended before image id was received"))
         }
-        .instrument(span)
-        .await
+
+        debug!(image = %ctx.target.image(), "building from scratch");
+        let images = ctx.docker.images();
+        let opts = BuildOptions::builder(ctx.image.path.to_string_lossy())
+            .tag(&format!("{}:{}", &ctx.target.image(), LATEST))
+            .build();
+
+        let mut stream = images.build(&opts);
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            match chunk {
+                ImageBuildChunk::Error {
+                    error,
+                    error_detail: _,
+                } => {
+                    return Err(Error::msg(error));
+                }
+                ImageBuildChunk::Update { stream } => {
+                    info!("{}", stream);
+                }
+                ImageBuildChunk::Digest { aux } => {
+                    let state = ImageState::new(
+                        &aux.id,
+                        &ctx.target,
+                        LATEST,
+                        &SystemTime::now(),
+                        &ctx.docker,
+                        &Default::default(),
+                        ctx.simple,
+                    )
+                    .await?;
+
+                    if let Ok(mut image_state) = ctx.image_state.write() {
+                        (*image_state).update(&ctx.target, &state)
+                    }
+
+                    return Ok(state);
+                }
+                _ => {}
+            }
+        }
+
+        Err(Error::msg("stream ended before image id was received"))
     }
+    .instrument(span)
+    .await
 }
 
 pub async fn cache_image(
@@ -192,7 +191,7 @@ RUN {} {} {} >/dev/null"#,
 /// Checks whether any of the files located at the path of this Image changed since last build.
 /// If shouldn't be rebuilt returns previous `ImageState`.
 pub fn find_cached_state(
-    image: &Image,
+    image: &Path,
     target: &RecipeTarget,
     state: &Arc<RwLock<ImagesState>>,
     simple: bool,
@@ -208,7 +207,7 @@ pub fn find_cached_state(
             if simple {
                 return Some(state.to_owned());
             }
-            if let Ok(entries) = fs::read_dir(image.path.as_path()) {
+            if let Ok(entries) = fs::read_dir(image) {
                 for file in entries {
                     if let Err(e) = file {
                         warn!(reason = %e, "error while loading file");

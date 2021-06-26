@@ -1,5 +1,5 @@
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BuildArch {
     All,
     x86_64,

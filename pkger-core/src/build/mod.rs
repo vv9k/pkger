@@ -31,7 +31,7 @@ macro_rules! cleanup {
 /// Groups all data and functionality necessary to create an artifact
 pub struct Context {
     id: String,
-    recipe: Recipe,
+    recipe: Arc<Recipe>,
     image: Image,
     docker: Docker,
     container_bld_dir: PathBuf,
@@ -45,10 +45,10 @@ pub struct Context {
 }
 
 pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
-    let span = info_span!("build", recipe = %ctx.recipe.metadata.name, image = %ctx.image.name, target = %ctx.target.build_target().as_ref());
+    let span = info_span!("build", recipe = %ctx.recipe.metadata.name, image = %ctx.target.image(), target = %ctx.target.build_target().as_ref());
     async move {
         info!(id = %ctx.id, "running job" );
-        let image_state = ctx.image_build().await.context("failed to build image")?;
+        let image_state = image::build(ctx).await.context("failed to build image")?;
 
         let out_dir = ctx.create_out_dir(&image_state).await?;
 
@@ -79,9 +79,9 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
         cleanup!(container_ctx);
 
         let dirs = vec![
-            ctx.container_out_dir.to_string_lossy().to_string(),
-            ctx.container_bld_dir.to_string_lossy().to_string(),
-            ctx.container_tmp_dir.to_string_lossy().to_string(),
+            &ctx.container_out_dir,
+            &ctx.container_bld_dir,
+            &ctx.container_tmp_dir,
         ];
 
         container::create_dirs(&container_ctx, &dirs[..]).await?;
@@ -124,7 +124,7 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
 impl Context {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        recipe: Recipe,
+        recipe: Arc<Recipe>,
         image: Image,
         docker: Docker,
         target: ImageTarget,
@@ -139,7 +139,7 @@ impl Context {
             .as_secs();
         let id = format!(
             "pkger-{}-{}-{}",
-            &recipe.metadata.name, &image.name, &timestamp,
+            &recipe.metadata.name, &target.image, &timestamp,
         );
         let container_bld_dir = PathBuf::from(format!(
             "/tmp/{}-build-{}",
@@ -273,7 +273,7 @@ pub async fn collect_patches(
 
         let mut to_copy = Vec::new();
 
-        for patch in patches.resolve_names(&ctx.image.name) {
+        for patch in patches.resolve_names(ctx.target.image()) {
             let src = patch.patch();
             if src.starts_with("http") {
                 trace!(source = %src, "found http source");

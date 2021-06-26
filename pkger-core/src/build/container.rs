@@ -1,7 +1,7 @@
 use crate::build;
 use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::docker::{ContainerOptions, Docker, ExecContainerOptions};
-use crate::image::{Image, ImageState};
+use crate::image::ImageState;
 use crate::recipe::{Recipe, RecipeTarget};
 use crate::{Error, Result};
 
@@ -39,7 +39,7 @@ pub async fn spawn<'ctx>(
             &ctx.docker,
             opts,
             &ctx.recipe,
-            &ctx.image,
+            ctx.target.image(),
             ctx.is_running.clone(),
             &ctx.target,
             ctx.container_out_dir.as_path(),
@@ -58,7 +58,7 @@ pub struct Context<'job> {
     pub container: DockerContainer<'job>,
     pub opts: ContainerOptions,
     pub recipe: &'job Recipe,
-    pub image: &'job Image,
+    pub image: &'job str,
     pub target: &'job RecipeTarget,
     pub container_out_dir: &'job Path,
     pub container_bld_dir: &'job Path,
@@ -72,7 +72,7 @@ impl<'job> Context<'job> {
         docker: &'job Docker,
         opts: ContainerOptions,
         recipe: &'job Recipe,
-        image: &'job Image,
+        image: &'job str,
         is_running: Arc<AtomicBool>,
         target: &'job RecipeTarget,
         container_out_dir: &'job Path,

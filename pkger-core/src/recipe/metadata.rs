@@ -91,7 +91,7 @@ pub struct PkgRep {
     pub optdepends: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PkgInfo {
     /// The name of the .install script to be included in the package
     pub install: Option<String>,
@@ -131,7 +131,7 @@ pub struct DebRep {
     pub enchances: Option<YamlValue>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DebInfo {
     pub priority: Option<String>,
     pub installed_size: Option<String>,
@@ -197,7 +197,7 @@ impl TryFrom<RpmRep> for RpmInfo {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RpmInfo {
     pub obsoletes: Option<Dependencies>,
     pub vendor: Option<String>,
@@ -210,7 +210,7 @@ pub struct RpmInfo {
     pub config_noreplace: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Metadata {
     // General
     pub name: String,

@@ -53,8 +53,9 @@ async fn main() -> Result<()> {
         }
     };
 
-    if let Err(e) = app.process_opts(opts).await {
-        error!(reason = %e, "execution failed");
+    if let Err(reason) = app.process_opts(opts).await {
+        let reason = format!("\nError: {:?}", reason);
+        error!(%reason, "execution failed");
         process::exit(1);
     }
     Ok(())
