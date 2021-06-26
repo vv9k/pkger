@@ -10,6 +10,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tracing::{info_span, trace, Instrument};
 
+#[allow(clippy::needless_lifetimes)] // it actually doesn't compile without them?
 /// Creates and starts a container from the given ImageState
 pub async fn spawn<'ctx>(
     ctx: &'ctx BuildCtx,

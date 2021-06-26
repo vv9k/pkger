@@ -8,7 +8,7 @@ pub mod scripts;
 use crate::container::ExecOpts;
 use crate::docker::Docker;
 use crate::image::{FsImage, ImageState, ImagesState};
-use crate::recipe::{BuildTarget, ImageTarget, Patch, Patches, Recipe, RecipeTarget};
+use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::{Context, Error, Result};
 use container::BuildContainerCtx;
 
