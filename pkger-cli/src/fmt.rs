@@ -1,4 +1,4 @@
-use crate::opts::PkgerOpts;
+use crate::opts::Opts;
 
 use chrono::Utc;
 use colored::Colorize;
@@ -15,7 +15,7 @@ static DEFAULT_FIELD_DELIM: &str = ", ";
 
 //####################################################################################################
 
-pub fn setup_tracing(opts: &PkgerOpts) {
+pub fn setup_tracing(opts: &Opts) {
     let span = info_span!("setup-tracing");
     let _enter = span.enter();
 
