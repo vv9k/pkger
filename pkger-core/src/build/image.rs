@@ -1,12 +1,10 @@
-use crate::image::{FsImage, ImageState, ImagesState};
-use crate::job::build::deps;
-use crate::job::build::BuildContainerCtx;
-use crate::job::BuildCtx;
+use crate::build::{container, deps, Context};
+use crate::docker::{image::ImageBuildChunk, BuildOptions, Docker};
+use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::RecipeTarget;
-use crate::Result;
+use crate::{Error, Result};
 
 use futures::StreamExt;
-use moby::{image::ImageBuildChunk, BuildOptions, Docker};
 use std::collections::HashSet;
 use std::fs;
 use std::sync::{Arc, RwLock};
@@ -17,7 +15,7 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 pub static CACHED: &str = "cached";
 pub static LATEST: &str = "latest";
 
-impl BuildCtx {
+impl Context {
     pub async fn image_build(&mut self) -> Result<ImageState> {
         let span = info_span!("image-build");
         let cloned_span = span.clone();
@@ -70,7 +68,7 @@ impl BuildCtx {
                         error,
                         error_detail: _,
                     } => {
-                        return Err(anyhow!(error));
+                        return Err(Error::msg(error));
                     }
                     ImageBuildChunk::Update { stream } => {
                         info!("{}", stream);
@@ -97,36 +95,35 @@ impl BuildCtx {
                 }
             }
 
-            Err(anyhow!("stream ended before image id was received"))
+            Err(Error::msg("stream ended before image id was received"))
         }
         .instrument(span)
         .await
     }
 }
 
-impl<'job> BuildContainerCtx<'job> {
-    pub async fn cache_image(
-        &self,
-        docker: &Docker,
-        state: &ImageState,
-        deps: &HashSet<&str>,
-    ) -> Result<ImageState> {
-        let span = info_span!("cache-image", image = %state.image);
-        async move {
-            let pkg_mngr = state.os.package_manager();
-            let pkg_mngr_name = pkg_mngr.as_ref();
-            let tag = format!("{}:{}", state.image, state.tag);
+pub async fn cache_image(
+    ctx: &container::Context<'_>,
+    docker: &Docker,
+    state: &ImageState,
+    deps: &HashSet<&str>,
+) -> Result<ImageState> {
+    let span = info_span!("cache-image", image = %state.image);
+    async move {
+        let pkg_mngr = state.os.package_manager();
+        let pkg_mngr_name = pkg_mngr.as_ref();
+        let tag = format!("{}:{}", state.image, state.tag);
 
-            if pkg_mngr_name.is_empty() {
-                return Err(anyhow!(
-                    "caching image failed - no package manger found for os `{}`",
-                    state.os.name()
-                ));
-            }
+        if pkg_mngr_name.is_empty() {
+            return Err(Error::msg(format!(
+                "caching image failed - no package manger found for os `{}`",
+                state.os.name()
+            )));
+        }
 
-            let deps_joined = deps.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let deps_joined = deps.iter().map(|s| s.to_string()).collect::<Vec<_>>();
 
-            #[rustfmt::skip]
+        #[rustfmt::skip]
             let dockerfile = format!(
 r#"FROM {}
 RUN {} {}
@@ -136,67 +133,66 @@ RUN {} {} {} >/dev/null"#,
                 pkg_mngr_name, pkg_mngr.install_args().join(" "), deps_joined.join(" ")
             );
 
-            trace!(dockerfile = %dockerfile);
+        trace!(dockerfile = %dockerfile);
 
-            let temp = TempDir::new(&format!(
-                "{}-cache-{}",
-                state.image,
-                state
-                    .timestamp
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs()
-            ))?;
-            let temp_path = temp.path();
-            trace!(temp_dir = %temp_path.display());
-            fs::write(temp_path.join("Dockerfile"), dockerfile)?;
+        let temp = TempDir::new(&format!(
+            "{}-cache-{}",
+            state.image,
+            state
+                .timestamp
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        ))?;
+        let temp_path = temp.path();
+        trace!(temp_dir = %temp_path.display());
+        fs::write(temp_path.join("Dockerfile"), dockerfile)?;
 
-            let images = docker.images();
-            let opts = BuildOptions::builder(temp_path.to_string_lossy().to_string())
-                .tag(tag)
-                .build();
+        let images = docker.images();
+        let opts = BuildOptions::builder(temp_path.to_string_lossy().to_string())
+            .tag(tag)
+            .build();
 
-            let mut stream = images.build(&opts);
+        let mut stream = images.build(&opts);
 
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
-                match chunk {
-                    ImageBuildChunk::Error {
-                        error,
-                        error_detail: _,
-                    } => {
-                        return Err(anyhow!(error));
-                    }
-                    ImageBuildChunk::Update { stream } => {
-                        info!("{}", stream);
-                    }
-                    ImageBuildChunk::Digest { aux } => {
-                        return ImageState::new(
-                            &aux.id,
-                            &self.target,
-                            CACHED,
-                            &SystemTime::now(),
-                            &docker,
-                            deps,
-                            self.simple,
-                        )
-                        .await
-                    }
-                    _ => {}
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            match chunk {
+                ImageBuildChunk::Error {
+                    error,
+                    error_detail: _,
+                } => {
+                    return Err(Error::msg(error));
                 }
+                ImageBuildChunk::Update { stream } => {
+                    info!("{}", stream);
+                }
+                ImageBuildChunk::Digest { aux } => {
+                    return ImageState::new(
+                        &aux.id,
+                        &ctx.target,
+                        CACHED,
+                        &SystemTime::now(),
+                        &docker,
+                        deps,
+                        ctx.simple,
+                    )
+                    .await
+                }
+                _ => {}
             }
-
-            Err(anyhow!("id of image not received"))
         }
-        .instrument(span)
-        .await
+
+        Err(Error::msg("id of image not received"))
     }
+    .instrument(span)
+    .await
 }
 
 /// Checks whether any of the files located at the path of this Image changed since last build.
 /// If shouldn't be rebuilt returns previous `ImageState`.
 pub fn find_cached_state(
-    image: &FsImage,
+    image: &Image,
     target: &RecipeTarget,
     state: &Arc<RwLock<ImagesState>>,
     simple: bool,

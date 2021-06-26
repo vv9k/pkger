@@ -1,7 +1,7 @@
 use serde_yaml::Mapping;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Env(HashMap<String, String>);
 
 impl From<Option<Mapping>> for Env {
@@ -26,7 +26,7 @@ impl From<Option<Mapping>> for Env {
 #[allow(dead_code)]
 impl Env {
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self::default()
     }
 
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<String>

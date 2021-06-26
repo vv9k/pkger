@@ -1,9 +1,7 @@
 use crate::container::{DockerContainer, Output};
-use crate::job::{Ctx, JobCtx};
+use crate::docker::{ContainerOptions, Docker};
 use crate::Result;
 
-use async_trait::async_trait;
-use moby::{ContainerOptions, Docker};
 use std::time::SystemTime;
 use tracing::{info_span, Instrument};
 
@@ -18,25 +16,16 @@ pub struct OneShotCtx<'job> {
     stderr: bool,
 }
 
-#[async_trait]
-impl<'job> Ctx for OneShotCtx<'job> {
-    type JobResult = Result<Output<u8>>;
+pub async fn run(ctx: &mut OneShotCtx<'_>) -> Result<Output<u8>> {
+    let span = info_span!("oneshot-ctx", id = %ctx.id);
+    async move {
+        let mut container = DockerContainer::new(&ctx.docker, None);
+        container.spawn(&ctx.opts).await?;
 
-    fn id(&self) -> &str {
-        &self.id
+        container.logs(ctx.stdout, ctx.stderr).await
     }
-
-    async fn run(&mut self) -> Self::JobResult {
-        let span = info_span!("oneshot-ctx", id = %self.id);
-        async move {
-            let mut container = DockerContainer::new(&self.docker, None);
-            container.spawn(&self.opts).await?;
-
-            container.logs(self.stdout, self.stderr).await
-        }
-        .instrument(span)
-        .await
-    }
+    .instrument(span)
+    .await
 }
 
 impl<'job> OneShotCtx<'job> {
@@ -62,9 +51,8 @@ impl<'job> OneShotCtx<'job> {
             stderr,
         }
     }
-}
-impl<'job> From<OneShotCtx<'job>> for JobCtx<'job> {
-    fn from(ctx: OneShotCtx<'job>) -> Self {
-        JobCtx::OneShot(ctx)
+
+    pub fn id(&self) -> &str {
+        self.id.as_str()
     }
 }

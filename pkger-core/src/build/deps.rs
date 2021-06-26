@@ -1,16 +1,14 @@
+use crate::build::container::Context;
 use crate::image::ImageState;
-use crate::job::build::BuildContainerCtx;
 use crate::recipe::{BuildTarget, Recipe};
 
 use std::collections::HashSet;
 
-impl<'job> BuildContainerCtx<'job> {
-    pub fn recipe_deps(&self, state: &ImageState) -> HashSet<&str> {
-        if let Some(deps) = &self.recipe.metadata.build_depends {
-            deps.resolve_names(&state.image)
-        } else {
-            HashSet::new()
-        }
+pub fn recipe_deps<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
+    if let Some(deps) = &ctx.recipe.metadata.build_depends {
+        deps.resolve_names(&state.image)
+    } else {
+        HashSet::new()
     }
 }
 

@@ -1,0 +1,35 @@
+[package]
+name = "pkger"
+version = "0.4.0"
+description = "Package building tool utilizing Docker"
+authors = ["wojciech.kepka <wojciech@wkepka.dev>"]
+repository = "https://github.com/wojciechkepka/pkger"
+homepage = "https://github.com/wojciechkepka/pkger"
+keywords = ["unix", "linux", "deb", "rpm", "docker"]
+categories = ["command-line-utilities"]
+license = "MIT"
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+pkger-core = { path = "../pkger-core" }
+
+clap = "3.0.0-beta.2"
+
+chrono = "0.4"
+colored = "2"
+ctrlc = "3"
+
+dirs-next = "2"
+tempdir = "0.3"
+
+serde = {version = "1.0", features = ["derive"]}
+serde_yaml = "0.8"
+
+futures = "0.3"
+tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
+
+tracing = "0.1"
+tracing-core = "0.1"
+tracing-futures = "0.1"
+tracing-subscriber = {version = "0.2", features = ["fmt", "chrono"]}

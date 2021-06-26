@@ -1,6 +1,9 @@
 //! Helper functions that don't fit anywhere else
 
-use crate::Result;
+pub use flate2;
+pub use tar;
+
+use crate::{ErrContext, Result};
 
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -83,7 +86,5 @@ where
 
     archive.finish()?;
 
-    archive
-        .into_inner()
-        .map_err(|e| anyhow!("failed to create tar archive - {}", e))
+    archive.into_inner().context("failed to create tar archive")
 }

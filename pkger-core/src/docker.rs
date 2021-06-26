@@ -1,6 +1,7 @@
 use crate::Result;
 
-use moby::Docker;
+pub use moby::*;
+
 use std::path::PathBuf;
 
 static RUN_DOCKER_SOCK: &str = "/run/docker.sock";

@@ -1,30 +1,16 @@
-#[macro_use]
-extern crate anyhow;
+use crate::config::Configuration;
+use crate::gen;
+use crate::job::{JobCtx, JobResult};
+use crate::opts::{BuildOpts, Commands, ListObject, Opts};
+use pkger_core::build::Context;
+use pkger_core::docker::DockerConnectionPool;
+use pkger_core::image::{Image, Images, ImagesState, DEFAULT_STATE_FILE};
+use pkger_core::recipe::{BuildTarget, ImageTarget, Recipes};
+use pkger_core::{ErrContext, Error, Result};
 
-mod archive;
-mod container;
-mod docker;
-mod fmt;
-mod image;
-mod job;
-mod opts;
-mod recipe;
-
-use crate::docker::DockerConnectionPool;
-use crate::image::{FsImage, FsImages, ImagesState};
-use crate::job::{BuildCtx, JobCtx, JobResult};
-use crate::opts::{BuildOpts, GenRecipeOpts, ListObject, PkgerCmd, PkgerOpts};
-use crate::recipe::{BuildTarget, ImageTarget, Recipes};
-
-pub use anyhow::{Error, Result};
-use recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
-use serde::Deserialize;
-use serde_yaml::{Mapping, Value as YamlValue};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use tempdir::TempDir;
@@ -32,25 +18,29 @@ use tokio::task;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
-static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
-static DEFAULT_STATE_FILE: &str = ".pkger.state";
-
-#[derive(Deserialize, Debug)]
-pub struct Config {
-    recipes_dir: PathBuf,
-    output_dir: PathBuf,
-    images_dir: Option<PathBuf>,
-    docker: Option<String>,
+fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
+    if let Err(e) = ctrlc::set_handler(move || {
+        warn!("got ctrl-c");
+        is_running.store(false, Ordering::SeqCst);
+    }) {
+        error!(reason = %e, "failed to set ctrl-c handler");
+    };
 }
-impl Config {
-    fn from_path<P: AsRef<Path>>(val: P) -> Result<Self> {
-        Ok(serde_yaml::from_slice(&fs::read(val.as_ref())?)?)
+
+fn create_app_dirs() -> Result<TempDir> {
+    let tempdir = TempDir::new("pkger")?;
+    let pkger_dir = tempdir.path();
+    let images_dir = pkger_dir.join("images");
+    if !images_dir.exists() {
+        fs::create_dir_all(&images_dir)?;
     }
+
+    Ok(tempdir)
 }
 
-struct Pkger {
-    config: Arc<Config>,
-    user_images: Arc<Option<FsImages>>,
+pub struct Application {
+    config: Arc<Configuration>,
+    user_images: Arc<Option<Images>>,
     recipes: Arc<Recipes>,
     docker: Arc<DockerConnectionPool>,
     images_filter: Arc<Vec<String>>,
@@ -60,12 +50,12 @@ struct Pkger {
     _pkger_dir: TempDir,
 }
 
-impl Pkger {
-    fn new(config: Config) -> Result<Self> {
-        let _pkger_dir = create_pkger_dirs()?;
-        let user_images = config.images_dir.as_ref().map(|path| FsImages::new(&path));
+impl Application {
+    pub fn new(config: Configuration) -> Result<Self> {
+        let _pkger_dir = create_app_dirs()?;
+        let user_images = config.images_dir.as_ref().map(|path| Images::new(&path));
         let recipes = Recipes::new(&config.recipes_dir);
-        let pkger = Pkger {
+        let pkger = Application {
             config: Arc::new(config),
             user_images: Arc::new(user_images),
             images_filter: Arc::new(vec![]),
@@ -82,9 +72,10 @@ impl Pkger {
         set_ctrlc_handler(is_running);
         Ok(pkger)
     }
-    async fn process_opts(&mut self, opts: PkgerOpts) -> Result<()> {
+
+    pub async fn process_opts(&mut self, opts: Opts) -> Result<()> {
         match opts.command {
-            PkgerCmd::Build(build_opts) => {
+            Commands::Build(build_opts) => {
                 self.load_user_images()?;
                 self.load_recipes()?;
                 self.process_build_opts(&build_opts)?;
@@ -92,8 +83,8 @@ impl Pkger {
                 self.save_images_state();
                 Ok(())
             }
-            PkgerCmd::GenRecipe(gen_recipe_opts) => self.gen_recipe(gen_recipe_opts),
-            PkgerCmd::List(list_opts) => match list_opts.object {
+            Commands::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
+            Commands::List(list_opts) => match list_opts.object {
                 ListObject::Images => {
                     self.load_user_images()?;
                     self.list_images();
@@ -204,7 +195,7 @@ impl Pkger {
                     }
                 }
             }
-            .map_err(|e| anyhow!("Failed to initialize docker connection - {}", e))?,
+            .context("Failed to initialize docker connection")?,
         );
         Ok(())
     }
@@ -222,7 +213,7 @@ impl Pkger {
                 let location = self._pkger_dir.path().join("images");
                 for target in &self.simple_targets {
                     let target = BuildTarget::try_from(target.as_str())?;
-                    let image = FsImage::new(&location, &target)?;
+                    let image = Image::new(&location, &target)?;
                     targets.push((image,target));
                 }
                 self.spawn_simple_tasks(&targets[..], &mut tasks);
@@ -255,19 +246,19 @@ impl Pkger {
 
     fn spawn_simple_tasks(
         &self,
-        images: &[(FsImage, BuildTarget)],
+        images: &[(Image, BuildTarget)],
         tasks: &mut Vec<JoinHandle<JobResult>>,
     ) {
         for recipe in self.recipes.inner_ref().values() {
             for (image, target) in images {
                 debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
                 tasks.push(task::spawn(
-                    JobCtx::Build(BuildCtx::new(
+                    JobCtx::Build(Context::new(
                         recipe.clone(),
                         (*image).clone(),
                         self.docker.connect(),
                         ImageTarget::new(&image.name, &target, None::<&str>),
-                        self.config.clone(),
+                        self.config.output_dir.as_path(),
                         self.images_state.clone(),
                         self.is_running.clone(),
                         true,
@@ -308,12 +299,12 @@ impl Pkger {
 
                 if let Some(image) = images.images().get(&it.image) {
                     tasks.push(task::spawn(
-                        JobCtx::Build(BuildCtx::new(
+                        JobCtx::Build(Context::new(
                             recipe.clone(),
                             (*image).clone(),
                             self.docker.connect(),
                             it.clone(),
-                            self.config.clone(),
+                            self.config.output_dir.as_path(),
                             self.images_state.clone(),
                             self.is_running.clone(),
                             false,
@@ -349,218 +340,22 @@ impl Pkger {
             if let Some(images) = images {
                 images
             } else {
-                return Err(anyhow!("no user images to load"));
+                return Err(Error::msg("no user images to load"));
             }
         } else {
-            return Err(anyhow!("failed to get mutable reference to user images"));
+            return Err(Error::msg("failed to get mutable reference to user images"));
         };
-        if let Err(e) = images.load() {
-            Err(anyhow!("failed to load images - {}", e))
-        } else {
-            Ok(())
-        }
+
+        images.load().context("failed to load images")
     }
 
     fn load_recipes(&mut self) -> Result<()> {
         if let Some(recipes) = Arc::get_mut(&mut self.recipes) {
-            if let Err(e) = recipes.load() {
-                Err(anyhow!("failed to load recipes - {}", e))
-            } else {
-                Ok(())
-            }
+            recipes.load().context("failed to load recipes")
         } else {
-            Err(anyhow!(
-                "failed to load recipes - couldn't get mutable reference to recipes"
+            Err(Error::msg(
+                "failed to load recipes - couldn't get mutable reference to recipes",
             ))
         }
     }
-
-    fn gen_recipe(&self, opts: Box<GenRecipeOpts>) -> Result<()> {
-        let span = info_span!("gen-recipe");
-        let _enter = span.enter();
-        trace!(opts = ?opts);
-
-        let git = if let Some(url) = opts.git_url {
-            let mut git_src = Mapping::new();
-            git_src.insert(YamlValue::from("url"), YamlValue::from(url));
-            if let Some(branch) = opts.git_branch {
-                git_src.insert(YamlValue::from("branch"), YamlValue::from(branch));
-            }
-            Some(YamlValue::Mapping(git_src))
-        } else {
-            None
-        };
-
-        let mut env = Mapping::new();
-        if let Some(env_str) = opts.env {
-            for kv in env_str.split(',') {
-                let mut kv_split = kv.split('=');
-                if let Some(k) = kv_split.next() {
-                    if let Some(v) = kv_split.next() {
-                        if let Some(entry) = env.insert(YamlValue::from(k), YamlValue::from(v)) {
-                            warn!(key = k, old = ?entry.as_str(), new = v, "key already exists, overwriting")
-                        }
-                    } else {
-                        warn!(entry = ?kv, "env entry missing a `=`");
-                    }
-                } else {
-                    warn!(entry = kv, "env entry missing a key or `=`");
-                }
-            }
-        }
-
-        macro_rules! vec_as_deps {
-            ($it:expr) => {{
-                let vec = $it.into_iter().map(YamlValue::from).collect::<Vec<_>>();
-                if vec.is_empty() {
-                    None
-                } else {
-                    Some(YamlValue::Sequence(vec))
-                }
-            }};
-        }
-
-        let deb = DebRep {
-            priority: opts.priority,
-            installed_size: opts.installed_size,
-            built_using: opts.built_using,
-            essential: opts.essential,
-
-            pre_depends: vec_as_deps!(opts.pre_depends),
-            recommends: vec_as_deps!(opts.recommends),
-            suggests: vec_as_deps!(opts.suggests),
-            breaks: vec_as_deps!(opts.breaks),
-            replaces: vec_as_deps!(opts.replaces.clone()),
-            enchances: vec_as_deps!(opts.enchances),
-        };
-
-        let rpm = RpmRep {
-            obsoletes: vec_as_deps!(opts.obsoletes),
-            vendor: opts.vendor,
-            icon: opts.icon,
-            summary: opts.summary,
-            pre_script: None,
-            post_script: None,
-            preun_script: None,
-            postun_script: None,
-            config_noreplace: opts.config_noreplace,
-        };
-
-        let pkg = PkgRep {
-            install: opts.install_script,
-            backup: opts.backup_files,
-            replaces: vec_as_deps!(opts.replaces),
-            optdepends: opts.optdepends,
-        };
-
-        let metadata = MetadataRep {
-            name: opts.name,
-            version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
-            description: opts.description.unwrap_or_else(|| "missing".to_string()),
-            license: opts.license.unwrap_or_else(|| "missing".to_string()),
-            images: None,
-
-            maintainer: opts.maintainer,
-            url: opts.url,
-            arch: opts.arch,
-            source: opts.source,
-            git,
-            skip_default_deps: opts.skip_default_deps,
-            exclude: opts.exclude,
-            group: opts.group,
-            release: opts.release,
-            epoch: opts.epoch,
-
-            build_depends: vec_as_deps!(opts.build_depends),
-            depends: vec_as_deps!(opts.depends),
-            conflicts: vec_as_deps!(opts.conflicts),
-            provides: vec_as_deps!(opts.provides),
-            patches: vec_as_deps!(opts.patches),
-
-            deb: Some(deb),
-            rpm: Some(rpm),
-            pkg: Some(pkg),
-        };
-
-        let recipe = RecipeRep {
-            metadata,
-            env: if env.is_empty() { None } else { Some(env) },
-            configure: None,
-            build: Default::default(),
-            install: None,
-        };
-
-        let rendered = serde_yaml::to_string(&recipe)?;
-
-        if let Some(output_dir) = opts.output_dir {
-            fs::write(output_dir.as_path(), rendered)?;
-        } else {
-            println!("{}", rendered);
-        }
-        Ok(())
-    }
-}
-
-fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
-    if let Err(e) = ctrlc::set_handler(move || {
-        warn!("got ctrl-c");
-        is_running.store(false, Ordering::SeqCst);
-    }) {
-        error!(reason = %e, "failed to set ctrl-c handler");
-    };
-}
-
-fn create_pkger_dirs() -> Result<TempDir> {
-    let tempdir = TempDir::new("pkger")?;
-    let pkger_dir = tempdir.path();
-    let images_dir = pkger_dir.join("images");
-    if !images_dir.exists() {
-        fs::create_dir_all(&images_dir)?;
-    }
-
-    Ok(tempdir)
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let opts = PkgerOpts::from_args();
-
-    fmt::setup_tracing(&opts);
-
-    trace!(opts = ?opts);
-
-    // config
-    let config_path = opts.config.clone().unwrap_or_else(|| {
-        match dirs_next::home_dir() {
-            Some(home_dir) => {
-                home_dir.join(DEFAULT_CONFIG_FILE).to_string_lossy().to_string()
-            }
-            None => {
-                warn!(path = %DEFAULT_CONFIG_FILE, "current user has no home directory, using default");
-                DEFAULT_CONFIG_FILE.to_string()
-            }
-        }
-    });
-    trace!(config_path = %config_path);
-    let result = Config::from_path(&config_path);
-    if let Err(e) = &result {
-        error!(reason = %e, config_path = %config_path, "failed to read config file");
-        process::exit(1);
-    }
-    let config = result.unwrap();
-    trace!(config = ?config);
-
-    let mut pkger = match Pkger::new(config) {
-        Ok(pkger) => pkger,
-        Err(e) => {
-            error!(reason = %e, "failed to initialize pkger");
-            process::exit(1);
-        }
-    };
-
-    if let Err(e) = pkger.process_opts(opts).await {
-        error!(reason = %e, "execution failed");
-        process::exit(1);
-    }
-    Ok(())
 }

@@ -1,32 +1,32 @@
-use crate::recipe::Os;
-use crate::Result;
-use crate::{
-    job::{Ctx, OneShotCtx},
-    recipe::{BuildTarget, RecipeTarget},
-};
+use crate::docker::{image::ImageDetails, ContainerOptions, Docker};
+use crate::oneshot::{self, OneShotCtx};
+use crate::recipe::{BuildTarget, Os, RecipeTarget};
+use crate::{ErrContext, Error, Result};
 
-use moby::{image::ImageDetails, ContainerOptions, Docker};
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
 use tracing::{debug, info, info_span, trace, warn, Instrument};
+
+pub static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 //####################################################################################################
 
 #[derive(Debug, Default)]
 /// A wrapper type that contains multiple images found on the filesystem
-pub struct FsImages {
-    inner: HashMap<String, FsImage>,
+pub struct Images {
+    inner: HashMap<String, Image>,
     path: PathBuf,
 }
 
-impl FsImages {
+impl Images {
     /// Initializes an instance of Images without loading them from filesystem
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        FsImages {
+        Images {
             path: path.as_ref().to_path_buf(),
             ..Default::default()
         }
@@ -39,17 +39,17 @@ impl FsImages {
         let _enter = span.enter();
 
         if !self.path.is_dir() {
-            return Err(anyhow!(
+            return Err(Error::msg(format!(
                 "images path `{}` is not a directory",
                 self.path.display()
-            ));
+            )));
         }
 
         for entry in fs::read_dir(self.path.as_path())? {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
-                    match FsImage::load(entry.path()) {
+                    match Image::load(entry.path()) {
                         Ok(image) => {
                             trace!(image = ?image);
                             self.inner.insert(filename, image);
@@ -66,7 +66,7 @@ impl FsImages {
         Ok(())
     }
 
-    pub fn images(&self) -> &HashMap<String, FsImage> {
+    pub fn images(&self) -> &HashMap<String, Image> {
         &self.inner
     }
 }
@@ -75,13 +75,13 @@ impl FsImages {
 
 #[derive(Clone, Debug)]
 /// A representation of an image on the filesystem
-pub struct FsImage {
+pub struct Image {
     pub name: String,
     pub path: PathBuf,
 }
 
-impl FsImage {
-    pub fn new(images_dir: &Path, target: &BuildTarget) -> Result<FsImage> {
+impl Image {
+    pub fn new(images_dir: &Path, target: &BuildTarget) -> Result<Image> {
         let (image, name) = match &target {
             BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
             BuildTarget::Deb => ("debian:latest", "pkger-deb"),
@@ -95,19 +95,19 @@ impl FsImage {
         let dockerfile = format!("FROM {}", image);
         fs::write(image_dir.join("Dockerfile"), dockerfile.as_bytes())?;
 
-        FsImage::load(image_dir)
+        Image::load(image_dir)
     }
 
     /// Loads an `FsImage` from the given `path`
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<FsImage> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Image> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
-            return Err(anyhow!(
+            return Err(Error::msg(format!(
                 "Dockerfile missing from image `{}`",
                 path.display()
-            ));
+            )));
         }
-        Ok(FsImage {
+        Ok(Image {
             // we can unwrap here because we know the Dockerfile exists
             name: path.file_name().unwrap().to_string_lossy().to_string(),
             path,
@@ -202,7 +202,7 @@ impl Default for ImagesState {
     fn default() -> Self {
         ImagesState {
             images: HashMap::new(),
-            state_file: PathBuf::from(crate::DEFAULT_STATE_FILE),
+            state_file: PathBuf::from(DEFAULT_STATE_FILE),
         }
     }
 }
@@ -232,26 +232,13 @@ impl ImagesState {
         if !Path::new(&self.state_file).exists() {
             trace!(state_file = %self.state_file.display(), "doesn't exist, creating");
             fs::File::create(&self.state_file)
-                .map_err(|e| {
-                    anyhow!(
-                        "failed to create state file in {} - {}",
-                        self.state_file.display(),
-                        e
-                    )
-                })
+                .context("failed to save state file")
                 .map(|_| ())
         } else {
             trace!(state_file = %self.state_file.display(), "file exists, overwriting");
-            match serde_cbor::to_vec(&self) {
-                Ok(d) => fs::write(&self.state_file, d).map_err(|e| {
-                    anyhow!(
-                        "failed to save state file in {} - {}",
-                        self.state_file.display(),
-                        e
-                    )
-                }),
-                Err(e) => return Err(anyhow!("failed to serialize image state - {}", e)),
-            }
+            serde_cbor::to_vec(&self)
+                .context("failed to deserialize image state")
+                .and_then(|d| fs::write(&self.state_file, d).context("failed to save state file"))
         }
     }
 }
@@ -285,19 +272,18 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
         Err(e) => trace!(reason = %e),
     }
 
-    Err(anyhow!("failed to determine distribution"))
+    Err(Error::msg("failed to determine distribution"))
 }
 
 async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = OneShotCtx::new(
+    let out = oneshot::run(&mut OneShotCtx::new(
         docker,
         &ContainerOptions::builder(&image_id)
             .cmd(vec!["cat", "/etc/os-release"])
             .build(),
         true,
         true,
-    )
-    .run()
+    ))
     .await?;
 
     trace!(stderr = %String::from_utf8_lossy(&out.stderr));
@@ -319,10 +305,7 @@ async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
 
     let os_name = extract_key(&out, "ID");
     let version = extract_key(&out, "VERSION_ID");
-    Os::new(
-        os_name.ok_or_else(|| anyhow!("os name is missing"))?,
-        version,
-    )
+    Os::new(os_name.context("os name is missing")?, version)
 }
 
 fn extract_version(text: &str) -> Option<String> {
@@ -343,15 +326,14 @@ fn extract_version(text: &str) -> Option<String> {
 }
 
 async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = OneShotCtx::new(
+    let out = oneshot::run(&mut OneShotCtx::new(
         docker,
         &ContainerOptions::builder(&image_id)
             .cmd(vec!["cat", "/etc/redhat-release"])
             .build(),
         true,
         true,
-    )
-    .run()
+    ))
     .await?;
 
     trace!(stderr = %String::from_utf8_lossy(&out.stderr));
@@ -365,15 +347,14 @@ async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
 }
 
 async fn os_from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = OneShotCtx::new(
+    let out = oneshot::run(&mut OneShotCtx::new(
         docker,
         &ContainerOptions::builder(&image_id)
             .cmd(vec!["cat", "/etc/issue"])
             .build(),
         true,
         true,
-    )
-    .run()
+    ))
     .await?;
 
     trace!(stderr = %String::from_utf8_lossy(&out.stderr));
