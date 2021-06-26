@@ -4,7 +4,7 @@ use crate::job::{JobCtx, JobResult};
 use crate::opts::{BuildOpts, Commands, ListObject, Opts};
 use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
-use pkger_core::image::{Image, Images, ImagesState, DEFAULT_STATE_FILE};
+use pkger_core::image::{state::DEFAULT_STATE_FILE, Image, Images, ImagesState};
 use pkger_core::recipe::{BuildTarget, ImageTarget, Recipes};
 use pkger_core::{ErrContext, Error, Result};
 
