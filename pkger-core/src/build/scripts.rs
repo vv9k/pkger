@@ -1,6 +1,6 @@
-use crate::job::build::BuildContainerCtx;
+use crate::build::container::{checked_exec, BuildContainerCtx};
+use crate::container::ExecOpts;
 use crate::{Error, Result};
-use pkger_core::container::ExecOpts;
 
 use std::path::PathBuf;
 use tracing::{debug, info, info_span, trace, Instrument};
@@ -51,7 +51,7 @@ macro_rules! run_script {
                 }
 
                 debug!(command = %cmd.cmd, "running");
-                $ctx.checked_exec(&opts.clone().cmd(&cmd.cmd).build())
+                checked_exec(&$ctx, &opts.clone().cmd(&cmd.cmd).build())
                     .await?;
             }
 
@@ -61,28 +61,27 @@ macro_rules! run_script {
         .await?;
     }};
 }
-impl<'job> BuildContainerCtx<'job> {
-    pub async fn execute_scripts(&self) -> Result<()> {
-        let span = info_span!("exec-scripts");
-        async move {
-            if let Some(config_script) = &self.recipe.configure_script {
-                run_script!("configure", config_script, self.container_bld_dir, self);
-            } else {
-                info!("no configure steps to run");
-            }
 
-            let build_script = &self.recipe.build_script;
-            run_script!("build", build_script, self.container_bld_dir, self);
-
-            if let Some(install_script) = &self.recipe.install_script {
-                run_script!("install", install_script, self.container_out_dir, self);
-            } else {
-                info!("no install steps to run");
-            }
-
-            Ok(())
+pub async fn execute_scripts(ctx: &BuildContainerCtx<'_>) -> Result<()> {
+    let span = info_span!("exec-scripts");
+    async move {
+        if let Some(config_script) = &ctx.recipe.configure_script {
+            run_script!("configure", config_script, ctx.container_bld_dir, ctx);
+        } else {
+            info!("no configure steps to run");
         }
-        .instrument(span)
-        .await
+
+        let build_script = &ctx.recipe.build_script;
+        run_script!("build", build_script, ctx.container_bld_dir, ctx);
+
+        if let Some(install_script) = &ctx.recipe.install_script {
+            run_script!("install", install_script, ctx.container_out_dir, ctx);
+        } else {
+            info!("no install steps to run");
+        }
+
+        Ok(())
     }
+    .instrument(span)
+    .await
 }

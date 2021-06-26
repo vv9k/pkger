@@ -1,21 +1,8 @@
-mod build;
-mod oneshot;
-
-pub use build::BuildCtx;
-pub use oneshot::OneShotCtx;
-
+use pkger_core::build::{self, BuildCtx};
 use pkger_core::docker;
+use pkger_core::oneshot::{self, OneShotCtx};
 
-use async_trait::async_trait;
 use std::time::{Duration, Instant};
-
-#[async_trait]
-pub trait Ctx {
-    type JobResult;
-
-    fn id(&self) -> &str;
-    async fn run(&mut self) -> Self::JobResult;
-}
 
 pub enum JobResult {
     Success {
@@ -58,6 +45,7 @@ impl JobResult {
 
 pub enum JobCtx<'job> {
     Build(BuildCtx),
+    #[allow(dead_code)]
     OneShot(OneShotCtx<'job>),
 }
 
@@ -65,7 +53,7 @@ impl<'job> JobCtx<'job> {
     pub async fn run(self) -> JobResult {
         let start = Instant::now();
         match self {
-            JobCtx::Build(mut ctx) => match ctx.run().await {
+            JobCtx::Build(mut ctx) => match build::run(&mut ctx).await {
                 Err(e) => {
                     let duration = start.elapsed();
                     let reason = match e.downcast::<docker::Error>() {
@@ -84,7 +72,7 @@ impl<'job> JobCtx<'job> {
                 ),
             },
             JobCtx::OneShot(mut ctx) => {
-                if let Err(e) = ctx.run().await {
+                if let Err(e) = oneshot::run(&mut ctx).await {
                     let duration = start.elapsed();
                     let reason = match e.downcast::<docker::Error>() {
                         Ok(err) => match err {

@@ -1,12 +1,12 @@
 mod fmt;
-mod image;
 mod job;
 mod opts;
 
-use crate::image::{FsImage, FsImages, ImagesState};
-use crate::job::{BuildCtx, JobCtx, JobResult};
+use crate::job::{JobCtx, JobResult};
 use crate::opts::{BuildOpts, GenRecipeOpts, ListObject, PkgerCmd, PkgerOpts};
+use pkger_core::build::BuildCtx;
 use pkger_core::docker::DockerConnectionPool;
+use pkger_core::image::{FsImage, FsImages, ImagesState, DEFAULT_STATE_FILE};
 use pkger_core::recipe::{
     BuildTarget, DebRep, ImageTarget, MetadataRep, PkgRep, RecipeRep, Recipes, RpmRep,
 };
@@ -27,7 +27,6 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
 static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
-static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -261,7 +260,7 @@ impl Pkger {
                         (*image).clone(),
                         self.docker.connect(),
                         ImageTarget::new(&image.name, &target, None::<&str>),
-                        self.config.clone(),
+                        self.config.output_dir.as_path(),
                         self.images_state.clone(),
                         self.is_running.clone(),
                         true,
@@ -307,7 +306,7 @@ impl Pkger {
                             (*image).clone(),
                             self.docker.connect(),
                             it.clone(),
-                            self.config.clone(),
+                            self.config.output_dir.as_path(),
                             self.images_state.clone(),
                             self.is_running.clone(),
                             false,

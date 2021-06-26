@@ -30,17 +30,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15af2628f6890fe2609a3b91bef4c83450512802e59489f9c1cb1fa5df064a61"
 
 [[package]]
-name = "async-trait"
-version = "0.1.50"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b98e84bbb4cbcdd97da190ba0c58a1bb0de2c1fdf67d159e192ed766aeca722"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1103,7 +1092,6 @@ dependencies = [
 name = "pkger"
 version = "0.4.0"
 dependencies = [
- "async-trait",
  "chrono",
  "clap",
  "colored",
@@ -1113,7 +1101,6 @@ dependencies = [
  "pkger-core",
  "pretty_assertions",
  "serde",
- "serde_cbor",
  "serde_yaml",
  "tempdir",
  "tokio 1.7.1",
@@ -1135,8 +1122,10 @@ dependencies = [
  "pkgbuild",
  "rpmspec",
  "serde",
+ "serde_cbor",
  "serde_yaml",
  "tar",
+ "tempdir",
  "tracing",
 ]
 

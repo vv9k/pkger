@@ -1,14 +1,18 @@
-use crate::job::{Ctx, OneShotCtx};
+use crate::docker::{image::ImageDetails, ContainerOptions, Docker};
+use crate::oneshot::{self, OneShotCtx};
+use crate::recipe::{BuildTarget, Os, RecipeTarget};
 use crate::{Context, Error, Result};
-use pkger_core::docker::{image::ImageDetails, ContainerOptions, Docker};
-use pkger_core::recipe::{BuildTarget, Os, RecipeTarget};
-use serde::{Deserialize, Serialize};
+
 use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
 use tracing::{debug, info, info_span, trace, warn, Instrument};
+
+pub static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 //####################################################################################################
 
@@ -198,7 +202,7 @@ impl Default for ImagesState {
     fn default() -> Self {
         ImagesState {
             images: HashMap::new(),
-            state_file: PathBuf::from(crate::DEFAULT_STATE_FILE),
+            state_file: PathBuf::from(DEFAULT_STATE_FILE),
         }
     }
 }
@@ -272,15 +276,14 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
 }
 
 async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = OneShotCtx::new(
+    let out = oneshot::run(&mut OneShotCtx::new(
         docker,
         &ContainerOptions::builder(&image_id)
             .cmd(vec!["cat", "/etc/os-release"])
             .build(),
         true,
         true,
-    )
-    .run()
+    ))
     .await?;
 
     trace!(stderr = %String::from_utf8_lossy(&out.stderr));
@@ -323,15 +326,14 @@ fn extract_version(text: &str) -> Option<String> {
 }
 
 async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = OneShotCtx::new(
+    let out = oneshot::run(&mut OneShotCtx::new(
         docker,
         &ContainerOptions::builder(&image_id)
             .cmd(vec!["cat", "/etc/redhat-release"])
             .build(),
         true,
         true,
-    )
-    .run()
+    ))
     .await?;
 
     trace!(stderr = %String::from_utf8_lossy(&out.stderr));
@@ -345,15 +347,14 @@ async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
 }
 
 async fn os_from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = OneShotCtx::new(
+    let out = oneshot::run(&mut OneShotCtx::new(
         docker,
         &ContainerOptions::builder(&image_id)
             .cmd(vec!["cat", "/etc/issue"])
             .build(),
         true,
         true,
-    )
-    .run()
+    ))
     .await?;
 
     trace!(stderr = %String::from_utf8_lossy(&out.stderr));
