@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use serde_yaml::{Mapping, Value as YamlValue};
 use std::convert::TryFrom;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GitSource {
     url: String,
     // defaults to master

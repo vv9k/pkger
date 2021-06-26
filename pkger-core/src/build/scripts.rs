@@ -36,8 +36,8 @@ macro_rules! run_script {
             for cmd in &$script.steps {
                 if let Some(images) = &cmd.images {
                     trace!(images = ?images, "only execute on");
-                    if !images.contains(&$ctx.image.name) {
-                        trace!(image = %$ctx.image.name, "not found in images");
+                    if !images.contains(&$ctx.target.image().to_owned()) {
+                        trace!(image = %$ctx.target.image(), "not found in images");
                         if !cmd.has_target_specified() {
                             debug!(command = %cmd.cmd, "skipping, excluded by image filter");
                             continue;

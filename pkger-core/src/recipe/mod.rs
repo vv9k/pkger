@@ -54,28 +54,50 @@ impl RecipeTarget {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Recipes {
-    inner: HashMap<String, Recipe>,
+pub struct Loader {
     path: PathBuf,
 }
 
-impl Recipes {
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        Recipes {
-            path: path.as_ref().to_path_buf(),
-            ..Default::default()
+impl Loader {
+    /// Initializes a recipe loader without loading any recipes. The provided `path` must be a directory
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+        if !path.is_dir() {
+            return Err(Error::msg("recipes path is not a directory"));
         }
+
+        Ok(Loader {
+            path: path.to_path_buf(),
+        })
     }
 
-    pub fn load(&mut self) -> Result<()> {
+    pub fn load(&self, recipe: &str) -> Result<Recipe> {
+        let path = self.path.join(recipe).join("recipe.yml");
+        RecipeRep::load(&path).and_then(|rep| Recipe::new(rep, path))
+    }
+
+    pub fn list(&self) -> Vec<String> {
+        fs::read_dir(&self.path)
+            .map(|entries| {
+                entries
+                    .filter_map(|entry| {
+                        entry
+                            .ok()
+                            .filter(|e| e.file_type().map(|e| e.is_dir()).unwrap_or(false))
+                            .map(|e| e.file_name().to_string_lossy().to_string())
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Loads all recipes in the underlying directory
+    pub fn load_all(&mut self) -> Result<HashMap<String, Recipe>> {
         let path = self.path.as_path();
 
         let span = info_span!("load-recipes", path = %path.display());
         let _enter = span.enter();
-
-        if !path.is_dir() {
-            return Err(anyhow!("recipes path is not a directory"));
-        }
+        let mut recipes = HashMap::new();
 
         for entry in fs::read_dir(path)? {
             match entry {
@@ -86,7 +108,7 @@ impl Recipes {
                         Ok(result) => {
                             let recipe = result?;
                             trace!(recipe = ?recipe);
-                            self.inner.insert(filename, recipe);
+                            recipes.insert(filename, recipe);
                         }
                         Err(e) => warn!(recipe = %filename, reason = %e, "failed to read recipe"),
                     }
@@ -95,19 +117,11 @@ impl Recipes {
             }
         }
 
-        Ok(())
-    }
-
-    pub fn inner_ref(&self) -> &HashMap<String, Recipe> {
-        &self.inner
-    }
-
-    pub fn inner_ref_mut(&mut self) -> &mut HashMap<String, Recipe> {
-        &mut self.inner
+        Ok(recipes)
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Recipe {
     pub metadata: Metadata,
     pub env: Env,
@@ -335,7 +349,7 @@ impl RecipeRep {
         Ok(serde_yaml::from_slice(&data)?)
     }
 
-    pub fn read_from<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         Self::from_yaml_bytes(&fs::read(&path)?)
     }
 }
@@ -346,13 +360,13 @@ impl TryFrom<DirEntry> for RecipeRep {
     fn try_from(entry: DirEntry) -> Result<Self> {
         let mut path = entry.path();
         path.push(DEFAULT_RECIPE_FILE);
-        RecipeRep::read_from(path)
+        RecipeRep::load(path)
     }
 }
 
 macro_rules! impl_step_rep {
     ($ty:ident, $ty_rep:ident) => {
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, PartialEq)]
         pub struct $ty {
             pub steps: Vec<Command>,
             pub working_dir: Option<PathBuf>,

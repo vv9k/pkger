@@ -1,6 +1,5 @@
 use pkger_core::build::{self, Context};
 use pkger_core::docker;
-use pkger_core::oneshot::{self, OneShotCtx};
 
 use std::time::{Duration, Instant};
 
@@ -43,13 +42,11 @@ impl JobResult {
     }
 }
 
-pub enum JobCtx<'job> {
+pub enum JobCtx {
     Build(Context),
-    #[allow(dead_code)]
-    OneShot(OneShotCtx<'job>),
 }
 
-impl<'job> JobCtx<'job> {
+impl JobCtx {
     pub async fn run(self) -> JobResult {
         let start = Instant::now();
         match self {
@@ -61,7 +58,7 @@ impl<'job> JobCtx<'job> {
                             docker::Error::Fault { code: _, message } => message,
                             e => e.to_string(),
                         },
-                        Err(e) => e.to_string(),
+                        Err(e) => format!("{:?}", e),
                     };
                     JobResult::failure(ctx.id(), duration, reason)
                 }
@@ -71,21 +68,6 @@ impl<'job> JobCtx<'job> {
                     output.to_string_lossy().to_string(),
                 ),
             },
-            JobCtx::OneShot(mut ctx) => {
-                if let Err(e) = oneshot::run(&mut ctx).await {
-                    let duration = start.elapsed();
-                    let reason = match e.downcast::<docker::Error>() {
-                        Ok(err) => match err {
-                            docker::Error::Fault { code: _, message } => message,
-                            e => e.to_string(),
-                        },
-                        Err(e) => e.to_string(),
-                    };
-                    JobResult::failure(ctx.id(), duration, reason)
-                } else {
-                    JobResult::success(ctx.id(), start.elapsed(), "".to_string())
-                }
-            }
         }
     }
 }

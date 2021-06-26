@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::convert::{AsRef, TryFrom};
 
-#[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 pub enum BuildTarget {
     Rpm,
     Deb,

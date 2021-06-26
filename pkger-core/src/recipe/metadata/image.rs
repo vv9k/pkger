@@ -13,14 +13,14 @@ pub struct ImageTarget {
 }
 
 impl ImageTarget {
-    pub fn new<I, O>(image: I, target: &BuildTarget, os: Option<O>) -> Self
+    pub fn new<I, O>(image: I, build_target: BuildTarget, os: Option<O>) -> Self
     where
         I: Into<String>,
         O: AsRef<str>,
     {
         Self {
             image: image.into(),
-            build_target: target.clone(),
+            build_target,
             os: os.map(|os| Os::new(os, None::<&str>).unwrap()),
         }
     }
