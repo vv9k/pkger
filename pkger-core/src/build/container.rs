@@ -1,7 +1,7 @@
 use crate::build;
 use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::docker::{ContainerOptions, Docker, ExecContainerOptions};
-use crate::image::{FsImage, ImageState};
+use crate::image::{Image, ImageState};
 use crate::recipe::{Recipe, RecipeTarget};
 use crate::{Error, Result};
 
@@ -58,7 +58,7 @@ pub struct Context<'job> {
     pub container: DockerContainer<'job>,
     pub opts: ContainerOptions,
     pub recipe: &'job Recipe,
-    pub image: &'job FsImage,
+    pub image: &'job Image,
     pub target: &'job RecipeTarget,
     pub container_out_dir: &'job Path,
     pub container_bld_dir: &'job Path,
@@ -72,7 +72,7 @@ impl<'job> Context<'job> {
         docker: &'job Docker,
         opts: ContainerOptions,
         recipe: &'job Recipe,
-        image: &'job FsImage,
+        image: &'job Image,
         is_running: Arc<AtomicBool>,
         target: &'job RecipeTarget,
         container_out_dir: &'job Path,

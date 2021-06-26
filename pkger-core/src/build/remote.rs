@@ -46,11 +46,7 @@ pub async fn get_http_source(ctx: &Context<'_>, source: &str, dest: &Path) -> Re
     .await
 }
 
-pub async fn copy_files_into(
-    ctx: &Context<'_>,
-    files: &[&Path],
-    dest: &Path,
-) -> Result<()> {
+pub async fn copy_files_into(ctx: &Context<'_>, files: &[&Path], dest: &Path) -> Result<()> {
     let span = info_span!("copy-files-into");
     let mut entries = Vec::new();
     for f in files {

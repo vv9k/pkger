@@ -18,15 +18,15 @@ pub static DEFAULT_STATE_FILE: &str = ".pkger.state";
 
 #[derive(Debug, Default)]
 /// A wrapper type that contains multiple images found on the filesystem
-pub struct FsImages {
-    inner: HashMap<String, FsImage>,
+pub struct Images {
+    inner: HashMap<String, Image>,
     path: PathBuf,
 }
 
-impl FsImages {
+impl Images {
     /// Initializes an instance of Images without loading them from filesystem
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        FsImages {
+        Images {
             path: path.as_ref().to_path_buf(),
             ..Default::default()
         }
@@ -49,7 +49,7 @@ impl FsImages {
             match entry {
                 Ok(entry) => {
                     let filename = entry.file_name().to_string_lossy().to_string();
-                    match FsImage::load(entry.path()) {
+                    match Image::load(entry.path()) {
                         Ok(image) => {
                             trace!(image = ?image);
                             self.inner.insert(filename, image);
@@ -66,7 +66,7 @@ impl FsImages {
         Ok(())
     }
 
-    pub fn images(&self) -> &HashMap<String, FsImage> {
+    pub fn images(&self) -> &HashMap<String, Image> {
         &self.inner
     }
 }
@@ -75,13 +75,13 @@ impl FsImages {
 
 #[derive(Clone, Debug)]
 /// A representation of an image on the filesystem
-pub struct FsImage {
+pub struct Image {
     pub name: String,
     pub path: PathBuf,
 }
 
-impl FsImage {
-    pub fn new(images_dir: &Path, target: &BuildTarget) -> Result<FsImage> {
+impl Image {
+    pub fn new(images_dir: &Path, target: &BuildTarget) -> Result<Image> {
         let (image, name) = match &target {
             BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
             BuildTarget::Deb => ("debian:latest", "pkger-deb"),
@@ -95,11 +95,11 @@ impl FsImage {
         let dockerfile = format!("FROM {}", image);
         fs::write(image_dir.join("Dockerfile"), dockerfile.as_bytes())?;
 
-        FsImage::load(image_dir)
+        Image::load(image_dir)
     }
 
     /// Loads an `FsImage` from the given `path`
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<FsImage> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Image> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
             return Err(Error::msg(format!(
@@ -107,7 +107,7 @@ impl FsImage {
                 path.display()
             )));
         }
-        Ok(FsImage {
+        Ok(Image {
             // we can unwrap here because we know the Dockerfile exists
             name: path.file_name().unwrap().to_string_lossy().to_string(),
             path,

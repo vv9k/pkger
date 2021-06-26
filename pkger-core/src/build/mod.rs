@@ -7,7 +7,7 @@ pub mod scripts;
 
 use crate::container::ExecOpts;
 use crate::docker::Docker;
-use crate::image::{FsImage, ImageState, ImagesState};
+use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::{ErrContext, Error, Result};
 
@@ -32,7 +32,7 @@ macro_rules! cleanup {
 pub struct Context {
     id: String,
     recipe: Recipe,
-    image: FsImage,
+    image: Image,
     docker: Docker,
     container_bld_dir: PathBuf,
     container_out_dir: PathBuf,
@@ -125,7 +125,7 @@ impl Context {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         recipe: Recipe,
-        image: FsImage,
+        image: Image,
         docker: Docker,
         target: ImageTarget,
         out_dir: &Path,
