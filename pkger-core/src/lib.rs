@@ -9,4 +9,4 @@ pub mod image;
 pub mod oneshot;
 pub mod recipe;
 
-pub use anyhow::{anyhow, Context, Error, Result};
+pub use anyhow::{anyhow, Context as ErrContext, Error, Result};

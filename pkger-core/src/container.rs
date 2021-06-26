@@ -1,5 +1,5 @@
 use crate::archive::unpack_tarball;
-use crate::{Context, Result};
+use crate::{ErrContext, Result};
 
 use futures::{StreamExt, TryStreamExt};
 use moby::{

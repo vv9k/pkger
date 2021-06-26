@@ -1,4 +1,4 @@
-use super::BuildCtx;
+use crate::build;
 use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::docker::{ContainerOptions, Docker, ExecContainerOptions};
 use crate::image::{FsImage, ImageState};
@@ -13,9 +13,9 @@ use tracing::{info_span, trace, Instrument};
 #[allow(clippy::needless_lifetimes)] // it actually doesn't compile without them?
 /// Creates and starts a container from the given ImageState
 pub async fn spawn<'ctx>(
-    ctx: &'ctx BuildCtx,
+    ctx: &'ctx build::Context,
     image_state: &ImageState,
-) -> Result<BuildContainerCtx<'ctx>> {
+) -> Result<Context<'ctx>> {
     let span = info_span!("init-container-ctx");
     async move {
         trace!(image = ?image_state);
@@ -35,7 +35,7 @@ pub async fn spawn<'ctx>(
             .working_dir(ctx.container_bld_dir.to_string_lossy().to_string().as_str())
             .build();
 
-        let mut ctx = BuildContainerCtx::new(
+        let mut ctx = Context::new(
             &ctx.docker,
             opts,
             &ctx.recipe,
@@ -54,7 +54,7 @@ pub async fn spawn<'ctx>(
     .await
 }
 
-pub struct BuildContainerCtx<'job> {
+pub struct Context<'job> {
     pub container: DockerContainer<'job>,
     pub opts: ContainerOptions,
     pub recipe: &'job Recipe,
@@ -66,7 +66,7 @@ pub struct BuildContainerCtx<'job> {
     pub simple: bool,
 }
 
-impl<'job> BuildContainerCtx<'job> {
+impl<'job> Context<'job> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         docker: &'job Docker,
@@ -79,8 +79,8 @@ impl<'job> BuildContainerCtx<'job> {
         container_bld_dir: &'job Path,
         container_tmp_dir: &'job Path,
         simple: bool,
-    ) -> BuildContainerCtx<'job> {
-        BuildContainerCtx {
+    ) -> Context<'job> {
+        Context {
             container: DockerContainer::new(docker, Some(is_running)),
             opts,
             recipe,
@@ -103,7 +103,7 @@ impl<'job> BuildContainerCtx<'job> {
 }
 
 pub async fn checked_exec(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &Context<'_>,
     opts: &ExecContainerOptions,
 ) -> Result<Output<String>> {
     let span = info_span!("checked-exec");
@@ -123,7 +123,7 @@ pub async fn checked_exec(
     .await
 }
 
-pub async fn create_dirs<P: AsRef<Path>>(ctx: &BuildContainerCtx<'_>, dirs: &[P]) -> Result<()> {
+pub async fn create_dirs<P: AsRef<Path>>(ctx: &Context<'_>, dirs: &[P]) -> Result<()> {
     let span = info_span!("create-dirs");
     async move {
         let dirs_joined =

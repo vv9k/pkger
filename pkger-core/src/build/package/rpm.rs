@@ -1,8 +1,8 @@
 use crate::archive::create_tarball;
-use crate::build::container::{checked_exec, create_dirs, BuildContainerCtx};
+use crate::build::container::{checked_exec, create_dirs, Context};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
-use crate::{Context, Result};
+use crate::{ErrContext, Result};
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -10,7 +10,7 @@ use tracing::{debug, info, info_span, trace, Instrument};
 
 /// Creates a final RPM package and saves it to `output_dir`
 pub(crate) async fn build_rpm(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {

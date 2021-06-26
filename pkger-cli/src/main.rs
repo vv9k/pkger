@@ -3,14 +3,14 @@ mod job;
 mod opts;
 
 use crate::job::{JobCtx, JobResult};
-use crate::opts::{BuildOpts, GenRecipeOpts, ListObject, PkgerCmd, PkgerOpts};
-use pkger_core::build::BuildCtx;
+use crate::opts::{BuildOpts, GenRecipeOpts, ListObject, Commands, Opts};
+use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::image::{FsImage, FsImages, ImagesState, DEFAULT_STATE_FILE};
 use pkger_core::recipe::{
     BuildTarget, DebRep, ImageTarget, MetadataRep, PkgRep, RecipeRep, Recipes, RpmRep,
 };
-use pkger_core::{Context, Error, Result};
+use pkger_core::{ErrContext, Error, Result};
 
 use serde::Deserialize;
 use serde_yaml::{Mapping, Value as YamlValue};
@@ -29,20 +29,20 @@ use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 
 #[derive(Deserialize, Debug)]
-pub struct Config {
+pub struct Configuration {
     recipes_dir: PathBuf,
     output_dir: PathBuf,
     images_dir: Option<PathBuf>,
     docker: Option<String>,
 }
-impl Config {
+impl Configuration {
     fn from_path<P: AsRef<Path>>(val: P) -> Result<Self> {
         Ok(serde_yaml::from_slice(&fs::read(val.as_ref())?)?)
     }
 }
 
-struct Pkger {
-    config: Arc<Config>,
+struct Application {
+    config: Arc<Configuration>,
     user_images: Arc<Option<FsImages>>,
     recipes: Arc<Recipes>,
     docker: Arc<DockerConnectionPool>,
@@ -53,12 +53,12 @@ struct Pkger {
     _pkger_dir: TempDir,
 }
 
-impl Pkger {
-    fn new(config: Config) -> Result<Self> {
+impl Application {
+    fn new(config: Configuration) -> Result<Self> {
         let _pkger_dir = create_pkger_dirs()?;
         let user_images = config.images_dir.as_ref().map(|path| FsImages::new(&path));
         let recipes = Recipes::new(&config.recipes_dir);
-        let pkger = Pkger {
+        let pkger = Application {
             config: Arc::new(config),
             user_images: Arc::new(user_images),
             images_filter: Arc::new(vec![]),
@@ -75,9 +75,9 @@ impl Pkger {
         set_ctrlc_handler(is_running);
         Ok(pkger)
     }
-    async fn process_opts(&mut self, opts: PkgerOpts) -> Result<()> {
+    async fn process_opts(&mut self, opts: Opts) -> Result<()> {
         match opts.command {
-            PkgerCmd::Build(build_opts) => {
+            Commands::Build(build_opts) => {
                 self.load_user_images()?;
                 self.load_recipes()?;
                 self.process_build_opts(&build_opts)?;
@@ -85,8 +85,8 @@ impl Pkger {
                 self.save_images_state();
                 Ok(())
             }
-            PkgerCmd::GenRecipe(gen_recipe_opts) => self.gen_recipe(gen_recipe_opts),
-            PkgerCmd::List(list_opts) => match list_opts.object {
+            Commands::GenRecipe(gen_recipe_opts) => self.gen_recipe(gen_recipe_opts),
+            Commands::List(list_opts) => match list_opts.object {
                 ListObject::Images => {
                     self.load_user_images()?;
                     self.list_images();
@@ -255,7 +255,7 @@ impl Pkger {
             for (image, target) in images {
                 debug!(image = %image.name, recipe = %recipe.metadata.name, "spawning task");
                 tasks.push(task::spawn(
-                    JobCtx::Build(BuildCtx::new(
+                    JobCtx::Build(Context::new(
                         recipe.clone(),
                         (*image).clone(),
                         self.docker.connect(),
@@ -301,7 +301,7 @@ impl Pkger {
 
                 if let Some(image) = images.images().get(&it.image) {
                     tasks.push(task::spawn(
-                        JobCtx::Build(BuildCtx::new(
+                        JobCtx::Build(Context::new(
                             recipe.clone(),
                             (*image).clone(),
                             self.docker.connect(),
@@ -509,7 +509,7 @@ fn create_pkger_dirs() -> Result<TempDir> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let opts = PkgerOpts::from_args();
+    let opts = Opts::from_args();
 
     fmt::setup_tracing(&opts);
 
@@ -528,7 +528,7 @@ async fn main() -> Result<()> {
         }
     });
     trace!(config_path = %config_path);
-    let result = Config::from_path(&config_path);
+    let result = Configuration::from_path(&config_path);
     if let Err(e) = &result {
         error!(reason = %e, config_path = %config_path, "failed to read config file");
         process::exit(1);
@@ -536,7 +536,7 @@ async fn main() -> Result<()> {
     let config = result.unwrap();
     trace!(config = ?config);
 
-    let mut pkger = match Pkger::new(config) {
+    let mut pkger = match Application::new(config) {
         Ok(pkger) => pkger,
         Err(e) => {
             error!(reason = %e, "failed to initialize pkger");

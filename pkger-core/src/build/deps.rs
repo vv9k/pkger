@@ -1,10 +1,10 @@
-use crate::build::BuildContainerCtx;
+use crate::build::container::Context;
 use crate::image::ImageState;
 use crate::recipe::{BuildTarget, Recipe};
 
 use std::collections::HashSet;
 
-pub fn recipe_deps<'ctx>(ctx: &BuildContainerCtx<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
+pub fn recipe_deps<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
     if let Some(deps) = &ctx.recipe.metadata.build_depends {
         deps.resolve_names(&state.image)
     } else {

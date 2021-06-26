@@ -1,4 +1,4 @@
-use crate::build::{deps, BuildContainerCtx, BuildCtx};
+use crate::build::{deps, Context, container};
 use crate::docker::{image::ImageBuildChunk, BuildOptions, Docker};
 use crate::image::{FsImage, ImageState, ImagesState};
 use crate::recipe::RecipeTarget;
@@ -15,7 +15,7 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 pub static CACHED: &str = "cached";
 pub static LATEST: &str = "latest";
 
-impl BuildCtx {
+impl Context {
     pub async fn image_build(&mut self) -> Result<ImageState> {
         let span = info_span!("image-build");
         let cloned_span = span.clone();
@@ -103,7 +103,7 @@ impl BuildCtx {
 }
 
 pub async fn cache_image(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &container::Context<'_>,
     docker: &Docker,
     state: &ImageState,
     deps: &HashSet<&str>,

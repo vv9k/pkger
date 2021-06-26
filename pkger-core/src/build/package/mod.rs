@@ -3,7 +3,7 @@ pub mod gzip;
 pub mod pkg;
 pub mod rpm;
 
-use crate::build::BuildContainerCtx;
+use crate::build::container::Context;
 use crate::image::ImageState;
 use crate::recipe::BuildTarget;
 use crate::Result;
@@ -11,7 +11,7 @@ use crate::Result;
 use std::path::{Path, PathBuf};
 
 pub async fn create_package(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {

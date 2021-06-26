@@ -1,4 +1,4 @@
-use pkger_core::build::{self, BuildCtx};
+use pkger_core::build::{self, Context};
 use pkger_core::docker;
 use pkger_core::oneshot::{self, OneShotCtx};
 
@@ -44,7 +44,7 @@ impl JobResult {
 }
 
 pub enum JobCtx<'job> {
-    Build(BuildCtx),
+    Build(Context),
     #[allow(dead_code)]
     OneShot(OneShotCtx<'job>),
 }

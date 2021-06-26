@@ -1,7 +1,7 @@
 use crate::docker::{image::ImageDetails, ContainerOptions, Docker};
 use crate::oneshot::{self, OneShotCtx};
 use crate::recipe::{BuildTarget, Os, RecipeTarget};
-use crate::{Context, Error, Result};
+use crate::{ErrContext, Error, Result};
 
 use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;

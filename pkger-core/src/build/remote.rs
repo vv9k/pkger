@@ -1,5 +1,5 @@
 use crate::archive::create_tarball;
-use crate::build::{container::checked_exec, BuildContainerCtx};
+use crate::build::container::{checked_exec, Context};
 use crate::container::ExecOpts;
 use crate::recipe::GitSource;
 use crate::Result;
@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, Instrument};
 
-pub async fn clone_git_to_bld_dir(ctx: &BuildContainerCtx<'_>, repo: &GitSource) -> Result<()> {
+pub async fn clone_git_to_bld_dir(ctx: &Context<'_>, repo: &GitSource) -> Result<()> {
     let span = info_span!("clone-git");
     async move {
                 info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %ctx.container_bld_dir.display(), "cloning git source repository to build directory");
@@ -28,7 +28,7 @@ pub async fn clone_git_to_bld_dir(ctx: &BuildContainerCtx<'_>, repo: &GitSource)
         .await
 }
 
-pub async fn get_http_source(ctx: &BuildContainerCtx<'_>, source: &str, dest: &Path) -> Result<()> {
+pub async fn get_http_source(ctx: &Context<'_>, source: &str, dest: &Path) -> Result<()> {
     let span = info_span!("download-http");
     async move {
         info!(url = %source, destination = %dest.display(), "fetching");
@@ -47,7 +47,7 @@ pub async fn get_http_source(ctx: &BuildContainerCtx<'_>, source: &str, dest: &P
 }
 
 pub async fn copy_files_into(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &Context<'_>,
     files: &[&Path],
     dest: &Path,
 ) -> Result<()> {
@@ -73,7 +73,7 @@ pub async fn copy_files_into(
     Ok(())
 }
 
-pub async fn fetch_source(ctx: &BuildContainerCtx<'_>) -> Result<()> {
+pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
     let span = info_span!("fetch");
     async move {
         if let Some(repo) = &ctx.recipe.metadata.git {

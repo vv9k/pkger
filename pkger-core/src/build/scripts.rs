@@ -1,4 +1,4 @@
-use crate::build::container::{checked_exec, BuildContainerCtx};
+use crate::build::container::{checked_exec, Context};
 use crate::container::ExecOpts;
 use crate::{Error, Result};
 
@@ -62,7 +62,7 @@ macro_rules! run_script {
     }};
 }
 
-pub async fn execute_scripts(ctx: &BuildContainerCtx<'_>) -> Result<()> {
+pub async fn execute_scripts(ctx: &Context<'_>) -> Result<()> {
     let span = info_span!("exec-scripts");
     async move {
         if let Some(config_script) = &ctx.recipe.configure_script {

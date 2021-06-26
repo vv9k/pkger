@@ -3,7 +3,7 @@
 pub use flate2;
 pub use tar;
 
-use crate::{Context, Result};
+use crate::{ErrContext, Result};
 
 use flate2::write::GzEncoder;
 use flate2::Compression;

@@ -9,8 +9,7 @@ use crate::container::ExecOpts;
 use crate::docker::Docker;
 use crate::image::{FsImage, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
-use crate::{Context, Error, Result};
-use container::BuildContainerCtx;
+use crate::{ErrContext, Error, Result};
 
 use std::fs;
 use std::path::Path;
@@ -30,7 +29,7 @@ macro_rules! cleanup {
 
 #[derive(Debug)]
 /// Groups all data and functionality necessary to create an artifact
-pub struct BuildCtx {
+pub struct Context {
     id: String,
     recipe: Recipe,
     image: FsImage,
@@ -45,7 +44,7 @@ pub struct BuildCtx {
     simple: bool,
 }
 
-pub async fn run(ctx: &mut BuildCtx) -> Result<PathBuf> {
+pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
     let span = info_span!("build", recipe = %ctx.recipe.metadata.name, image = %ctx.image.name, target = %ctx.target.build_target().as_ref());
     async move {
         info!(id = %ctx.id, "running job" );
@@ -122,7 +121,7 @@ pub async fn run(ctx: &mut BuildCtx) -> Result<PathBuf> {
     .await
 }
 
-impl BuildCtx {
+impl Context {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         recipe: Recipe,
@@ -155,7 +154,7 @@ impl BuildCtx {
 
         let target = RecipeTarget::new(recipe.metadata.name.clone(), target);
 
-        BuildCtx {
+        Context {
             id,
             recipe,
             image,
@@ -195,7 +194,7 @@ impl BuildCtx {
     }
 }
 
-pub async fn exclude_paths(ctx: &BuildContainerCtx<'_>) -> Result<()> {
+pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
     let span = info_span!("exclude-paths");
     async move {
         if let Some(exclude) = &ctx.recipe.metadata.exclude {
@@ -231,7 +230,7 @@ pub async fn exclude_paths(ctx: &BuildContainerCtx<'_>) -> Result<()> {
 }
 
 pub async fn apply_patches(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &container::Context<'_>,
     patches: Vec<(Patch, PathBuf)>,
 ) -> Result<()> {
     let span = info_span!("apply-patches");
@@ -263,7 +262,7 @@ pub async fn apply_patches(
 }
 
 pub async fn collect_patches(
-    ctx: &BuildContainerCtx<'_>,
+    ctx: &container::Context<'_>,
     patches: &Patches,
 ) -> Result<Vec<(Patch, PathBuf)>> {
     let span = info_span!("collect-patches");

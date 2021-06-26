@@ -10,7 +10,7 @@ use std::str::FromStr;
     author = "Wojciech Kępka <wojciech@wkepka.dev>",
     about = "Creates RPM, DEB and other packages using Docker"
 )]
-pub struct PkgerOpts {
+pub struct Opts {
     #[clap(short, long)]
     /// Surpress all output (except for errors).
     pub quiet: bool,
@@ -32,17 +32,17 @@ pub struct PkgerOpts {
 
     #[clap(subcommand)]
     /// Subcommand to run
-    pub command: PkgerCmd,
+    pub command: Commands,
 }
 
-impl PkgerOpts {
+impl Opts {
     pub fn from_args() -> Self {
         Clap::parse()
     }
 }
 
 #[derive(Debug, Subcommand)]
-pub enum PkgerCmd {
+pub enum Commands {
     /// Runs a build creating specified packages on target platforms.
     Build(BuildOpts),
     /// Creates a directory with a recipe generated from provided arguments
