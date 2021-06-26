@@ -1,11 +1,8 @@
 pub mod container;
-pub mod deb;
 pub mod deps;
-pub mod gzip;
 pub mod image;
-pub mod pkg;
+pub mod package;
 pub mod remote;
-pub mod rpm;
 pub mod scripts;
 
 use crate::container::ExecOpts;
@@ -114,7 +111,8 @@ pub async fn run(ctx: &mut BuildCtx) -> Result<PathBuf> {
 
         cleanup!(container_ctx);
 
-        let package = create_package(&container_ctx, &image_state, out_dir.as_path()).await?;
+        let package =
+            package::create_package(&container_ctx, &image_state, out_dir.as_path()).await?;
 
         container_ctx.container.remove().await?;
 
@@ -194,19 +192,6 @@ impl BuildCtx {
         }
         .instrument(span)
         .await
-    }
-}
-
-pub async fn create_package(
-    ctx: &BuildContainerCtx<'_>,
-    image_state: &ImageState,
-    output_dir: &Path,
-) -> Result<PathBuf> {
-    match ctx.target.build_target() {
-        BuildTarget::Rpm => rpm::build_rpm(&ctx, &image_state, &output_dir).await,
-        BuildTarget::Gzip => gzip::build_gzip(&ctx, &output_dir).await,
-        BuildTarget::Deb => deb::build_deb(&ctx, &image_state, &output_dir).await,
-        BuildTarget::Pkg => pkg::build_pkg(&ctx, &image_state, &output_dir).await,
     }
 }
 
