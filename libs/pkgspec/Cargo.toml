@@ -1,0 +1,16 @@
+[package]
+name = "pkgspec"
+description = "Crate with derives for auto generation of methods for spec files like DEB and RPM"
+version = "0.2.0"
+authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
+edition = "2018"
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+paste = "1"
+proc-macro2 = "1"
+syn = "1"
+quote = "1"

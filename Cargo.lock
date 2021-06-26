@@ -240,8 +240,6 @@ dependencies = [
 [[package]]
 name = "deb-control"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60af0342ae805d703ffbc0028708d17c388175c4e6ffd65b357cb2258a7709ec"
 dependencies = [
  "paste",
  "pkgspec",
@@ -1081,11 +1079,10 @@ checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
 [[package]]
 name = "pkgbuild"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3e02c2e865a06cee852ffbca32a6dfef3557fc04bc9426a384d43aad38c0512"
 dependencies = [
  "paste",
  "pkgspec",
+ "pretty_assertions",
 ]
 
 [[package]]
@@ -1132,8 +1129,6 @@ dependencies = [
 [[package]]
 name = "pkgspec"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19e2fad7348517631d501301ab5cd7ef45a3775a13e029e75c558bcfbbf8cf50"
 dependencies = [
  "paste",
  "proc-macro2",
@@ -1303,8 +1298,6 @@ dependencies = [
 [[package]]
 name = "rpmspec"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "518da5c6408404fab4f3515ea9c1400701f67a561b881dfb51dbff4607c37479"
 dependencies = [
  "paste",
  "pkgspec",

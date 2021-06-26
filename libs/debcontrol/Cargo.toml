@@ -1,0 +1,11 @@
+[package]
+name = "deb-control"
+description = "Crate for DEB/control file generation"
+version = "0.3.1"
+authors = ["wojciechkepka <wojciech@wkepka.dev>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+paste = "1"
+pkgspec = { path = "../pkgspec" }

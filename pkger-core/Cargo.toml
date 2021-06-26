@@ -6,9 +6,9 @@ authors = ["wojciech.kepka <wojciech@wkepka.dev>"]
 license = "MIT"
 
 [dependencies]
-deb-control = "0.3"
-rpmspec = "0.3"
-pkgbuild = "0.1"
+deb-control = { path = "../libs/debcontrol" }
+rpmspec = { path = "../libs/rpmspec" }
+pkgbuild = { path = "../libs/pkgbuild" }
 
 moby = {git = "https://github.com/wojciechkepka/moby", branch = "master"}
 
