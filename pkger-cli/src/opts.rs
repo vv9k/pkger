@@ -93,6 +93,10 @@ pub struct BuildOpts {
     /// `unix:///var/run/docker.socket` or a tcp uri `tcp://127.0.0.1:81`. By default pkger will
     /// try to connect to a unix socket at `/run/docker.sock`.
     pub docker: Option<String>,
+
+    #[clap(long, short)]
+    /// If set to true, all recipes will be built.
+    pub all: bool,
 }
 
 #[derive(Debug, Clap)]

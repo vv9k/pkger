@@ -138,7 +138,15 @@ impl Application {
         let mut tasks = Vec::new();
         let mut recipes = Vec::new();
 
-        if !opts.recipes.is_empty() {
+        if opts.all {
+            recipes = self
+                .recipes
+                .load_all()
+                .context("loading recipes")?
+                .into_iter()
+                .map(Arc::new)
+                .collect();
+        } else if !opts.recipes.is_empty() {
             for recipe_name in opts.recipes {
                 trace!(recipe = %recipe_name, "loading");
                 recipes.push(Arc::new(
@@ -150,7 +158,20 @@ impl Application {
             return Ok(tasks);
         }
 
-        if let Some(targets) = &opts.simple {
+        if opts.all {
+            // build all recipes for all targets
+            for recipe in &recipes {
+                if let Some(images) = &recipe.metadata.images {
+                    for target in images {
+                        tasks.push(BuildTask::Custom {
+                            recipe: recipe.clone(),
+                            target: target.clone(),
+                        });
+                    }
+                }
+            }
+        } else if let Some(targets) = &opts.simple {
+            // build only specified recipes for simple targets
             for target in targets {
                 for recipe in &recipes {
                     let target = BuildTarget::try_from(target.as_str())?;
@@ -161,24 +182,21 @@ impl Application {
                 }
             }
         } else if let Some(opt_images) = &opts.images {
-            trace!(opts_images = ?opt_images);
+            // build only specified recipes for specified images
             for recipe in &recipes {
-                let recipe_images = if let Some(images) = &recipe.metadata.images {
-                    images
-                } else {
-                    continue;
-                };
-                for image in opt_images {
-                    if let Some(target) = recipe_images.iter().find(|target| &target.image == image)
-                    {
-                        tasks.push(BuildTask::Custom {
-                            recipe: recipe.clone(),
-                            target: target.clone(),
-                        });
+                if let Some(images) = &recipe.metadata.images {
+                    for image in opt_images {
+                        if let Some(target) = images.iter().find(|target| &target.image == image) {
+                            tasks.push(BuildTask::Custom {
+                                recipe: recipe.clone(),
+                                target: target.clone(),
+                            });
+                        }
                     }
                 }
             }
         } else {
+            // build only specified recipes for all targets
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for target in images {
@@ -187,9 +205,7 @@ impl Application {
                             target: target.clone(),
                         });
                     }
-                } else {
-                    continue;
-                };
+                }
             }
         }
 
