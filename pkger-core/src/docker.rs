@@ -1,6 +1,6 @@
 use crate::Result;
 
-pub use moby::*;
+pub use docker_api::*;
 
 use std::path::PathBuf;
 
