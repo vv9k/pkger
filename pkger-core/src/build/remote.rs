@@ -16,7 +16,7 @@ pub async fn clone_git_to_bld_dir(ctx: &Context<'_>, repo: &GitSource) -> Result
                     &ctx,
                     &ExecOpts::default().cmd(
                     &format!(
-                    "git clone --single-branch --branch {} --recurse-submodules -- {} {}",
+                    "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
                     repo.branch(),
                     repo.url(),
                     ctx.container_bld_dir.display()
