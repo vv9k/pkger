@@ -830,7 +830,7 @@ dependencies = [
 [[package]]
 name = "moby"
 version = "0.2.0"
-source = "git+https://github.com/wojciechkepka/moby?branch=master#e990d094099226c60bd96456f67f7a1471d071ae"
+source = "git+https://github.com/wojciechkepka/moby?branch=master#efdff6e23340a58f3843edcdacd0bc69f98fd1a3"
 dependencies = [
  "base64",
  "byteorder",

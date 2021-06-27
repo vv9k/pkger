@@ -19,7 +19,7 @@ use serde_yaml::Mapping;
 use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
 use std::path::Path;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 use tracing::{info_span, trace, warn};
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
@@ -92,12 +92,12 @@ impl Loader {
     }
 
     /// Loads all recipes in the underlying directory
-    pub fn load_all(&mut self) -> Result<HashMap<String, Recipe>> {
+    pub fn load_all(&self) -> Result<Vec<Recipe>> {
         let path = self.path.as_path();
 
         let span = info_span!("load-recipes", path = %path.display());
         let _enter = span.enter();
-        let mut recipes = HashMap::new();
+        let mut recipes = Vec::new();
 
         for entry in fs::read_dir(path)? {
             match entry {
@@ -108,7 +108,7 @@ impl Loader {
                         Ok(result) => {
                             let recipe = result?;
                             trace!(recipe = ?recipe);
-                            recipes.insert(filename, recipe);
+                            recipes.push(recipe);
                         }
                         Err(e) => warn!(recipe = %filename, reason = %e, "failed to read recipe"),
                     }
