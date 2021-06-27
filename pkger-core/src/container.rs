@@ -1,10 +1,10 @@
 use crate::archive::unpack_tarball;
 use crate::{ErrContext, Result};
 
-use futures::{StreamExt, TryStreamExt};
-use moby::{
+use docker_api::{
     tty::TtyChunk, Container, ContainerOptions, Docker, Exec, ExecContainerOptions, LogsOptions,
 };
+use futures::{StreamExt, TryStreamExt};
 use std::path::Path;
 use std::str;
 use std::sync::atomic::{AtomicBool, Ordering};
