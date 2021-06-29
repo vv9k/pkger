@@ -32,7 +32,7 @@ pub async fn spawn<'ctx>(
             .cmd(vec!["sleep infinity"])
             .entrypoint(vec!["/bin/sh", "-c"])
             .env(env.kv_vec())
-            .working_dir(ctx.container_bld_dir.to_string_lossy().to_string().as_str())
+            .working_dir(ctx.container_bld_dir.to_string_lossy())
             .build();
 
         let mut ctx = Context::new(

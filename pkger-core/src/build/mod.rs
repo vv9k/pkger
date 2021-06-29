@@ -200,8 +200,8 @@ pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
         if let Some(exclude) = &ctx.recipe.metadata.exclude {
             let exclude_paths = exclude
                 .iter()
-                .map(PathBuf::from)
                 .filter(|p| {
+                    let p = PathBuf::from(p);
                     if p.is_absolute() {
                         warn!(path = %p.display(), "absolute paths are not allowed in excludes");
                         false
@@ -209,7 +209,7 @@ pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
                         true
                     }
                 })
-                .map(|p| p.to_string_lossy().to_string())
+                .map(ToOwned::to_owned)
                 .collect::<Vec<_>>();
             info!(exclude_dirs = ?exclude_paths);
 

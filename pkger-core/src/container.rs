@@ -122,7 +122,7 @@ impl<'opts> ExecOpts<'opts> {
         }
 
         if let Some(working_dir) = self.working_dir {
-            mut_builder = mut_builder.working_dir(working_dir.to_string_lossy().to_string());
+            mut_builder = mut_builder.working_dir(working_dir.to_string_lossy());
         }
 
         if let Some(env) = self.env {

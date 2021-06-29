@@ -148,7 +148,7 @@ RUN {} {} {} >/dev/null"#,
         fs::write(temp_path.join("Dockerfile"), dockerfile)?;
 
         let images = docker.images();
-        let opts = BuildOptions::builder(temp_path.to_string_lossy().to_string())
+        let opts = BuildOptions::builder(temp_path.to_string_lossy())
             .tag(tag)
             .build();
 
