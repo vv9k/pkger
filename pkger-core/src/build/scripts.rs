@@ -16,11 +16,11 @@ macro_rules! run_script {
 
             if let Some(dir) = &$script.working_dir {
                 trace!(working_dir = %dir.display());
-                let mut dir_s = dir.to_string_lossy().to_string();
+                let dir_s = dir.to_string_lossy();
                 let bld_dir = $ctx.container_bld_dir.to_string_lossy();
                 let out_dir = $ctx.container_out_dir.to_string_lossy();
-                dir_s = dir_s.replace("$PKGER_BLD_DIR", bld_dir.as_ref());
-                dir_s = dir_s.replace("$PKGER_OUT_DIR", out_dir.as_ref());
+                let mut dir_s = dir_s.replace("$PKGER_BLD_DIR", &bld_dir);
+                dir_s = dir_s.replace("$PKGER_OUT_DIR", &out_dir);
                 _dir = PathBuf::from(dir_s);
                 opts = opts.working_dir(_dir.as_path());
             } else {
