@@ -3,6 +3,7 @@ use crate::{ErrContext, Result};
 
 use docker_api::{
     tty::TtyChunk, Container, ContainerOptions, Docker, Exec, ExecContainerOptions, LogsOptions,
+    RmContainerOptions,
 };
 use futures::{StreamExt, TryStreamExt};
 use std::path::Path;
@@ -188,13 +189,13 @@ impl<'job> DockerContainer<'job> {
         async move {
             info!("stopping container");
             self.container
-                .stop(None)
+                .kill(None)
                 .await
                 .context("failed to stop container")?;
 
             info!("deleting container");
             self.container
-                .delete()
+                .remove(&RmContainerOptions::builder().force(true).build())
                 .await
                 .context("failed to delete container")?;
 
