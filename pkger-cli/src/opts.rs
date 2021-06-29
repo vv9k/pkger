@@ -21,11 +21,11 @@ pub struct Opts {
     /// Enable trace output.
     pub trace: bool,
     #[clap(long)]
-    /// Filter string that instruments the formatter to hide some fields from output. Each
-    /// character of the string corresponds to a field. Available fields to hide are: D - Date, F -
-    /// Fields, L - Levels S - Spans. All characters can be upper or lower case, the order doesn't
-    /// matter, duplicates and errors are silently ignored.
-    pub hide: Option<String>,
+    /// Filter string that instruments the formatter which fields should be displayed. Each
+    /// character of the string corresponds to a field. Available fields to show are: D - Date, F -
+    /// Fields, S - Spans. L - Levels is on by default, use L to turn it off. All characters can be
+    /// upper or lower case, the order doesn't matter, duplicates and errors are silently ignored.
+    pub filter: Option<String>,
     #[clap(short, long)]
     /// Path to the config file (default - "~/.pkger.yml").
     pub config: Option<String>,

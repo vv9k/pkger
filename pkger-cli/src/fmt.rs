@@ -31,7 +31,7 @@ pub fn setup_tracing(opts: &Opts) {
         "pkger=info".to_string()
     };
 
-    let fmt_filter = if let Some(filter_str) = &opts.hide {
+    let fmt_filter = if let Some(filter_str) = &opts.filter {
         FmtFilter::from(filter_str.as_str())
     } else {
         FmtFilter::default()
@@ -55,20 +55,20 @@ pub fn setup_tracing(opts: &Opts) {
 
 #[derive(Debug)]
 struct FmtFilter<'delim> {
-    hide_date: bool,
-    hide_fields: bool,
+    show_date: bool,
+    show_fields: bool,
     hide_level: bool,
-    hide_spans: bool,
+    show_spans: bool,
     delimiter: &'delim str,
 }
 
 impl<'delim> Default for FmtFilter<'delim> {
     fn default() -> Self {
         Self {
-            hide_date: false,
-            hide_fields: false,
+            show_date: false,
+            show_fields: false,
             hide_level: false,
-            hide_spans: false,
+            show_spans: false,
             delimiter: DEFAULT_FIELD_DELIM,
         }
     }
@@ -87,10 +87,10 @@ impl<'a, 'delim> From<&'a str> for FmtFilter<'delim> {
         filter_str
             .chars()
             .for_each(|c| match c.to_ascii_lowercase() {
-                'd' => filter.hide_date = true,
-                'f' => filter.hide_fields = true,
+                'd' => filter.show_date = true,
+                'f' => filter.show_fields = true,
                 'l' => filter.hide_level = true,
-                's' => filter.hide_spans = true,
+                's' => filter.show_spans = true,
                 _ => {}
             });
 
@@ -203,10 +203,10 @@ struct PkgerEventFmt {
 impl<'delim> From<&FmtFilter<'delim>> for PkgerEventFmt {
     fn from(filter: &FmtFilter) -> Self {
         Self {
-            hide_date: filter.hide_date,
-            hide_fields: filter.hide_fields,
+            hide_date: !filter.show_date,
+            hide_fields: !filter.show_fields,
             hide_level: filter.hide_level,
-            hide_spans: filter.hide_spans,
+            hide_spans: !filter.show_spans,
         }
     }
 }
