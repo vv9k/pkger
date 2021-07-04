@@ -2,8 +2,9 @@ use crate::archive::unpack_tarball;
 use crate::{ErrContext, Result};
 
 use docker_api::{
-    tty::TtyChunk, Container, ContainerOptions, Docker, Exec, ExecContainerOptions, LogsOptions,
-    RmContainerOptions,
+    api::{ContainerCreateOpts, ExecContainerOpts, LogsOpts, RmContainerOpts},
+    conn::TtyChunk,
+    Container, Docker, Exec,
 };
 use futures::{StreamExt, TryStreamExt};
 use std::path::Path;
@@ -104,8 +105,8 @@ impl<'opts> ExecOpts<'opts> {
         self
     }
 
-    pub fn build(self) -> ExecContainerOptions {
-        let mut builder = ExecContainerOptions::builder();
+    pub fn build(self) -> ExecContainerOpts {
+        let mut builder = ExecContainerOpts::builder();
         let mut mut_builder = &mut builder;
 
         trace!(exec = ?self);
@@ -162,17 +163,18 @@ impl<'job> DockerContainer<'job> {
         convert_id(&self.container.id())
     }
 
-    pub async fn spawn(&mut self, opts: &ContainerOptions) -> Result<()> {
+    pub async fn spawn(&mut self, opts: &ContainerCreateOpts) -> Result<()> {
         let span = info_span!("container-spawn");
         async move {
-            let id = self
+            let container = self
                 .docker
                 .containers()
                 .create(&opts)
-                .await
-                .map(|info| info.id)?;
+                .await?
+                .id()
+                .to_owned();
 
-            self.container = self.docker.containers().get(&id);
+            self.container = self.docker.containers().get(container);
             info!(id = %self.id(), "created container");
 
             self.container.start().await?;
@@ -195,7 +197,7 @@ impl<'job> DockerContainer<'job> {
 
             info!("deleting container");
             self.container
-                .remove(&RmContainerOptions::builder().force(true).build())
+                .remove(&RmContainerOpts::builder().force(true).build())
                 .await
                 .context("failed to delete container")?;
 
@@ -220,7 +222,7 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn exec<'cmd>(&self, opts: &ExecContainerOptions) -> Result<Output<String>> {
+    pub async fn exec<'cmd>(&self, opts: &ExecContainerOpts) -> Result<Output<String>> {
         let span = info_span!("container-exec", id = %self.id());
         async move {
             let exec = Exec::create(&self.docker, self.id(), &opts).await?;
@@ -267,7 +269,7 @@ impl<'job> DockerContainer<'job> {
 
             let mut logs_stream = self
                 .container
-                .logs(&LogsOptions::builder().stdout(stdout).stderr(stderr).build());
+                .logs(&LogsOpts::builder().stdout(stdout).stderr(stderr).build());
 
             info!("collecting output");
             let mut output = Output::default();

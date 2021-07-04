@@ -1,5 +1,5 @@
 use crate::container::{DockerContainer, Output};
-use crate::docker::{ContainerOptions, Docker};
+use crate::docker::{api::ContainerCreateOpts, Docker};
 use crate::Result;
 
 use std::time::SystemTime;
@@ -11,7 +11,7 @@ use tracing::{info_span, Instrument};
 pub struct OneShotCtx<'job> {
     id: String,
     docker: &'job Docker,
-    opts: &'job ContainerOptions,
+    opts: &'job ContainerCreateOpts,
     stdout: bool,
     stderr: bool,
 }
@@ -31,7 +31,7 @@ pub async fn run(ctx: &mut OneShotCtx<'_>) -> Result<Output<u8>> {
 impl<'job> OneShotCtx<'job> {
     pub fn new(
         docker: &'job Docker,
-        opts: &'job ContainerOptions,
+        opts: &'job ContainerCreateOpts,
         stdout: bool,
         stderr: bool,
     ) -> Self {

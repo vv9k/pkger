@@ -1,5 +1,8 @@
 use crate::build::{container, deps, Context};
-use crate::docker::{image::ImageBuildChunk, BuildOptions, Docker};
+use crate::docker::{
+    api::{BuildOpts, ImageBuildChunk},
+    Docker,
+};
 use crate::image::{ImageState, ImagesState};
 use crate::recipe::RecipeTarget;
 use crate::{Error, Result};
@@ -55,7 +58,7 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
 
         debug!(image = %ctx.target.image(), "building from scratch");
         let images = ctx.docker.images();
-        let opts = BuildOptions::builder(ctx.image.path.to_string_lossy())
+        let opts = BuildOpts::builder(&ctx.image.path)
             .tag(&format!("{}:{}", &ctx.target.image(), LATEST))
             .build();
 
@@ -148,9 +151,7 @@ RUN {} {} {} >/dev/null"#,
         fs::write(temp_path.join("Dockerfile"), dockerfile)?;
 
         let images = docker.images();
-        let opts = BuildOptions::builder(temp_path.to_string_lossy())
-            .tag(tag)
-            .build();
+        let opts = BuildOpts::builder(&temp_path).tag(tag).build();
 
         let mut stream = images.build(&opts);
 

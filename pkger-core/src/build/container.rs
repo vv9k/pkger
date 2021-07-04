@@ -1,6 +1,6 @@
 use crate::build;
 use crate::container::{DockerContainer, ExecOpts, Output};
-use crate::docker::{ContainerOptions, Docker, ExecContainerOptions};
+use crate::docker::{api::ContainerCreateOpts, Docker, ExecContainerOpts};
 use crate::image::ImageState;
 use crate::recipe::{Recipe, RecipeTarget};
 use crate::{Error, Result};
@@ -27,7 +27,7 @@ pub async fn spawn<'ctx>(
         env.insert("PKGER_OS_VERSION", image_state.os.version());
         trace!(env = ?env);
 
-        let opts = ContainerOptions::builder(&image_state.id)
+        let opts = ContainerCreateOpts::builder(&image_state.id)
             .name(&ctx.id)
             .cmd(vec!["sleep infinity"])
             .entrypoint(vec!["/bin/sh", "-c"])
@@ -56,7 +56,7 @@ pub async fn spawn<'ctx>(
 
 pub struct Context<'job> {
     pub container: DockerContainer<'job>,
-    pub opts: ContainerOptions,
+    pub opts: ContainerCreateOpts,
     pub recipe: &'job Recipe,
     pub image: &'job str,
     pub target: &'job RecipeTarget,
@@ -70,7 +70,7 @@ impl<'job> Context<'job> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         docker: &'job Docker,
-        opts: ContainerOptions,
+        opts: ContainerCreateOpts,
         recipe: &'job Recipe,
         image: &'job str,
         is_running: Arc<AtomicBool>,
@@ -102,10 +102,7 @@ impl<'job> Context<'job> {
     }
 }
 
-pub async fn checked_exec(
-    ctx: &Context<'_>,
-    opts: &ExecContainerOptions,
-) -> Result<Output<String>> {
+pub async fn checked_exec(ctx: &Context<'_>, opts: &ExecContainerOpts) -> Result<Output<String>> {
     let span = info_span!("checked-exec");
     async move {
         let out = ctx.container.exec(opts).await?;

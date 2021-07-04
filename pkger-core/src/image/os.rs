@@ -1,4 +1,4 @@
-use crate::docker::{ContainerOptions, Docker};
+use crate::docker::{api::ContainerCreateOpts, Docker};
 use crate::oneshot::{self, OneShotCtx};
 use crate::recipe::Os;
 use crate::{ErrContext, Error, Result};
@@ -38,7 +38,7 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
 async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
     let out = oneshot::run(&mut OneShotCtx::new(
         docker,
-        &ContainerOptions::builder(&image_id)
+        &ContainerCreateOpts::builder(&image_id)
             .cmd(vec!["cat", "/etc/os-release"])
             .build(),
         true,
@@ -88,7 +88,7 @@ fn extract_version(text: &str) -> Option<String> {
 async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
     let out = oneshot::run(&mut OneShotCtx::new(
         docker,
-        &ContainerOptions::builder(&image_id)
+        &ContainerCreateOpts::builder(&image_id)
             .cmd(vec!["cat", "/etc/redhat-release"])
             .build(),
         true,
@@ -109,7 +109,7 @@ async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
 async fn os_from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
     let out = oneshot::run(&mut OneShotCtx::new(
         docker,
-        &ContainerOptions::builder(&image_id)
+        &ContainerCreateOpts::builder(&image_id)
             .cmd(vec!["cat", "/etc/issue"])
             .build(),
         true,
