@@ -15,10 +15,15 @@ pub(crate) async fn build_pkg(
 ) -> Result<PathBuf> {
     let name = format!(
         "{}-{}",
-        &ctx.recipe.metadata.name, &ctx.recipe.metadata.version,
+        &ctx.build_ctx.recipe.metadata.name, &ctx.build_ctx.recipe.metadata.version,
     );
-    let arch = ctx.recipe.metadata.arch.pkg_name();
-    let package_name = format!("{}-{}-{}", &name, &ctx.recipe.metadata.release(), &arch);
+    let arch = ctx.build_ctx.recipe.metadata.arch.pkg_name();
+    let package_name = format!(
+        "{}-{}-{}",
+        &name,
+        &ctx.build_ctx.recipe.metadata.release(),
+        &arch
+    );
 
     let span = info_span!("PKG", package = %package_name);
     let cloned_span = span.clone();
@@ -43,7 +48,7 @@ pub(crate) async fn build_pkg(
             &ctx,
             &ExecOpts::default()
                 .cmd(&format!("cp -rv . {}", src_dir.display()))
-                .working_dir(ctx.container_out_dir)
+                .working_dir(&ctx.build_ctx.container_out_dir)
                 .build(),
         )
         .await
@@ -79,6 +84,7 @@ pub(crate) async fn build_pkg(
         static BUILD_USER: &str = "builduser";
 
         let pkgbuild = ctx
+            .build_ctx
             .recipe
             .as_pkgbuild(&image_state.image, &sources, &checksums)
             .render();

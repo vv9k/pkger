@@ -1,16 +1,31 @@
 use crate::build;
 use crate::container::{DockerContainer, ExecOpts, Output};
-use crate::docker::{api::ContainerCreateOpts, Docker, ExecContainerOpts};
+use crate::docker::{api::ContainerCreateOpts, ExecContainerOpts};
 use crate::image::ImageState;
-use crate::recipe::{Recipe, RecipeTarget};
 use crate::{Error, Result};
 
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 use tracing::{info_span, trace, Instrument};
 
-#[allow(clippy::needless_lifetimes)] // it actually doesn't compile without them?
+pub struct Context<'job> {
+    pub container: DockerContainer<'job>,
+    pub opts: ContainerCreateOpts,
+    pub build_ctx: &'job build::Context,
+}
+
+impl<'job> Context<'job> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(build_ctx: &'job build::Context, opts: ContainerCreateOpts) -> Context<'job> {
+        Context {
+            container: DockerContainer::new(&build_ctx.docker, Some(build_ctx.is_running.clone())),
+            opts,
+            build_ctx,
+        }
+    }
+}
+
+// https://github.com/rust-lang/rust-clippy/issues/7271
+#[allow(clippy::needless_lifetimes)]
 /// Creates and starts a container from the given ImageState
 pub async fn spawn<'ctx>(
     ctx: &'ctx build::Context,
@@ -35,71 +50,11 @@ pub async fn spawn<'ctx>(
             .working_dir(ctx.container_bld_dir.to_string_lossy())
             .build();
 
-        let mut ctx = Context::new(
-            &ctx.docker,
-            opts,
-            &ctx.recipe,
-            ctx.target.image(),
-            ctx.is_running.clone(),
-            &ctx.target,
-            ctx.container_out_dir.as_path(),
-            ctx.container_bld_dir.as_path(),
-            ctx.container_tmp_dir.as_path(),
-            ctx.simple,
-        );
-
-        ctx.start_container().await.map(|_| ctx)
+        let mut ctx = Context::new(&ctx, opts);
+        ctx.container.spawn(&ctx.opts).await.map(|_| ctx)
     }
     .instrument(span)
     .await
-}
-
-pub struct Context<'job> {
-    pub container: DockerContainer<'job>,
-    pub opts: ContainerCreateOpts,
-    pub recipe: &'job Recipe,
-    pub image: &'job str,
-    pub target: &'job RecipeTarget,
-    pub container_out_dir: &'job Path,
-    pub container_bld_dir: &'job Path,
-    pub container_tmp_dir: &'job Path,
-    pub simple: bool,
-}
-
-impl<'job> Context<'job> {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        docker: &'job Docker,
-        opts: ContainerCreateOpts,
-        recipe: &'job Recipe,
-        image: &'job str,
-        is_running: Arc<AtomicBool>,
-        target: &'job RecipeTarget,
-        container_out_dir: &'job Path,
-        container_bld_dir: &'job Path,
-        container_tmp_dir: &'job Path,
-        simple: bool,
-    ) -> Context<'job> {
-        Context {
-            container: DockerContainer::new(docker, Some(is_running)),
-            opts,
-            recipe,
-            image,
-            target,
-            container_out_dir,
-            container_bld_dir,
-            container_tmp_dir,
-            simple,
-        }
-    }
-
-    pub async fn is_running(&self) -> Result<bool> {
-        self.container.is_running().await
-    }
-
-    pub async fn start_container(&mut self) -> Result<()> {
-        self.container.spawn(&self.opts).await
-    }
 }
 
 pub async fn checked_exec(ctx: &Context<'_>, opts: &ExecContainerOpts) -> Result<Output<String>> {

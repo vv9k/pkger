@@ -5,7 +5,7 @@ use crate::recipe::{BuildTarget, Recipe};
 use std::collections::HashSet;
 
 pub fn recipe_deps<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
-    if let Some(deps) = &ctx.recipe.metadata.build_depends {
+    if let Some(deps) = &ctx.build_ctx.recipe.metadata.build_depends {
         deps.resolve_names(&state.image)
     } else {
         HashSet::new()

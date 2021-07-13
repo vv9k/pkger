@@ -11,7 +11,7 @@ use tracing::{debug, info, info_span, Instrument};
 pub async fn clone_git_to_bld_dir(ctx: &Context<'_>, repo: &GitSource) -> Result<()> {
     let span = info_span!("clone-git");
     async move {
-                info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %ctx.container_bld_dir.display(), "cloning git source repository to build directory");
+                info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %ctx.build_ctx.container_bld_dir.display(), "cloning git source repository to build directory");
                 checked_exec(
                     &ctx,
                     &ExecOpts::default().cmd(
@@ -19,7 +19,7 @@ pub async fn clone_git_to_bld_dir(ctx: &Context<'_>, repo: &GitSource) -> Result
                     "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
                     repo.branch(),
                     repo.url(),
-                    ctx.container_bld_dir.display()
+                    ctx.build_ctx.container_bld_dir.display()
                 )).build())
                 .await
                 .map(|_| ())
@@ -72,14 +72,15 @@ pub async fn copy_files_into(ctx: &Context<'_>, files: &[&Path], dest: &Path) ->
 pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
     let span = info_span!("fetch");
     async move {
-        if let Some(repo) = &ctx.recipe.metadata.git {
+        if let Some(repo) = &ctx.build_ctx.recipe.metadata.git {
             clone_git_to_bld_dir(ctx, repo).await?;
-        } else if let Some(source) = &ctx.recipe.metadata.source {
+        } else if let Some(source) = &ctx.build_ctx.recipe.metadata.source {
             if source.starts_with("http") {
-                get_http_source(ctx, source.as_str(), ctx.container_tmp_dir).await?;
+                get_http_source(ctx, source.as_str(), &ctx.build_ctx.container_tmp_dir).await?;
             } else {
                 let src_path = PathBuf::from(source);
-                copy_files_into(ctx, &[src_path.as_path()], ctx.container_tmp_dir).await?;
+                copy_files_into(ctx, &[src_path.as_path()], &ctx.build_ctx.container_tmp_dir)
+                    .await?;
             }
             checked_exec(
                 ctx,
@@ -98,9 +99,9 @@ pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
                                 cp -v $file {0}
                             fi
                         done"#,
-                        ctx.container_bld_dir.display(),
+                        ctx.build_ctx.container_bld_dir.display(),
                     ))
-                    .working_dir(ctx.container_tmp_dir)
+                    .working_dir(&ctx.build_ctx.container_tmp_dir)
                     .shell("/bin/bash")
                     .build(),
             )

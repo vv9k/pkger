@@ -12,12 +12,15 @@ pub async fn build_gzip(ctx: &Context<'_>, output_dir: &Path) -> Result<PathBuf>
     let cloned_span = span.clone();
     async move {
         info!("building GZIP package");
-        let package = ctx.container.copy_from(ctx.container_out_dir).await?;
+        let package = ctx
+            .container
+            .copy_from(&ctx.build_ctx.container_out_dir)
+            .await?;
 
         let archive = tar::Archive::new(&package[..]);
         let archive_name = format!(
             "{}-{}.tar.gz",
-            &ctx.recipe.metadata.name, &ctx.recipe.metadata.version
+            &ctx.build_ctx.recipe.metadata.name, &ctx.build_ctx.recipe.metadata.version
         );
 
         cloned_span

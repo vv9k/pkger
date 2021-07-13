@@ -21,7 +21,7 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 
 macro_rules! cleanup {
     ($ctx:ident) => {
-        if !$ctx.is_running().await? {
+        if !$ctx.container.is_running().await? {
             return Err(Error::msg("job interrupted by ctrl-c signal"));
         }
     };
@@ -197,7 +197,7 @@ impl Context {
 pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
     let span = info_span!("exclude-paths");
     async move {
-        if let Some(exclude) = &ctx.recipe.metadata.exclude {
+        if let Some(exclude) = &ctx.build_ctx.recipe.metadata.exclude {
             let exclude_paths = exclude
                 .iter()
                 .filter(|p| {
@@ -217,7 +217,7 @@ pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
                 &ctx,
                 &ExecOpts::default()
                     .cmd(&format!("rm -rvf {}", exclude_paths.join(" ")))
-                    .working_dir(ctx.container_out_dir)
+                    .working_dir(&ctx.build_ctx.container_out_dir)
                     .build(),
             )
             .await?;
@@ -246,7 +246,7 @@ pub async fn apply_patches(
                         patch.strip_level(),
                         location.display()
                     ))
-                    .working_dir(ctx.container_bld_dir)
+                    .working_dir(&ctx.build_ctx.container_bld_dir)
                     .build(),
             )
             .await
@@ -268,12 +268,12 @@ pub async fn collect_patches(
     let span = info_span!("collect-patches");
     async move {
         let mut out = Vec::new();
-        let patch_dir = ctx.container_tmp_dir.join("patches");
+        let patch_dir = ctx.build_ctx.container_tmp_dir.join("patches");
         container::create_dirs(&ctx, &[patch_dir.as_path()]).await?;
 
         let mut to_copy = Vec::new();
 
-        for patch in patches.resolve_names(ctx.target.image()) {
+        for patch in patches.resolve_names(ctx.build_ctx.target.image()) {
             let src = patch.patch();
             if src.starts_with("http") {
                 trace!(source = %src, "found http source");
@@ -296,7 +296,7 @@ pub async fn collect_patches(
                 continue;
             }
 
-            let patch_recipe_p = ctx.recipe.recipe_dir.join(src);
+            let patch_recipe_p = ctx.build_ctx.recipe.recipe_dir.join(src);
             trace!(patch = %patch_recipe_p.display(), "using patch from recipe_dir");
             out.push((patch.clone(), patch_dir.join(src)));
             to_copy.push(patch_recipe_p);
@@ -304,7 +304,7 @@ pub async fn collect_patches(
 
         let to_copy = to_copy.iter().map(PathBuf::as_path).collect::<Vec<_>>();
 
-        let patches_archive = ctx.container_tmp_dir.join("patches.tar");
+        let patches_archive = ctx.build_ctx.container_tmp_dir.join("patches.tar");
         remote::copy_files_into(ctx, &to_copy, &patches_archive).await?;
 
         container::checked_exec(
