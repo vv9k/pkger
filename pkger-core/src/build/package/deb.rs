@@ -13,8 +13,13 @@ pub async fn build_deb(
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {
-    let name = [&ctx.recipe.metadata.name, "-", &ctx.recipe.metadata.version].join("");
-    let arch = ctx.recipe.metadata.arch.deb_name();
+    let name = [
+        &ctx.build_ctx.recipe.metadata.name,
+        "-",
+        &ctx.build_ctx.recipe.metadata.version,
+    ]
+    .join("");
+    let arch = ctx.build_ctx.recipe.metadata.arch.deb_name();
     let package_name = [&name, ".", &arch].join("");
 
     let span = info_span!("DEB", package = %package_name);
@@ -32,7 +37,11 @@ pub async fn build_deb(
             .await
             .context("failed to create dirs")?;
 
-        let control = ctx.recipe.as_deb_control(&image_state.image).render();
+        let control = ctx
+            .build_ctx
+            .recipe
+            .as_deb_control(&image_state.image)
+            .render();
         debug!(control = %control);
 
         let entries = vec![("./control", control.as_bytes())];
@@ -65,7 +74,7 @@ pub async fn build_deb(
             &ctx,
             &ExecOpts::default()
                 .cmd(&format!("cp -rv . {}", base_dir.display()))
-                .working_dir(ctx.container_out_dir)
+                .working_dir(&ctx.build_ctx.container_out_dir)
                 .build(),
         )
         .await

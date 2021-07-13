@@ -14,9 +14,14 @@ pub(crate) async fn build_rpm(
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {
-    let name = [&ctx.recipe.metadata.name, "-", &ctx.recipe.metadata.version].join("");
-    let release = ctx.recipe.metadata.release();
-    let arch = ctx.recipe.metadata.arch.rpm_name();
+    let name = [
+        &ctx.build_ctx.recipe.metadata.name,
+        "-",
+        &ctx.build_ctx.recipe.metadata.version,
+    ]
+    .join("");
+    let release = ctx.build_ctx.recipe.metadata.release();
+    let arch = ctx.build_ctx.recipe.metadata.arch.rpm_name();
     let buildroot_name = [&name, "-", &release, ".", &arch].join("");
     let source_tar = [&name, ".tar.gz"].join("");
 
@@ -52,7 +57,7 @@ pub(crate) async fn build_rpm(
             &ExecOpts::default()
                 .cmd(&format!(
                     "cp -rv {} {}",
-                    ctx.container_out_dir.display(),
+                    ctx.build_ctx.container_out_dir.display(),
                     tmp_buildroot.display(),
                 ))
                 .build(),
@@ -75,7 +80,7 @@ pub(crate) async fn build_rpm(
             &ctx,
             &ExecOpts::default()
                 .cmd(r#"find . -type f -o -type l -name "*""#)
-                .working_dir(ctx.container_out_dir)
+                .working_dir(&ctx.build_ctx.container_out_dir)
                 .build(),
         )
         .await
@@ -91,12 +96,13 @@ pub(crate) async fn build_rpm(
         trace!(source_files = ?files);
 
         let spec = cloned_span.in_scope(|| {
-            ctx.recipe
+            ctx.build_ctx
+                .recipe
                 .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
                 .render()
         });
 
-        let spec_file = [&ctx.recipe.metadata.name, ".spec"].join("");
+        let spec_file = [&ctx.build_ctx.recipe.metadata.name, ".spec"].join("");
         debug!(spec_file = %spec_file, spec = %spec);
 
         let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
@@ -130,7 +136,7 @@ pub(crate) async fn build_rpm(
             &ExecOpts::default()
                 .cmd(&format!(
                     "setarch {0} rpmbuild -bb --target {0} {1}",
-                    ctx.recipe.metadata.arch.rpm_name(),
+                    ctx.build_ctx.recipe.metadata.arch.rpm_name(),
                     specs.join(spec_file).display()
                 ))
                 .build(),
