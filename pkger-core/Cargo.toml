@@ -10,7 +10,7 @@ deb-control = { path = "../libs/debcontrol" }
 rpmspec = { path = "../libs/rpmspec" }
 pkgbuild = { path = "../libs/pkgbuild" }
 
-docker-api = "0.3"
+docker-api = "0.4"
 
 anyhow = "1"
 
