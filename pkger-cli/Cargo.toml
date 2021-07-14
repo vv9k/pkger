@@ -19,6 +19,7 @@ clap = "3.0.0-beta.2"
 chrono = "0.4"
 colored = "2"
 ctrlc = "3"
+rpassword = "5"
 
 dirs-next = "2"
 tempdir = "0.3"

@@ -8,6 +8,7 @@ pub mod scripts;
 
 use crate::container::ExecOpts;
 use crate::docker::Docker;
+use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::{ErrContext, Error, Result};
@@ -43,6 +44,7 @@ pub struct Context {
     image_state: Arc<RwLock<ImagesState>>,
     is_running: Arc<AtomicBool>,
     simple: bool,
+    gpg_key: Option<GpgKey>,
 }
 
 pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
@@ -58,7 +60,11 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
         cleanup!(container_ctx);
 
         let image_state = if image_state.tag != image::CACHED {
-            let mut deps = deps::pkger_deps(ctx.target.build_target(), &ctx.recipe);
+            let mut deps = deps::pkger_deps(
+                ctx.target.build_target(),
+                &ctx.recipe,
+                ctx.gpg_key.is_some(),
+            );
             deps.extend(deps::recipe_deps(&container_ctx, &image_state));
             let new_state =
                 image::cache_image(&container_ctx, &ctx.docker, &image_state, &deps).await?;
@@ -133,6 +139,7 @@ impl Context {
         image_state: Arc<RwLock<ImagesState>>,
         is_running: Arc<AtomicBool>,
         simple: bool,
+        gpg_key: Option<GpgKey>,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -168,6 +175,7 @@ impl Context {
             image_state,
             is_running,
             simple,
+            gpg_key,
         }
     }
 

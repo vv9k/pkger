@@ -1,3 +1,6 @@
+# 0.5.0
+- Add an option to sign RPMs with a GPG key [#56](https://github.com/wojciechkepka/pkger/pull/56)
+
 # 0.3.0
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`
 - Recipes and config files now use YAML syntax [#52](https://github.com/wojciechkepka/pkger/pull/52)

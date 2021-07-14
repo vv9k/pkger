@@ -29,7 +29,11 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
         } else {
             Default::default()
         };
-        deps.extend(deps::pkger_deps(ctx.target.build_target(), &ctx.recipe));
+        deps.extend(deps::pkger_deps(
+            ctx.target.build_target(),
+            &ctx.recipe,
+            ctx.gpg_key.is_some(),
+        ));
         trace!(resolved_deps = ?deps);
 
         let result = cloned_span.in_scope(|| {
