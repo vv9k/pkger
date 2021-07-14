@@ -14,13 +14,13 @@ pub async fn build_gzip(ctx: &Context<'_>, output_dir: &Path) -> Result<PathBuf>
         info!("building GZIP package");
         let package = ctx
             .container
-            .copy_from(&ctx.build_ctx.container_out_dir)
+            .copy_from(&ctx.build.container_out_dir)
             .await?;
 
         let archive = tar::Archive::new(&package[..]);
         let archive_name = format!(
             "{}-{}.tar.gz",
-            &ctx.build_ctx.recipe.metadata.name, &ctx.build_ctx.recipe.metadata.version
+            &ctx.build.recipe.metadata.name, &ctx.build.recipe.metadata.version
         );
 
         cloned_span

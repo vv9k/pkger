@@ -170,12 +170,12 @@ RUN {} {} {} >/dev/null"#,
                 ImageBuildChunk::Digest { aux } => {
                     return ImageState::new(
                         &aux.id,
-                        &ctx.build_ctx.target,
+                        &ctx.build.target,
                         CACHED,
                         &SystemTime::now(),
                         &docker,
                         deps,
-                        ctx.build_ctx.simple,
+                        ctx.build.simple,
                     )
                     .await
                 }
