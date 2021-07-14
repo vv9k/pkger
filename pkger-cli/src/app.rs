@@ -4,9 +4,10 @@ use crate::job::{JobCtx, JobResult};
 use crate::opts::{BuildOpts, Commands, ListObject, Opts};
 use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
+use pkger_core::gpg::GpgKey;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, Image, ImagesState};
 use pkger_core::recipe::{self, BuildTarget, ImageTarget, Recipe};
-use pkger_core::{ErrContext, Result};
+use pkger_core::{ErrContext, Error, Result};
 
 use futures::stream::FuturesUnordered;
 use std::convert::TryFrom;
@@ -46,6 +47,7 @@ pub struct Application {
     user_images_dir: PathBuf,
     is_running: Arc<AtomicBool>,
     _pkger_dir: TempDir,
+    gpg_key: Option<GpgKey>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,6 +70,19 @@ impl Application {
             .images_dir
             .clone()
             .unwrap_or_else(|| _pkger_dir.path().join("images"));
+
+        let gpg_key = if let Some(key) = &config.gpg_key {
+            let pass = rpassword::read_password_from_tty(Some("Gpg key password:"))
+                .context("failed to read password for gpg key")?;
+            if let Some(name) = &config.gpg_name {
+                Some(GpgKey::new(key, name, &pass)?)
+            } else {
+                return Err(Error::msg("missing `gpg_name` field from configuration"));
+            }
+        } else {
+            None
+        };
+
         let pkger = Application {
             config: Arc::new(config),
             recipes: Arc::new(recipes),
@@ -78,6 +93,7 @@ impl Application {
             user_images_dir,
             is_running: Arc::new(AtomicBool::new(true)),
             _pkger_dir,
+            gpg_key,
         };
         let is_running = pkger.is_running.clone();
         set_ctrlc_handler(is_running);
@@ -258,6 +274,7 @@ impl Application {
                                 self.images_state.clone(),
                                 self.is_running.clone(),
                                 is_simple,
+                                self.gpg_key.clone()
                             ))
                             .run(),
                         ));

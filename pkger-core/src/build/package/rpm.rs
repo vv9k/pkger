@@ -4,8 +4,10 @@ use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::{ErrContext, Result};
 
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use tracing::{debug, info, info_span, trace, Instrument};
 
 /// Creates a final RPM package and saves it to `output_dir`
@@ -36,6 +38,8 @@ pub(crate) async fn build_rpm(
         let rpms = base_path.join("RPMS");
         let rpms_arch = rpms.join(&arch);
         let srpms = base_path.join("SRPMS");
+        let arch_dir = rpms.join(&arch);
+        let rpm_name = format!("{}.rpm", buildroot_name);
         let tmp_buildroot = PathBuf::from(["/tmp/", &buildroot_name].join(""));
         let source_tar_path = sources.join(&source_tar);
 
@@ -144,11 +148,136 @@ pub(crate) async fn build_rpm(
         .await
         .context("failed to build rpm package")?;
 
+        sign_package(ctx, &arch_dir.join(rpm_name)).await?;
+
         ctx.container
-            .download_files(rpms.join(&arch).as_path(), output_dir)
+            .download_files(&arch_dir, output_dir)
             .await
             .map(|_| output_dir.join(format!("{}.rpm", buildroot_name)))
             .context("failed to download finished package")
+    }
+    .instrument(span)
+    .await
+}
+
+pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()> {
+    let span = info_span!("sign", package = %package.display());
+    let cloned_span = span.clone();
+    async move {
+        let gpg_key = if let Some(key) = &ctx.build.gpg_key{
+            key
+        } else {
+            return Ok(());
+        };
+
+        const GPG_FILE: &str = "RPM-GPG-SIGN";
+        const MACROS_FILE: &str = ".rpmmacros";
+
+        let macros = format!(
+            r##"
+%_signature gpg
+%_gpg_path /root/.gnupg
+%_gpg_name {}
+%_gpgbin /usr/bin/gpg2
+%__gpg_sign_cmd %{{__gpg}} gpg --batch --verbose --pinentry-mode=loopback --passphrase {} -u "%{{_gpg_name}}" -sbo %{{__signature_filename}} --digest-algo sha256 %{{__plaintext_filename}}'
+"##,
+            gpg_key.name(), gpg_key.pass()
+        );
+        let key = cloned_span
+            .in_scope(|| fs::read(&gpg_key.path()))
+            .context("failed reading gpg key")?;
+
+        let entries = vec![
+            (format!("./{}", GPG_FILE), key.as_slice()),
+            (format!("./{}", MACROS_FILE), macros.as_bytes()),
+        ];
+        let key_tar = cloned_span
+            .in_scope(|| create_tarball(entries.into_iter()))
+            .context("failed creating a tarball with gpg key")?;
+        let key_path = ctx
+            .build
+            .container_tmp_dir
+            .join(format!("{}.tgz", GPG_FILE));
+
+        trace!("copy signing key to container");
+        ctx.container
+            .inner()
+            .copy_file_into(&key_path, &key_tar)
+            .await
+            .context("failed to copy archive with signing key")?;
+
+        trace!("extract key archive");
+        checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd(&format!("tar -xf {}", key_path.display(),))
+                .working_dir(&ctx.build.container_tmp_dir)
+                .build(),
+        )
+        .await
+            .context("failed to extract archive with gpg key")
+            ?;
+
+        trace!("import key to gpg");
+        checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd(&format!(
+                    r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,
+                    gpg_key.pass(), GPG_FILE
+                ))
+                .working_dir(&ctx.build.container_tmp_dir)
+                .build(),
+        )
+        .await
+            .context("failed to import gpg key")
+            ?;
+
+        trace!("export public key");
+        checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd(&format!(
+                    r#"gpg --pinentry-mode=loopback --passphrase {} --export -a '{}' > {}.public"#,
+                    gpg_key.pass(), gpg_key.name(), GPG_FILE
+                ))
+                .working_dir(&ctx.build.container_tmp_dir)
+                .build(),
+        )
+            .await
+            .context("failed to export public key")
+            ?;
+
+        trace!("import key to rpm database");
+        checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd(&format!("rpm --import {}.public", GPG_FILE))
+                .working_dir(&ctx.build.container_tmp_dir)
+                .build(),
+        )
+        .await.context("failed importing key to rpm database")?;
+
+        trace!("copy macros");
+        checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd(&format!("cp {} /root/{}", MACROS_FILE, MACROS_FILE))
+                .working_dir(&ctx.build.container_tmp_dir)
+                .build(),
+        )
+        .await.context("failed copying macros")?;
+
+        trace!("add signature");
+        checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd(&format!("rpm --addsign {}", package.display()))
+                .tty(true)
+                .build(),
+        )
+        .await
+        .map(|_| ())
     }
     .instrument(span)
     .await

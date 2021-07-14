@@ -10,6 +10,8 @@ pub struct Configuration {
     pub output_dir: PathBuf,
     pub images_dir: Option<PathBuf>,
     pub docker: Option<String>,
+    pub gpg_key: Option<PathBuf>,
+    pub gpg_name: Option<String>,
 }
 impl Configuration {
     pub fn load<P: AsRef<Path>>(val: P) -> Result<Self> {
