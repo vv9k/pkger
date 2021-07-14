@@ -4,3 +4,4 @@ target
 example/output
 docs/book/
 **/Cargo.lock
+.idea
