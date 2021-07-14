@@ -10,16 +10,16 @@ use tracing::{info_span, trace, Instrument};
 pub struct Context<'job> {
     pub container: DockerContainer<'job>,
     pub opts: ContainerCreateOpts,
-    pub build_ctx: &'job build::Context,
+    pub build: &'job build::Context,
 }
 
 impl<'job> Context<'job> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(build_ctx: &'job build::Context, opts: ContainerCreateOpts) -> Context<'job> {
+    pub fn new(build: &'job build::Context, opts: ContainerCreateOpts) -> Context<'job> {
         Context {
-            container: DockerContainer::new(&build_ctx.docker, Some(build_ctx.is_running.clone())),
+            container: DockerContainer::new(&build.docker, Some(build.is_running.clone())),
             opts,
-            build_ctx,
+            build,
         }
     }
 }
