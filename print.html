@@ -320,7 +320,16 @@ install:
     # or as a map
     obsoletes:
       centos8: [&quot;foo&quot;]
+
+    # Sign this package when built as RPM
+    sign: true
 </code></pre>
+<h2 id="signing"><a class="header" href="#signing">Signing</a></h2>
+<p>To sign packages using a GPG key add the following to your <a href="./configuration.html">configuration file</a>:</p>
+<pre><code class="language-yaml">gpg_key: /absolute/path/to/the/private/key
+gpg_name: Packager Name # must be the same as the `Name` field on the key
+</code></pre>
+<p>When <strong>pkger</strong> detects the gpg key in the configuration it will prompt for a password to the key on each run.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h1>
 <p>Optional fields that may be used when building a DEB package.</p>
 <pre><code class="language-yaml">  deb:
