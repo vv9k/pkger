@@ -19,9 +19,6 @@ Optional fields that will be used when building RPM target.
     # or as a map
     obsoletes:
       centos8: ["foo"]
-
-    # Sign this package when built as RPM
-    sign: true
 ```
 
 ## Signing

@@ -1,4 +1,4 @@
-# 0.5.0
+# 0.4.0
 - Add an option to sign RPMs with a GPG key [#56](https://github.com/wojciechkepka/pkger/pull/56)
 
 # 0.3.0
