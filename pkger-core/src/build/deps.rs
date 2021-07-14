@@ -12,13 +12,22 @@ pub fn recipe_deps<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'c
     }
 }
 
-pub fn pkger_deps(target: &BuildTarget, recipe: &Recipe) -> HashSet<&'static str> {
+pub fn pkger_deps(
+    target: &BuildTarget,
+    recipe: &Recipe,
+    enable_gpg: bool,
+) -> HashSet<&'static str> {
     let mut deps = HashSet::new();
     deps.insert("tar");
     match target {
         BuildTarget::Rpm => {
             deps.insert("rpm-build");
             deps.insert("util-linux"); // for setarch
+
+            if enable_gpg {
+                deps.insert("gnupg2");
+                deps.insert("rpm-sign");
+            }
         }
         BuildTarget::Deb => {
             deps.insert("dpkg");
