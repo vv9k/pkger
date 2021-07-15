@@ -8,35 +8,27 @@ use tracing::{info_span, trace, Instrument};
 /// Finds out the operating system and version of the image with id `image_id`
 pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
     let span = info_span!("find-os");
-    match os_from_osrelease(image_id, docker)
-        .instrument(span.clone())
-        .await
-    {
-        Ok(os) => return Ok(os),
-        Err(e) => trace!(reason = %e),
+    macro_rules! return_if_ok {
+        ($check:expr) => {
+            match $check
+                .instrument(span.clone())
+                .await
+            {
+                Ok(os) => return Ok(os),
+                Err(e) => trace!(reason = %e),
+            }
+        };
     }
 
-    match os_from_issue(image_id, docker)
-        .instrument(span.clone())
-        .await
-    {
-        Ok(os) => return Ok(os),
-        Err(e) => trace!(reason = %e),
-    }
-
-    match os_from_rhrelease(image_id, docker)
-        .instrument(span.clone())
-        .await
-    {
-        Ok(os) => return Ok(os),
-        Err(e) => trace!(reason = %e),
-    }
+    return_if_ok!(os_from_osrelease(image_id, docker));
+    return_if_ok!(os_from_issue(image_id, docker));
+    return_if_ok!(os_from_rhrelease(image_id, docker));
 
     Err(Error::msg("failed to determine distribution"))
 }
 
 async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = oneshot::run(&mut OneShotCtx::new(
+    let out = oneshot::run(&OneShotCtx::new(
         docker,
         &ContainerCreateOpts::builder(&image_id)
             .cmd(vec!["cat", "/etc/os-release"])
@@ -85,11 +77,11 @@ fn extract_version(text: &str) -> Option<String> {
     }
 }
 
-async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = oneshot::run(&mut OneShotCtx::new(
+async fn os_from(image_id: &str, docker: &Docker, file: &str) -> Result<Os> {
+    let out = oneshot::run(&OneShotCtx::new(
         docker,
         &ContainerCreateOpts::builder(&image_id)
-            .cmd(vec!["cat", "/etc/redhat-release"])
+            .cmd(vec!["cat", file])
             .build(),
         true,
         true,
@@ -106,23 +98,10 @@ async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
     Os::new(out, os_version)
 }
 
+async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
+    os_from(image_id, docker, "/etc/redhat-release").await
+}
+
 async fn os_from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
-    let out = oneshot::run(&mut OneShotCtx::new(
-        docker,
-        &ContainerCreateOpts::builder(&image_id)
-            .cmd(vec!["cat", "/etc/issue"])
-            .build(),
-        true,
-        true,
-    ))
-    .await?;
-
-    trace!(stderr = %String::from_utf8_lossy(&out.stderr));
-
-    let out = String::from_utf8_lossy(&out.stdout);
-    trace!(stdout = %out);
-
-    let os_version = extract_version(&out);
-
-    Os::new(out, os_version)
+    os_from(image_id, docker, "/etc/issue").await
 }
