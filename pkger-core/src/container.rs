@@ -1,4 +1,4 @@
-use crate::archive::unpack_tarball;
+use crate::archive::{create_tarball, unpack_tarball};
 use crate::{ErrContext, Result};
 
 use docker_api::{
@@ -325,6 +325,41 @@ impl<'job> DockerContainer<'job> {
             } else {
                 Ok(())
             }
+        }
+        .instrument(span)
+        .await
+    }
+
+    pub async fn upload_files<'files, F, E, P>(&self, files: F, destination: P) -> Result<()>
+    where
+        F: IntoIterator<Item = (E, &'files [u8])>,
+        E: AsRef<Path>,
+        P: AsRef<Path>,
+    {
+        let span = info_span!("upload-files");
+        let cloned_span = span.clone();
+        async move {
+            let destination = destination.as_ref();
+            let tar = cloned_span
+                .in_scope(|| create_tarball(files.into_iter()))
+                .context("failed creating a tarball with files")?;
+            let tar_path = destination.join("archive.tgz");
+
+            self.inner()
+                .copy_file_into(&tar_path, &tar)
+                .await
+                .context("failed to copy archive with files to container")?;
+
+            trace!("extract archive with files");
+            self.exec(
+                &ExecOpts::default()
+                    .cmd(&format!("tar -xf {}", tar_path.display()))
+                    .working_dir(&destination)
+                    .build(),
+            )
+            .await
+            .map(|_| ())
+            .context("failed to extract archive with with files")
         }
         .instrument(span)
         .await

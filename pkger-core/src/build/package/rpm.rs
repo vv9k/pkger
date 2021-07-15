@@ -1,13 +1,10 @@
-use crate::archive::create_tarball;
 use crate::build::container::{checked_exec, create_dirs, Context};
+use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::{ErrContext, Result};
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
 /// Creates a final RPM package and saves it to `output_dir`
@@ -109,30 +106,10 @@ pub(crate) async fn build_rpm(
         let spec_file = [&ctx.build.recipe.metadata.name, ".spec"].join("");
         debug!(spec_file = %spec_file, spec = %spec);
 
-        let entries = vec![(["./", &spec_file].join(""), spec.as_bytes())];
-        let spec_tar = cloned_span.in_scope(|| create_tarball(entries.into_iter()))?;
-
-        let spec_tar_path = specs.join([&name, "-spec.tar"].join(""));
-
-        trace!("copy spec archive to container");
         ctx.container
-            .inner()
-            .copy_file_into(spec_tar_path.as_path(), &spec_tar)
+            .upload_files(vec![(["./", &spec_file].join(""), spec.as_bytes())], &specs)
             .await
-            .context("failed to copy archive with spec")?;
-
-        trace!("extract spec archive");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    "tar -xvf {} -C {}",
-                    spec_tar_path.display(),
-                    specs.display(),
-                ))
-                .build(),
-        )
-        .await?;
+            .context("failed to upload spec file to container")?;
 
         trace!("rpmbuild");
         checked_exec(
@@ -162,7 +139,6 @@ pub(crate) async fn build_rpm(
 
 pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()> {
     let span = info_span!("sign", package = %package.display());
-    let cloned_span = span.clone();
     async move {
         let gpg_key = if let Some(key) = &ctx.build.gpg_key{
             key
@@ -170,8 +146,13 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
             return Ok(());
         };
 
-        const GPG_FILE: &str = "RPM-GPG-SIGN";
-        const MACROS_FILE: &str = ".rpmmacros";
+        let key_file = upload_gpg_key(ctx, gpg_key, &ctx.build.container_tmp_dir)
+            .await
+            .context("failed to upload gpg key to container")?;
+
+        import_gpg_key(ctx, gpg_key, &key_file)
+            .await
+            .context("failed to import gpg key")?;
 
         let macros = format!(
             r##"
@@ -183,90 +164,39 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 "##,
             gpg_key.name(), gpg_key.pass()
         );
-        let key = cloned_span
-            .in_scope(|| fs::read(&gpg_key.path()))
-            .context("failed reading gpg key")?;
 
-        let entries = vec![
-            (format!("./{}", GPG_FILE), key.as_slice()),
-            (format!("./{}", MACROS_FILE), macros.as_bytes()),
-        ];
-        let key_tar = cloned_span
-            .in_scope(|| create_tarball(entries.into_iter()))
-            .context("failed creating a tarball with gpg key")?;
-        let key_path = ctx
-            .build
-            .container_tmp_dir
-            .join(format!("{}.tgz", GPG_FILE));
+        ctx.container.upload_files(
+        vec![
+            ("./.rpmmacros", macros.as_bytes()),
+        ],
+        "/root/"
+        ).await.context("failed to upload rpm macros")?;
 
-        trace!("copy signing key to container");
-        ctx.container
-            .inner()
-            .copy_file_into(&key_path, &key_tar)
-            .await
-            .context("failed to copy archive with signing key")?;
-
-        trace!("extract key archive");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!("tar -xf {}", key_path.display(),))
-                .working_dir(&ctx.build.container_tmp_dir)
-                .build(),
-        )
-        .await
-            .context("failed to extract archive with gpg key")
-            ?;
-
-        trace!("import key to gpg");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,
-                    gpg_key.pass(), GPG_FILE
-                ))
-                .working_dir(&ctx.build.container_tmp_dir)
-                .build(),
-        )
-        .await
-            .context("failed to import gpg key")
-            ?;
 
         trace!("export public key");
         checked_exec(
             &ctx,
             &ExecOpts::default()
                 .cmd(&format!(
-                    r#"gpg --pinentry-mode=loopback --passphrase {} --export -a '{}' > {}.public"#,
-                    gpg_key.pass(), gpg_key.name(), GPG_FILE
+                    r#"gpg --pinentry-mode=loopback --passphrase {} --export -a '{}' > public.key"#,
+                    gpg_key.pass(), gpg_key.name()
                 ))
                 .working_dir(&ctx.build.container_tmp_dir)
                 .build(),
         )
-            .await
-            .context("failed to export public key")
-            ?;
+        .await
+        .context("failed to export public key")
+        ?;
 
         trace!("import key to rpm database");
         checked_exec(
             &ctx,
             &ExecOpts::default()
-                .cmd(&format!("rpm --import {}.public", GPG_FILE))
+                .cmd("rpm --import public.key")
                 .working_dir(&ctx.build.container_tmp_dir)
                 .build(),
         )
         .await.context("failed importing key to rpm database")?;
-
-        trace!("copy macros");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!("cp {} /root/{}", MACROS_FILE, MACROS_FILE))
-                .working_dir(&ctx.build.container_tmp_dir)
-                .build(),
-        )
-        .await.context("failed copying macros")?;
 
         trace!("add signature");
         checked_exec(

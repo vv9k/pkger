@@ -2,6 +2,7 @@ pub mod deb;
 pub mod gzip;
 pub mod pkg;
 pub mod rpm;
+mod sign;
 
 use crate::build::container::Context;
 use crate::image::ImageState;
