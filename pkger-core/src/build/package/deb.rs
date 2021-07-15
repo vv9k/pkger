@@ -1,13 +1,10 @@
-use crate::archive::create_tarball;
 use crate::build::container::{checked_exec, create_dirs, Context};
+use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::{ErrContext, Result};
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
 /// Creates a final DEB packages and saves it to `output_dir`
@@ -26,7 +23,6 @@ pub async fn build_deb(
     let package_name = [&name, ".", &arch].join("");
 
     let span = info_span!("DEB", package = %package_name);
-    let cloned_span = span.clone();
     async move {
         info!("building DEB package");
 
@@ -43,30 +39,10 @@ pub async fn build_deb(
         let control = ctx.build.recipe.as_deb_control(&image_state.image).render();
         debug!(control = %control);
 
-        let entries = vec![("./control", control.as_bytes())];
-        let control_tar = cloned_span.in_scope(|| create_tarball(entries.into_iter()))?;
-        let control_tar_path = tmp_dir.join([&name, "-control.tar"].join(""));
-
-        trace!("copy control archive to container");
         ctx.container
-            .inner()
-            .copy_file_into(control_tar_path.as_path(), &control_tar)
+            .upload_files(vec![("./control", control.as_bytes())], &deb_dir)
             .await
-            .context("failed to copy archive with control file")?;
-
-        trace!("extract control archive");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    "tar -xvf {} -C {}",
-                    control_tar_path.display(),
-                    deb_dir.display(),
-                ))
-                .build(),
-        )
-        .await
-        .context("failed to extract archive with control file")?;
+            .context("failed to upload control file to container")?;
 
         trace!("copy source files to build dir");
         checked_exec(
@@ -115,7 +91,6 @@ pub async fn build_deb(
 
 pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()> {
     let span = info_span!("sign", package = %package.display());
-    let cloned_span = span.clone();
     async move {
         let gpg_key = if let Some(key) = &ctx.build.gpg_key {
             key
@@ -123,53 +98,13 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
             return Ok(());
         };
 
-        const GPG_FILE: &str = "DEB-GPG-SIGN";
-
-        let key = cloned_span
-            .in_scope(|| fs::read(&gpg_key.path()))
-            .context("failed reading gpg key")?;
-
-        let entries = vec![(format!("./{}", GPG_FILE), key.as_slice())];
-        let key_tar = cloned_span
-            .in_scope(|| create_tarball(entries.into_iter()))
-            .context("failed creating a tarball with gpg key")?;
-        let key_path = ctx
-            .build
-            .container_tmp_dir
-            .join(format!("{}.tgz", GPG_FILE));
-
-        trace!("copy signing key to container");
-        ctx.container
-            .inner()
-            .copy_file_into(&key_path, &key_tar)
+        let key_file = upload_gpg_key(ctx, gpg_key, &ctx.build.container_tmp_dir)
             .await
-            .context("failed to copy archive with signing key")?;
+            .context("failed to upload gpg key to container")?;
 
-        trace!("extract key archive");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!("tar -xf {}", key_path.display(),))
-                .working_dir(&ctx.build.container_tmp_dir)
-                .build(),
-        )
-        .await
-        .context("failed to extract archive with gpg key")?;
-
-        trace!("import key to gpg");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,
-                    gpg_key.pass(),
-                    GPG_FILE
-                ))
-                .working_dir(&ctx.build.container_tmp_dir)
-                .build(),
-        )
-        .await
-        .context("failed to import gpg key")?;
+        import_gpg_key(ctx, gpg_key, &key_file)
+            .await
+            .context("failed to import gpg key")?;
 
         trace!("get key id");
         let key_id = checked_exec(

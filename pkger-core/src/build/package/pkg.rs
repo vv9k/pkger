@@ -1,4 +1,3 @@
-use crate::archive::create_tarball;
 use crate::build::container::{checked_exec, create_dirs, Context};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
@@ -26,7 +25,6 @@ pub(crate) async fn build_pkg(
     );
 
     let span = info_span!("PKG", package = %package_name);
-    let cloned_span = span.clone();
     async move {
         info!("building PKG package");
 
@@ -90,29 +88,13 @@ pub(crate) async fn build_pkg(
             .render();
         debug!(PKGBUILD = %pkgbuild);
 
-        let entries = vec![("PKGBUILD".to_string(), pkgbuild.as_bytes())];
-        let pkgbuild_tar = cloned_span.in_scope(|| create_tarball(entries.into_iter()))?;
-        let pkgbuild_tar_path = tmp_dir.join("PKGBUILD.tar");
-
-        trace!("copy PKGBUILD archive to container");
         ctx.container
-            .inner()
-            .copy_file_into(pkgbuild_tar_path.as_path(), &pkgbuild_tar)
+            .upload_files(
+                vec![("PKGBUILD".to_string(), pkgbuild.as_bytes())],
+                &bld_dir,
+            )
             .await
-            .context("failed to copy archive with PKGBUILD to container")?;
-
-        trace!("extract PKGBUILD archive");
-        checked_exec(
-            &ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    "tar -xvf {} -C {}",
-                    pkgbuild_tar_path.display(),
-                    bld_dir.display(),
-                ))
-                .build(),
-        )
-        .await?;
+            .context("failed to upload PKGBUILD to container")?;
 
         trace!("create build user");
         checked_exec(
