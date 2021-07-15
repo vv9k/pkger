@@ -31,6 +31,11 @@ pub fn pkger_deps(
         }
         BuildTarget::Deb => {
             deps.insert("dpkg");
+
+            if enable_gpg {
+                deps.insert("gnupg2");
+                deps.insert("dpkg-sig");
+            }
         }
         BuildTarget::Gzip => {
             deps.insert("gzip");
