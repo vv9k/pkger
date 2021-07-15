@@ -10,7 +10,9 @@ deb-control = { path = "../libs/debcontrol" }
 rpmspec = { path = "../libs/rpmspec" }
 pkgbuild = { path = "../libs/pkgbuild" }
 
-docker-api = "0.4"
+#docker-api = "0.4"
+# use until next version is realeased with fixes for serialization
+docker-api = { git = "https://github.com/wojciechkepka/docker-api-rs", branch = "master" }
 
 anyhow = "1"
 
