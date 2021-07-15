@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">5.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">6.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">7.</strong> Formatting output</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">5.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">6.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="signing.html"><strong aria-hidden="true">7.</strong> Signing packages</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">8.</strong> Formatting output</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -321,12 +321,6 @@ install:
     obsoletes:
       centos8: [&quot;foo&quot;]
 </code></pre>
-<h2 id="signing"><a class="header" href="#signing">Signing</a></h2>
-<p>To sign packages using a GPG key add the following to your <a href="./configuration.html">configuration file</a>:</p>
-<pre><code class="language-yaml">gpg_key: /absolute/path/to/the/private/key
-gpg_name: Packager Name # must be the same as the `Name` field on the key
-</code></pre>
-<p>When <strong>pkger</strong> detects the gpg key in the configuration it will prompt for a password to the key on each run.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h1>
 <p>Optional fields that may be used when building a DEB package.</p>
 <pre><code class="language-yaml">  deb:
@@ -493,6 +487,13 @@ steps = []
 <p>For this to have any effect the recipes have to have image targets defined (more on that <a href="./metadata.html#optional-fields">here</a>)</p>
 <h3 id="output"><a class="header" href="#output">Output</a></h3>
 <p>After successfully building a package <strong>pkger</strong> will put the output artifact to <code>output_dir</code> specified in <a href="./configuration.html">configuration</a> joined by the image name that was used to build the package. Each image will have a separate directory with all of its output packages.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="signing"><a class="header" href="#signing">Signing</a></h1>
+<p>To sign packages automatically using a GPG key add the following to your <a href="./configuration.html">configuration file</a>:</p>
+<pre><code class="language-yaml">gpg_key: /absolute/path/to/the/private/key
+gpg_name: Packager Name # must be the same as the `Name` field on the key
+</code></pre>
+<p>When <strong>pkger</strong> detects the gpg key in the configuration it will prompt for a password to the key on each run.</p>
+<p>Currently, only <em>deb</em> and <em>rpm</em> targets support signing.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="formatting-output"><a class="header" href="#formatting-output">Formatting output</a></h1>
 <p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or <code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set <code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
 <p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells <strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output. Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
