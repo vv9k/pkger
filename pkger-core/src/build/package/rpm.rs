@@ -273,7 +273,6 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
             &ctx,
             &ExecOpts::default()
                 .cmd(&format!("rpm --addsign {}", package.display()))
-                .tty(true)
                 .build(),
         )
         .await
