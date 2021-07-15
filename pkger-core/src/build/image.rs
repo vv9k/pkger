@@ -7,11 +7,11 @@ use crate::image::{ImageState, ImagesState};
 use crate::recipe::RecipeTarget;
 use crate::{Error, Result};
 
+use async_rwlock::RwLock;
 use futures::StreamExt;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use std::sync::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempdir::TempDir;
 use tracing::{debug, info, info_span, trace, warn, Instrument};
@@ -21,8 +21,6 @@ pub static LATEST: &str = "latest";
 
 pub async fn build(ctx: &mut Context) -> Result<ImageState> {
     let span = info_span!("image-build");
-    let cloned_span = span.clone();
-
     async move {
         let mut deps = if let Some(deps) = &ctx.recipe.metadata.build_depends {
             deps.resolve_names(&ctx.target.image())
@@ -36,11 +34,10 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
         ));
         trace!(resolved_deps = ?deps);
 
-        let result = cloned_span.in_scope(|| {
-            find_cached_state(&ctx.image.path, &ctx.target, &ctx.image_state, ctx.simple)
-        });
+        let state =
+            find_cached_state(&ctx.image.path, &ctx.target, &ctx.image_state, ctx.simple).await;
 
-        if let Some(state) = result {
+        if let Some(state) = state {
             let state_deps = state
                 .deps
                 .iter()
@@ -92,9 +89,8 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
                     )
                     .await?;
 
-                    if let Ok(mut image_state) = ctx.image_state.write() {
-                        (*image_state).update(&ctx.target, &state)
-                    }
+                    let mut image_state = ctx.image_state.write().await;
+                    (*image_state).update(&ctx.target, &state);
 
                     return Ok(state);
                 }
@@ -197,7 +193,7 @@ RUN {} {} {} >/dev/null"#,
 
 /// Checks whether any of the files located at the path of this Image changed since last build.
 /// If shouldn't be rebuilt returns previous `ImageState`.
-pub fn find_cached_state(
+pub async fn find_cached_state(
     image: &Path,
     target: &RecipeTarget,
     state: &RwLock<ImagesState>,
@@ -209,50 +205,50 @@ pub fn find_cached_state(
     trace!(recipe = ?target);
 
     trace!("checking if image should be rebuilt");
-    if let Ok(states) = state.read() {
-        if let Some(state) = (*states).images.get(&target) {
-            if simple {
-                return Some(state.to_owned());
-            }
-            if let Ok(entries) = fs::read_dir(image) {
-                for file in entries {
-                    if let Err(e) = file {
-                        warn!(reason = %e, "error while loading file");
-                        continue;
-                    }
-                    let file = file.unwrap();
-                    let path = file.path();
-                    trace!(path = %path.display(), "checking");
-                    let metadata = fs::metadata(path.as_path());
-                    if let Err(e) = metadata {
-                        warn!(
-                            path = %path.display(),
-                            reason = %e,
-                            "failed to read metadata",
-                        );
-                        continue;
-                    }
-                    let metadata = metadata.unwrap();
-                    let mod_time = metadata.modified();
-                    if let Err(e) = &mod_time {
-                        warn!(
-                            path = %path.display(),
-                            reason = %e,
-                            "failed to check modification time",
-                        );
-                        continue;
-                    }
-                    let mod_time = mod_time.unwrap();
-                    if mod_time > state.timestamp {
-                        trace!(mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
-                        return None;
-                    }
+    let states = state.read().await;
+    if let Some(state) = (*states).images.get(&target) {
+        if simple {
+            return Some(state.to_owned());
+        }
+        if let Ok(entries) = fs::read_dir(image) {
+            for file in entries {
+                if let Err(e) = file {
+                    warn!(reason = %e, "error while loading file");
+                    continue;
+                }
+                let file = file.unwrap();
+                let path = file.path();
+                trace!(path = %path.display(), "checking");
+                let metadata = fs::metadata(path.as_path());
+                if let Err(e) = metadata {
+                    warn!(
+                        path = %path.display(),
+                        reason = %e,
+                        "failed to read metadata",
+                    );
+                    continue;
+                }
+                let metadata = metadata.unwrap();
+                let mod_time = metadata.modified();
+                if let Err(e) = &mod_time {
+                    warn!(
+                        path = %path.display(),
+                        reason = %e,
+                        "failed to check modification time",
+                    );
+                    continue;
+                }
+                let mod_time = mod_time.unwrap();
+                if mod_time > state.timestamp {
+                    trace!(mod_time = ?mod_time, image_mod_time = ?state.timestamp, "found modified file, not returning cache");
+                    return None;
                 }
             }
-            let state = state.to_owned();
-            trace!(image_state = ?state, "found cached state");
-            return Some(state);
         }
+        let state = state.to_owned();
+        trace!(image_state = ?state, "found cached state");
+        return Some(state);
     }
+
     None
 }

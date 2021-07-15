@@ -13,11 +13,12 @@ use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::{ErrContext, Error, Result};
 
+use async_rwlock::RwLock;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::SystemTime;
 use tracing::{debug, info, info_span, trace, warn, Instrument};
 
@@ -70,10 +71,9 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
                 image::cache_image(&container_ctx, &ctx.docker, &image_state, &deps).await?;
             info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
 
-            if let Ok(mut state) = ctx.image_state.write() {
-                trace!("saving image state");
-                (*state).update(&ctx.target, &new_state)
-            }
+            trace!("saving image state");
+            let mut state = ctx.image_state.write().await;
+            (*state).update(&ctx.target, &new_state);
 
             container_ctx.container.remove().await?;
             container_ctx = container::spawn(&ctx, &new_state).await?;
