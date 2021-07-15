@@ -1,6 +1,7 @@
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/wojciechkepka/pkger/pull/55)
 - Add an option to sign DEBs with a GPG key [#56](https://github.com/wojciechkepka/pkger/pull/56)
+- Fix image caching
 
 # 0.3.0
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`

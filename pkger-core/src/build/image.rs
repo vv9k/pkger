@@ -11,7 +11,7 @@ use futures::StreamExt;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempdir::TempDir;
 use tracing::{debug, info, info_span, trace, warn, Instrument};
@@ -155,7 +155,9 @@ RUN {} {} {} >/dev/null"#,
         fs::write(temp_path.join("Dockerfile"), dockerfile)?;
 
         let images = docker.images();
-        let opts = BuildOpts::builder(&temp_path).tag(tag).build();
+        let opts = BuildOpts::builder(&temp_path)
+            .tag(format!("{}:{}", state.image, CACHED))
+            .build();
 
         let mut stream = images.build(&opts);
 
@@ -198,7 +200,7 @@ RUN {} {} {} >/dev/null"#,
 pub fn find_cached_state(
     image: &Path,
     target: &RecipeTarget,
-    state: &Arc<RwLock<ImagesState>>,
+    state: &RwLock<ImagesState>,
     simple: bool,
 ) -> Option<ImageState> {
     let span = info_span!("find-image-cache");

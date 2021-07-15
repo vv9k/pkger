@@ -108,16 +108,22 @@ impl Default for ImagesState {
 impl ImagesState {
     /// Tries to initialize images state from the given path
     pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
-        if !state_file.as_ref().exists() {
-            File::create(state_file.as_ref())?;
+        let state_file = state_file.as_ref();
+        if !state_file.exists() {
+            trace!("state file doesn't exist, creating");
+            File::create(state_file)?;
 
             return Ok(ImagesState {
                 images: HashMap::new(),
-                state_file: state_file.as_ref().to_path_buf(),
+                state_file: state_file.to_path_buf(),
             });
         }
-        let contents = fs::read(state_file.as_ref())?;
-        Ok(serde_cbor::from_slice(&contents)?)
+        let contents =
+            fs::read(state_file).context("failed to read images state file from the filesystem")?;
+        let state =
+            serde_cbor::from_slice(&contents).context("failed to deserialize images state")?;
+
+        Ok(state)
     }
 
     /// Updates the target image with a new state
@@ -127,16 +133,9 @@ impl ImagesState {
 
     /// Saves the images state to the filesystem
     pub fn save(&self) -> Result<()> {
-        if !Path::new(&self.state_file).exists() {
-            trace!(state_file = %self.state_file.display(), "doesn't exist, creating");
-            fs::File::create(&self.state_file)
-                .context("failed to save state file")
-                .map(|_| ())
-        } else {
-            trace!(state_file = %self.state_file.display(), "file exists, overwriting");
-            serde_cbor::to_vec(&self)
-                .context("failed to deserialize image state")
-                .and_then(|d| fs::write(&self.state_file, d).context("failed to save state file"))
-        }
+        trace!("saving images state");
+        serde_cbor::to_vec(&self)
+            .context("failed to serialize image state")
+            .and_then(|d| fs::write(&self.state_file, d).context("failed to save state file"))
     }
 }
