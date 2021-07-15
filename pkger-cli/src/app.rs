@@ -9,12 +9,13 @@ use pkger_core::image::{state::DEFAULT_STATE_FILE, Image, ImagesState};
 use pkger_core::recipe::{self, BuildTarget, ImageTarget, Recipe};
 use pkger_core::{ErrContext, Error, Result};
 
+use async_rwlock::RwLock;
 use futures::stream::FuturesUnordered;
 use std::convert::TryFrom;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tempdir::TempDir;
 use tokio::task;
 use tracing::{error, info, info_span, trace, warn, Instrument};
@@ -119,7 +120,7 @@ impl Application {
                     .process_build_opts(build_opts)
                     .context("processing build opts")?;
                 self.process_tasks(tasks).await?;
-                self.save_images_state();
+                self.save_images_state().await;
                 Ok(())
             }
             Commands::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
@@ -317,19 +318,13 @@ impl Application {
         }.instrument(span).await
     }
 
-    fn save_images_state(&self) {
+    async fn save_images_state(&self) {
         let span = info_span!("save-images-state");
         let _enter = span.enter();
 
-        let result = self.images_state.read();
+        let state = self.images_state.read().await;
 
-        if let Err(e) = result {
-            error!(reason = %e, "failed to save image state");
-            return;
-        }
-
-        // it's ok to unwrap, we check the wrapping error above
-        if let Err(e) = (*result.unwrap()).save() {
+        if let Err(e) = state.save() {
             error!(reason = %e, "failed to save image state");
         }
     }
