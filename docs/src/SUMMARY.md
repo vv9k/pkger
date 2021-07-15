@@ -12,5 +12,6 @@
 - [Generate recipes](./generate.md)
 - [Images](./images.md)
 - [Build a package](./usage.md)
+- [Signing packages](./signing.md)  
 - [Formatting output](./output.md)
 
