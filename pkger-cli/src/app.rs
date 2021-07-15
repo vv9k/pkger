@@ -83,13 +83,25 @@ impl Application {
             None
         };
 
+        let images_state = Arc::new(RwLock::new(
+            match ImagesState::try_from_path(DEFAULT_STATE_FILE)
+                .context("failed to load images state")
+            {
+                Ok(state) => state,
+                Err(e) => {
+                    warn!(msg = %e);
+                    Default::default()
+                }
+            },
+        ));
+
+        trace!(?images_state);
+
         let pkger = Application {
             config: Arc::new(config),
             recipes: Arc::new(recipes),
             docker: Arc::new(DockerConnectionPool::default()),
-            images_state: Arc::new(RwLock::new(
-                ImagesState::try_from_path(DEFAULT_STATE_FILE).unwrap_or_default(),
-            )),
+            images_state,
             user_images_dir,
             is_running: Arc::new(AtomicBool::new(true)),
             _pkger_dir,
