@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
 /// Creates a final DEB packages and saves it to `output_dir`
-pub async fn build_deb(
+pub async fn build(
     ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,

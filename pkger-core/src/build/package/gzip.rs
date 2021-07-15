@@ -7,7 +7,7 @@ use tracing::{info, info_span, Instrument};
 
 /// Creates a final GZIP package and saves it to `output_dir` returning the path of the final
 /// archive as String.
-pub async fn build_gzip(ctx: &Context<'_>, output_dir: &Path) -> Result<PathBuf> {
+pub async fn build(ctx: &Context<'_>, output_dir: &Path) -> Result<PathBuf> {
     let span = info_span!("GZIP");
     let cloned_span = span.clone();
     async move {

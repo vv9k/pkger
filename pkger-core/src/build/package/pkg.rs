@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
 /// Creates a final PKG package and saves it to `output_dir`
-pub(crate) async fn build_pkg(
+pub(crate) async fn build(
     ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,
