@@ -2,6 +2,7 @@ use crate::build;
 use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::docker::{api::ContainerCreateOpts, ExecContainerOpts};
 use crate::image::ImageState;
+use crate::ssh;
 use crate::{Error, Result};
 
 use std::path::Path;
@@ -35,17 +36,28 @@ pub async fn spawn<'ctx>(
     async move {
         trace!(image = ?image_state);
 
+        let mut volumes = Vec::new();
+
         let mut env = ctx.recipe.env.clone();
         env.insert("PKGER_BLD_DIR", ctx.container_bld_dir.to_string_lossy());
         env.insert("PKGER_OUT_DIR", ctx.container_out_dir.to_string_lossy());
         env.insert("PKGER_OS", image_state.os.name());
         env.insert("PKGER_OS_VERSION", image_state.os.version());
+
+        if ctx.forward_ssh_agent {
+            const CONTAINER_PATH: &str = "/ssh-agent";
+            let host_path = ssh::auth_sock()?;
+            volumes.push(format!("{}:{}", host_path, CONTAINER_PATH));
+            env.insert(ssh::SOCK_ENV, CONTAINER_PATH);
+        }
+
         trace!(env = ?env);
 
         let opts = ContainerCreateOpts::builder(&image_state.id)
             .name(&ctx.id)
             .cmd(vec!["sleep infinity"])
             .entrypoint(vec!["/bin/sh", "-c"])
+            .volumes(volumes)
             .env(env.kv_vec())
             .working_dir(ctx.container_bld_dir.to_string_lossy())
             .build();

@@ -287,7 +287,8 @@ impl Application {
                                 self.images_state.clone(),
                                 self.is_running.clone(),
                                 is_simple,
-                                self.gpg_key.clone()
+                                self.gpg_key.clone(),
+                                self.config.forward_ssh_agent,
                             ))
                             .run(),
                         ));
