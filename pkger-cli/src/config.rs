@@ -12,6 +12,7 @@ pub struct Configuration {
     pub docker: Option<String>,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
+    pub forward_ssh_agent: bool,
 }
 impl Configuration {
     pub fn load<P: AsRef<Path>>(val: P) -> Result<Self> {
