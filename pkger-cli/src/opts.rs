@@ -90,8 +90,10 @@ pub struct BuildOpts {
     pub images: Option<Vec<String>>,
     #[clap(long)]
     /// URL to Docker daemon listening on a unix or tcp socket. An example could be
-    /// `unix:///var/run/docker.socket` or a tcp uri `tcp://127.0.0.1:81`. By default pkger will
-    /// try to connect to a unix socket at `/run/docker.sock`.
+    /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
+    /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
+    /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
+    /// `127.0.0.1:8080` is used.
     pub docker: Option<String>,
 
     #[clap(long, short)]

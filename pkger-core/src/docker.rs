@@ -11,6 +11,7 @@ pub struct DockerConnectionPool {
     connector: Docker,
 }
 
+#[cfg(unix)]
 impl Default for DockerConnectionPool {
     fn default() -> Self {
         let socket_path = if PathBuf::from(RUN_DOCKER_SOCK).exists() {
@@ -21,6 +22,15 @@ impl Default for DockerConnectionPool {
 
         Self {
             connector: Docker::unix(socket_path),
+        }
+    }
+}
+
+#[cfg(not(unix))]
+impl Default for DockerConnectionPool {
+    fn default() -> Self {
+        Self {
+            connector: Docker::tcp("127.0.0.1:8080").expect("valid host address"),
         }
     }
 }
