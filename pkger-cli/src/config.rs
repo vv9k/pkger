@@ -12,6 +12,7 @@ pub struct Configuration {
     pub docker: Option<String>,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
+    #[serde(default)]
     pub forward_ssh_agent: bool,
 }
 impl Configuration {
