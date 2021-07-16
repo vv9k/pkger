@@ -46,6 +46,7 @@ pub struct Context {
     is_running: Arc<AtomicBool>,
     simple: bool,
     gpg_key: Option<GpgKey>,
+    forward_ssh_agent: bool,
 }
 
 pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
@@ -140,6 +141,7 @@ impl Context {
         is_running: Arc<AtomicBool>,
         simple: bool,
         gpg_key: Option<GpgKey>,
+        forward_ssh_agent: bool,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -176,6 +178,7 @@ impl Context {
             is_running,
             simple,
             gpg_key,
+            forward_ssh_agent,
         }
     }
 

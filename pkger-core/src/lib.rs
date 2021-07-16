@@ -9,5 +9,6 @@ pub mod gpg;
 pub mod image;
 pub mod oneshot;
 pub mod recipe;
+pub mod ssh;
 
 pub use anyhow::{anyhow, Context as ErrContext, Error, Result};

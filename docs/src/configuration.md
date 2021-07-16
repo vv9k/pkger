@@ -1,6 +1,8 @@
 # Configuration
 
-By default **pkger** will look for the config file in the home directory of the user running the process in a file `.pkger.yml`. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use `--config` or `-c` parameter.
+By default **pkger** will look for the config file in the home directory of the user running the process in a file
+`.pkger.yml`. If there is no global configuration current directory will be scand for the same file. To specify the
+location of the config file use `--config` or `-c` parameter.
 
 The configuration file has a following structure:
 
@@ -12,9 +14,13 @@ output_dir: ""
 # optional
 images_dir: ""
 docker: "unix:///var/run/docker.sock"
+
+# this will make the ssh auth socket available to the container so that it can use private keys from the host.
+forward_ssh_agent: true
 ```
 
-The required fields when running a build are `recipes_dir` and `output_dir`. First tells **pkger** where to look for [recipes](./recipes.md) to build, the second is the directory where the final packages will end up.
+The required fields when running a build are `recipes_dir` and `output_dir`. First tells **pkger** where to look for
+[recipes](./recipes.md) to build, the second is the directory where the final packages will end up.
 
 When using [custom images](./images.md) their location can be specified with `images_dir`.
 
