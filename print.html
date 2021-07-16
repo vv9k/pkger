@@ -154,7 +154,9 @@
 <li><code>cargo build --release</code></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
-<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file <code>.pkger.yml</code>. If there is no global configuration current directory will be scand for the same file. To specify the location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
+<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file
+<code>.pkger.yml</code>. If there is no global configuration current directory will be scand for the same file. To specify the
+location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
 <p>The configuration file has a following structure:</p>
 <pre><code class="language-yaml"># required
 recipes_dir: &quot;&quot;
@@ -163,8 +165,12 @@ output_dir: &quot;&quot;
 # optional
 images_dir: &quot;&quot;
 docker: &quot;unix:///var/run/docker.sock&quot;
+
+# this will make the ssh auth socket available to the container so that it can use private keys from the host.
+forward_ssh_agent: true
 </code></pre>
-<p>The required fields when running a build are <code>recipes_dir</code> and <code>output_dir</code>. First tells <strong>pkger</strong> where to look for <a href="./recipes.html">recipes</a> to build, the second is the directory where the final packages will end up.</p>
+<p>The required fields when running a build are <code>recipes_dir</code> and <code>output_dir</code>. First tells <strong>pkger</strong> where to look for
+<a href="./recipes.html">recipes</a> to build, the second is the directory where the final packages will end up.</p>
 <p>When using <a href="./images.html">custom images</a> their location can be specified with <code>images_dir</code>.</p>
 <p>If Docker daemon that <strong>pkger</strong> should connect does not run on a default unix socket override the uri with <code>docker</code> parameter.</p>
 <p>If an option is available as both configuration parameter and cli argument <strong>pkger</strong> will favour the arguments passed during startup.</p>
