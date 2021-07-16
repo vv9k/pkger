@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tempdir::TempDir;
 use tokio::task;
-use tracing::{error, info, info_span, trace, warn, Instrument};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     if let Err(e) = ctrlc::set_handler(move || {
@@ -116,6 +116,10 @@ impl Application {
     pub async fn process_opts(&mut self, opts: Opts) -> Result<()> {
         match opts.command {
             Commands::Build(build_opts) => {
+                if build_opts.no_sign {
+                    debug!("disabling signing");
+                    self.gpg_key = None;
+                }
                 let tasks = self
                     .process_build_opts(build_opts)
                     .context("processing build opts")?;

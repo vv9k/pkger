@@ -97,6 +97,11 @@ pub struct BuildOpts {
     #[clap(long, short)]
     /// If set to true, all recipes will be built.
     pub all: bool,
+
+    #[clap(long)]
+    /// Disable signing packages. This option only has effect when signing is enabled in
+    /// the configuration.
+    pub no_sign: bool,
 }
 
 #[derive(Debug, Clap)]

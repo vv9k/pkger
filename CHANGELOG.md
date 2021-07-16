@@ -4,6 +4,8 @@
 - Fix image caching
 - Add `forward_ssh_agent` configuration option to forward the SSH authentication socket from the host machine to 
   the container. [#58](https://github.com/wojciechkepka/pkger/pull/58)
+- Add `--no-sign` command line argument to `build` command so that users can disable signing for the particular build
+  even when the gpg signing is enabled in the configuration.
 
 # 0.3.0
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`
