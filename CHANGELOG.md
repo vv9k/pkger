@@ -6,6 +6,8 @@
   the container. [#58](https://github.com/wojciechkepka/pkger/pull/58)
 - Add `--no-sign` command line argument to `build` command so that users can disable signing for the particular build
   even when the gpg signing is enabled in the configuration.
+- Move `forward_ssh_agent` option to `ssh` configuration and rename it to `forward_agent` [#60](https://github.com/wojciechkepka/pkger/pull/60)
+- Add `disable_key_verification` to `ssh` configuration [#60](https://github.com/wojciechkepka/pkger/pull/60)
 
 # 0.3.0
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`

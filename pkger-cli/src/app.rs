@@ -292,7 +292,7 @@ impl Application {
                                 self.is_running.clone(),
                                 is_simple,
                                 self.gpg_key.clone(),
-                                self.config.forward_ssh_agent,
+                                self.config.ssh.clone(),
                             ))
                             .run(),
                         ));

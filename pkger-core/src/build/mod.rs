@@ -11,6 +11,7 @@ use crate::docker::Docker;
 use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
+use crate::ssh::SshConfig;
 use crate::{ErrContext, Error, Result};
 
 use async_rwlock::RwLock;
@@ -46,7 +47,7 @@ pub struct Context {
     is_running: Arc<AtomicBool>,
     simple: bool,
     gpg_key: Option<GpgKey>,
-    forward_ssh_agent: bool,
+    ssh: Option<SshConfig>,
 }
 
 pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
@@ -141,7 +142,7 @@ impl Context {
         is_running: Arc<AtomicBool>,
         simple: bool,
         gpg_key: Option<GpgKey>,
-        forward_ssh_agent: bool,
+        ssh: Option<SshConfig>,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -178,7 +179,7 @@ impl Context {
             is_running,
             simple,
             gpg_key,
-            forward_ssh_agent,
+            ssh,
         }
     }
 
