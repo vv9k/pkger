@@ -19,7 +19,7 @@ ssh:
   # this will make the ssh auth socket available to the container so that it can use private keys from the host.
   forward_agent: true
 
-  # This will allow tools that use SSH to connect to hosts that are not present in the `authorized_keys`
+  # This will allow tools that use SSH to connect to hosts that are not present in the `known_hosts` file
   disable_key_verification: true
 ```
 
