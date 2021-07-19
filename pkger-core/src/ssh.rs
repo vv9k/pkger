@@ -1,7 +1,8 @@
-use crate::{ErrContext, Error, Result};
+use crate::{Error, Result};
 
-use std::env;
 use std::path::PathBuf;
+#[cfg(target_os = "linux")]
+use {crate::ErrContext, std::env};
 
 pub const SOCK_ENV: &str = "SSH_AUTH_SOCK";
 
