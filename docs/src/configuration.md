@@ -15,12 +15,12 @@ output_dir: ""
 images_dir: ""
 docker: "unix:///var/run/docker.sock"
 
-[ssh]
-# this will make the ssh auth socket available to the container so that it can use private keys from the host.
-forward_agent: true
+ssh:
+  # this will make the ssh auth socket available to the container so that it can use private keys from the host.
+  forward_agent: true
 
-# This will allow tools that use SSH to connect to hosts that are not present in the `authorized_keys`
-disable_key_verification: true
+  # This will allow tools that use SSH to connect to hosts that are not present in the `authorized_keys`
+  disable_key_verification: true
 ```
 
 The required fields when running a build are `recipes_dir` and `output_dir`. First tells **pkger** where to look for
