@@ -51,6 +51,9 @@ pub async fn spawn<'ctx>(
             env.insert(ssh::SOCK_ENV, CONTAINER_PATH);
         }
 
+        // disable interactive verification of unknown hosts
+        env.insert("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=no");
+
         trace!(env = ?env);
 
         let opts = ContainerCreateOpts::builder(&image_state.id)
