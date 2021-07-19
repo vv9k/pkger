@@ -1,4 +1,5 @@
 use crate::Result;
+use pkger_core::ssh::SshConfig;
 
 use serde::Deserialize;
 use std::fs;
@@ -12,9 +13,9 @@ pub struct Configuration {
     pub docker: Option<String>,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
-    #[serde(default)]
-    pub forward_ssh_agent: bool,
+    pub ssh: Option<SshConfig>,
 }
+
 impl Configuration {
     pub fn load<P: AsRef<Path>>(val: P) -> Result<Self> {
         Ok(serde_yaml::from_slice(&fs::read(val.as_ref())?)?)

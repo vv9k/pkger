@@ -117,6 +117,20 @@ impl Dependencies {
         deps
     }
 
+    /// Returns `true` if the `image` depends on `dependency`.
+    pub fn depends_on(&self, image: &str, dependency: &str) -> bool {
+        if let Some(common_deps) = self.inner.get(COMMON_DEPS_KEY) {
+            if common_deps.contains(dependency) {
+                return true;
+            }
+        }
+        if let Some(image_deps) = self.inner.get(image) {
+            return image_deps.contains(dependency);
+        }
+
+        false
+    }
+
     pub fn inner(&self) -> &DepsMap {
         &self.inner
     }

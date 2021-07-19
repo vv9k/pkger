@@ -1,10 +1,19 @@
 use crate::{Error, Result};
 
+use serde::Deserialize;
 use std::path::PathBuf;
 #[cfg(target_os = "linux")]
 use {crate::ErrContext, std::env};
 
 pub const SOCK_ENV: &str = "SSH_AUTH_SOCK";
+
+#[derive(Clone, Deserialize, Debug)]
+pub struct SshConfig {
+    #[serde(default)]
+    pub forward_agent: bool,
+    #[serde(default)]
+    pub disable_key_verification: bool,
+}
 
 /// Returns the path to the SSH authentication socket depending on the operating system
 /// and checks if the socket exists.

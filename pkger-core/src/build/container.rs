@@ -44,15 +44,18 @@ pub async fn spawn<'ctx>(
         env.insert("PKGER_OS", image_state.os.name());
         env.insert("PKGER_OS_VERSION", image_state.os.version());
 
-        if ctx.forward_ssh_agent {
-            const CONTAINER_PATH: &str = "/ssh-agent";
-            let host_path = ssh::auth_sock()?;
-            volumes.push(format!("{}:{}", host_path, CONTAINER_PATH));
-            env.insert(ssh::SOCK_ENV, CONTAINER_PATH);
-        }
+        if let Some(ssh) = &ctx.ssh {
+            if ssh.forward_agent {
+                const CONTAINER_PATH: &str = "/ssh-agent";
+                let host_path = ssh::auth_sock()?;
+                volumes.push(format!("{}:{}", host_path, CONTAINER_PATH));
+                env.insert(ssh::SOCK_ENV, CONTAINER_PATH);
+            }
 
-        // disable interactive verification of unknown hosts
-        env.insert("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=no");
+            if ssh.disable_key_verification {
+                env.insert("GIT_SSH_COMMAND", "ssh -o StrictHostKeyChecking=no");
+            }
+        }
 
         trace!(env = ?env);
 
