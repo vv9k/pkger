@@ -2,7 +2,7 @@
 name = "pkgbuild"
 description = "Crate for PKGBUILD generation"
 version = "0.1.1"
-authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
+authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
 edition = "2018"
 license = "MIT"
 
