@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tempdir::TempDir;
 use tokio::task;
-use tracing::{debug, error, info, info_span, trace, warn, Instrument};
+use tracing::{error, info, info_span, trace, warn, Instrument};
 
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     if let Err(e) = ctrlc::set_handler(move || {
@@ -72,18 +72,6 @@ impl Application {
             .clone()
             .unwrap_or_else(|| _pkger_dir.path().join("images"));
 
-        let gpg_key = if let Some(key) = &config.gpg_key {
-            let pass = rpassword::read_password_from_tty(Some("Gpg key password:"))
-                .context("failed to read password for gpg key")?;
-            if let Some(name) = &config.gpg_name {
-                Some(GpgKey::new(key, name, &pass)?)
-            } else {
-                return Err(Error::msg("missing `gpg_name` field from configuration"));
-            }
-        } else {
-            None
-        };
-
         let images_state = Arc::new(RwLock::new(
             match ImagesState::try_from_path(DEFAULT_STATE_FILE)
                 .context("failed to load images state")
@@ -106,7 +94,7 @@ impl Application {
             user_images_dir,
             is_running: Arc::new(AtomicBool::new(true)),
             _pkger_dir,
-            gpg_key,
+            gpg_key: None,
         };
         let is_running = pkger.is_running.clone();
         set_ctrlc_handler(is_running);
@@ -116,9 +104,8 @@ impl Application {
     pub async fn process_opts(&mut self, opts: Opts) -> Result<()> {
         match opts.command {
             Commands::Build(build_opts) => {
-                if build_opts.no_sign {
-                    debug!("disabling signing");
-                    self.gpg_key = None;
+                if !build_opts.no_sign {
+                    self.gpg_key = load_gpg_key(&self.config)?;
                 }
                 let tasks = self
                     .process_build_opts(build_opts)
@@ -192,7 +179,7 @@ impl Application {
         }
 
         if opts.all {
-            // build all recipes for all targets
+            debug!("building all recipes for all targets");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for target in images {
@@ -201,10 +188,12 @@ impl Application {
                             target: target.clone(),
                         });
                     }
+                } else {
+                    warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                 }
             }
         } else if let Some(targets) = &opts.simple {
-            // build only specified recipes for simple targets
+            debug!("building only specified recipes for simple targets");
             for target in targets {
                 for recipe in &recipes {
                     let target = BuildTarget::try_from(target.as_str())?;
@@ -215,7 +204,7 @@ impl Application {
                 }
             }
         } else if let Some(opt_images) = &opts.images {
-            // build only specified recipes for specified images
+            debug!("building only specified recipes for specified images");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for image in opt_images {
@@ -226,18 +215,26 @@ impl Application {
                             });
                         }
                     }
+                } else {
+                    warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                 }
             }
         } else {
-            // build only specified recipes for all targets
+            trace!("building only specified recipes for all targets");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
+                    if images.is_empty() {
+                        warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
+                        continue;
+                    }
                     for target in images {
                         tasks.push(BuildTask::Custom {
                             recipe: recipe.clone(),
                             target: target.clone(),
                         });
                     }
+                } else {
+                    warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                 }
             }
         }
@@ -250,7 +247,7 @@ impl Application {
                     DockerConnectionPool::new(uri)
                 }
                 None => {
-                    // otherwhise check if available as config parameter
+                    // otherwise check if available as config parameter
                     if let Some(uri) = &self.config.docker {
                         trace!(uri = %uri, "using docker uri from config");
                         DockerConnectionPool::new(uri)
@@ -332,5 +329,19 @@ impl Application {
         if let Err(e) = state.save() {
             error!(reason = %e, "failed to save image state");
         }
+    }
+}
+
+fn load_gpg_key(config: &Configuration) -> Result<Option<GpgKey>> {
+    if let Some(key) = &config.gpg_key {
+        let pass = rpassword::read_password_from_tty(Some("Gpg key password:"))
+            .context("failed to read password for gpg key")?;
+        if let Some(name) = &config.gpg_name {
+            Ok(Some(GpgKey::new(key, name, &pass)?))
+        } else {
+            Err(Error::msg("missing `gpg_name` field from configuration"))
+        }
+    } else {
+        Ok(None)
     }
 }
