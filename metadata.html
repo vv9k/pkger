@@ -153,7 +153,8 @@
   version: 0.1.0
 </code></pre>
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
-<p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored when building with <code>--simple</code> flag.</p>
+<p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored
+when building with <code>--simple</code> flag.</p>
 <pre><code class="language-yaml">  images:
     - name: centos8
       target: rpm
@@ -166,8 +167,11 @@
       os: Arch
 </code></pre>
 <h3 id="sources"><a class="header" href="#sources">sources</a></h3>
-<p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified <strong>pkger</strong> will fetch both to the build directory.</p>
-<p>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> it will be directly extracted to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
+<p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified
+<strong>pkger</strong> will fetch both to the build directory.</p>
+<p>If <code>source</code> starts with a prefix like <code>http</code> or <code>https</code> the file that if points to will be downloaded. If the file is an
+archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> it will be directly extracted to
+<a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
 <pre><code class="language-yaml">  source: &quot;&quot; # remote source or file system location
 
   git: https://github.com/wojciechkepka/pkger.git # will default to branch = &quot;master&quot;
@@ -204,7 +208,8 @@
   provides: []
 </code></pre>
 <p>Or specified per image as a map below.</p>
-<p><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, choosing an appropriate package manager for each supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type.</p>
+<p><strong>pkger</strong> will install all dependencies listed in <code>build_depends</code>, choosing an appropriate package manager for each
+supported distribution. Default dependencies like <code>gzip</code> or <code>git</code> might be installed depending on the target job type.</p>
 <pre><code class="language-yaml">  build_depends:
     # common dependencies shared across all images
     all: [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
@@ -213,14 +218,18 @@
     centos8: [&quot;cargo&quot;, &quot;openssl-devel&quot;]
     debian10: [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
-<p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:</p>
+<p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
+images:</p>
 <pre><code class="language-yaml">    pkger-rpm: [&quot;cargo&quot;]
     pkger-deb: [&quot;curl&quot;]
     pkger-pkg: [&quot;cargo&quot;]
     pkger-gzip: []
 </code></pre>
 <h3 id="patches"><a class="header" href="#patches">Patches</a></h3>
-<p>To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file name in which case <strong>pkger</strong> will look for the patch in the recipe directory, if the path is absolute it will be read directly from the file system and finally if the patch starts with an <code>http</code> or <code>https</code> prefix the patch will be fetched from remote source.</p>
+<p>To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file
+name in which case <strong>pkger</strong> will look for the patch in the recipe directory, if the path is absolute it will be read
+directly from the file system and finally if the patch starts with an <code>http</code> or <code>https</code> prefix the patch will be fetched
+from remote source.</p>
 <pre><code class="language-yaml">  patches:
     - some-local.patch
     - /some/absolute/path/to.patch

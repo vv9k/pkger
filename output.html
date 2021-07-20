@@ -144,8 +144,12 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="formatting-output"><a class="header" href="#formatting-output">Formatting output</a></h1>
-<p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or <code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set <code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
-<p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells <strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output. Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
+<p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or
+<code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set
+<code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
+<p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells
+<strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output.
+Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
 <ul>
 <li><code>d</code> hides the timestamp</li>
 <li><code>f</code> hides the fields in spans (the values between curly braces like <code>{id = vw89wje92}</code>)</li>

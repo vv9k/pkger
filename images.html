@@ -144,8 +144,11 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="images"><a class="header" href="#images">Images</a></h1>
-<p>Images are an optional feature of <strong>pkger</strong>.By default <strong>pkger</strong> will create necessary images to build simple targets, they are completely distinct from user defined ones. User images offer higher customisation when it comes to preparing the build environment.</p>
-<p>In the images directory specified by the <a href="./configuration.html">configuration</a> <strong>pkger</strong> will treat each subdirectory containing a <code>Dockerfile</code> as an image. The name of the directory will become the name of the image.</p>
+<p>Images are an optional feature of <strong>pkger</strong>.By default <strong>pkger</strong> will create necessary images to build simple targets,
+they are completely distinct from user defined ones. User images offer higher customisation when it comes to preparing
+the build environment.</p>
+<p>In the images directory specified by the <a href="./configuration.html">configuration</a> <strong>pkger</strong> will treat each subdirectory
+containing a <code>Dockerfile</code> as an image. The name of the directory will become the name of the image.</p>
 <p>So example structure like this:</p>
 <pre><code>images
 ├── arch
@@ -156,7 +159,8 @@
    └── Dockerfile
 </code></pre>
 <p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>centos8</em> and <em>debian10</em>.</p>
-<p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
+<p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
+dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
 
                     </main>
 

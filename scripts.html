@@ -144,8 +144,11 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="scripts"><a class="header" href="#scripts">Scripts</a></h1>
-<p><strong>pkger</strong> has 3 defined build phases - <em>configure</em>, <em>build</em> and <em>install</em> of which only <em>build</em> is required to create a package.</p>
-<p>Each phase has field called <code>steps</code> that takes an array of steps to execute during a given phase. A step can be a simple string that will be executed in the default shell like <code>&quot;echo 123&quot;</code> or an entry that specifies on what targets it should be executed like:</p>
+<p><strong>pkger</strong> has 3 defined build phases - <em>configure</em>, <em>build</em> and <em>install</em> of which only <em>build</em> is required to create a
+package.</p>
+<p>Each phase has field called <code>steps</code> that takes an array of steps to execute during a given phase. A step can be a simple
+string that will be executed in the default shell like <code>&quot;echo 123&quot;</code> or an entry that specifies on what targets it should
+be executed like:</p>
 <pre><code class="language-yaml">    - cmd: &gt;-
         echo only on deb targets
       deb: true
@@ -169,7 +172,10 @@ The working directory will be set to <a href="./env.html#pkger-variables"><code>
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 </code></pre>
 <h2 id="build-required"><a class="header" href="#build-required">build (Required)</a></h2>
-<p>This is the phase where the package should be assembled/compiled/linked and so on. All steps executed during the build will have the working directory seto to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>. This directory will contain either extracted sources if <code>source</code> is specified in <a href="./metadata.html#optional-fields">metadata</a> or a git repository if <code>git</code> was specified.</p>
+<p>This is the phase where the package should be assembled/compiled/linked and so on. All steps executed during the build
+will have the working directory seto to <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>. This directory will contain either
+extracted sources if <code>source</code> is specified in <a href="./metadata.html#optional-fields">metadata</a> or a git repository if <code>git</code>
+was specified.</p>
 <pre><code class="language-yaml">build:
   steps:
     - cmd: $HOME/.cargo/bin/cargo build --release .
@@ -181,7 +187,11 @@ The working directory will be set to <a href="./env.html#pkger-variables"><code>
 ]
 </code></pre>
 <h2 id="install-optional"><a class="header" href="#install-optional">install (Optional)</a></h2>
-<p>Optional steps that (if provided) will be executed after the build phase. Working directory of each step will be set to <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> so you can use relative paths with commands like install. Each file that ends up in <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> will be available in the final package unless explicitly excluded by <code>exclude</code> field in <a href="./metadata.html#optional-fields">metadata</a>. So in the example below, the file that is installed will be available as <code>/usr/bin/pkger</code> with permissions preserved.</p>
+<p>Optional steps that (if provided) will be executed after the build phase. Working directory of each step will be set to
+<a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> so you can use relative paths with commands like install. Each file that
+ends up in <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> will be available in the final package unless explicitly
+excluded by <code>exclude</code> field in <a href="./metadata.html#optional-fields">metadata</a>. So in the example below, the file that is
+installed will be available as <code>/usr/bin/pkger</code> with permissions preserved.</p>
 <pre><code class="language-yaml">[install]
 install:
   steps:
