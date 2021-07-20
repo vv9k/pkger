@@ -16,4 +16,6 @@ For this to have any effect the recipes have to have image targets defined (more
 
 ### Output
 
-After successfully building a package **pkger** will put the output artifact to `output_dir` specified in [configuration](./configuration.md) joined by the image name that was used to build the package. Each image will have a separate directory with all of its output packages.
+After successfully building a package **pkger** will put the output artifact to `output_dir` specified in
+[configuration](./configuration.md) joined by the image name that was used to build the package.
+Each image will have a separate directory with all of its output packages.
