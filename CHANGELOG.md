@@ -8,6 +8,7 @@
   even when the gpg signing is enabled in the configuration.
 - Move `forward_ssh_agent` option to `ssh` configuration and rename it to `forward_agent` [#60](https://github.com/wojciechkepka/pkger/pull/60)
 - Add `disable_key_verification` to `ssh` configuration [#60](https://github.com/wojciechkepka/pkger/pull/60)
+- Add a warning when trying to build a recipe without a target
 
 # 0.3.0
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`

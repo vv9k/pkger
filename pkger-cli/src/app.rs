@@ -179,7 +179,7 @@ impl Application {
         }
 
         if opts.all {
-            // build all recipes for all targets
+            debug!("building all recipes for all targets");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for target in images {
@@ -188,10 +188,12 @@ impl Application {
                             target: target.clone(),
                         });
                     }
+                } else {
+                    warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                 }
             }
         } else if let Some(targets) = &opts.simple {
-            // build only specified recipes for simple targets
+            debug!("building only specified recipes for simple targets");
             for target in targets {
                 for recipe in &recipes {
                     let target = BuildTarget::try_from(target.as_str())?;
@@ -202,7 +204,7 @@ impl Application {
                 }
             }
         } else if let Some(opt_images) = &opts.images {
-            // build only specified recipes for specified images
+            debug!("building only specified recipes for specified images");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for image in opt_images {
@@ -213,18 +215,26 @@ impl Application {
                             });
                         }
                     }
+                } else {
+                    warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                 }
             }
         } else {
-            // build only specified recipes for all targets
+            trace!("building only specified recipes for all targets");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
+                    if images.is_empty() {
+                        warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
+                        continue;
+                    }
                     for target in images {
                         tasks.push(BuildTask::Custom {
                             recipe: recipe.clone(),
                             target: target.clone(),
                         });
                     }
+                } else {
+                    warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                 }
             }
         }
@@ -237,7 +247,7 @@ impl Application {
                     DockerConnectionPool::new(uri)
                 }
                 None => {
-                    // otherwhise check if available as config parameter
+                    // otherwise check if available as config parameter
                     if let Some(uri) = &self.config.docker {
                         trace!(uri = %uri, "using docker uri from config");
                         DockerConnectionPool::new(uri)
