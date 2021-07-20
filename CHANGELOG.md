@@ -8,6 +8,9 @@
   even when the gpg signing is enabled in the configuration.
 - Move `forward_ssh_agent` option to `ssh` configuration and rename it to `forward_agent` [#60](https://github.com/wojciechkepka/pkger/pull/60)
 - Add `disable_key_verification` to `ssh` configuration [#60](https://github.com/wojciechkepka/pkger/pull/60)
+- Fix applying patches with relative paths [#64](https://github.com/wojciechkepka/pkger/pull/64)
+- Recipes can now have a `recipe.yml` or `recipe.yaml` file where previously only `.yml` was accepted
+  [#64](https://github.com/wojciechkepka/pkger/pull/64)
 
 # 0.3.0
 - Configure script now has a working directory set to `$PKGER_BLD_DIR`

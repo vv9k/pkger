@@ -1,6 +1,10 @@
 # Recipes
 
-The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts. To read more on each topic select a subsection in the menu.
+Each recipe is a directory containing at least a `recipe.yml` or `recipe.yaml` file located at `recipes_dir` specified
+in the [configuration](./configuration.md).
+
+The recipe is divided into 2 required (*metadata*, *build*) and 3 optional (*config*, *install*, *env*) parts.
+To read more on each topic select a subsection in the menu.
 
 Here's an example working recipe for **pkger**:
 
