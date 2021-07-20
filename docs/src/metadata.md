@@ -14,7 +14,8 @@ metadata:
 
 ## optional fields
 
-To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored when building with `--simple` flag.
+To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored
+when building with `--simple` flag.
 
 ```yaml
   images:
@@ -31,9 +32,12 @@ To specify which images a recipe should use add images parameter with a list of 
 
 ### sources
 
-This fields are responsible for fetching the files used for the build. When both `git` and `source` are specified **pkger** will fetch both to the build directory.
+This fields are responsible for fetching the files used for the build. When both `git` and `source` are specified
+**pkger** will fetch both to the build directory.
 
-If `source` starts with a prefix like `http` or `https` the file that if points to will be downloaded. If the file is an archive like `.tar.gz` or `.tar.xz` or `.zip` it will be directly extracted to [`$PKGER_BLD_DIR`](./env.md#pkger-variables), otherwise the file will be copied to the directory untouched.
+If `source` starts with a prefix like `http` or `https` the file that if points to will be downloaded. If the file is an
+archive like `.tar.gz` or `.tar.xz` or `.zip` it will be directly extracted to
+[`$PKGER_BLD_DIR`](./env.md#pkger-variables), otherwise the file will be copied to the directory untouched.
 
 ```yaml
   source: "" # remote source or file system location
@@ -83,7 +87,8 @@ This fields can be specified as arrays:
 ```
 Or specified per image as a map below.
 
-**pkger** will install all dependencies listed in `build_depends`, choosing an appropriate package manager for each supported distribution. Default dependencies like `gzip` or `git` might be installed depending on the target job type.
+**pkger** will install all dependencies listed in `build_depends`, choosing an appropriate package manager for each
+supported distribution. Default dependencies like `gzip` or `git` might be installed depending on the target job type.
 
 ```yaml
   build_depends:
@@ -95,7 +100,8 @@ Or specified per image as a map below.
     debian10: ["curl", "libssl-dev"]
 ```
 
-if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this images:
+if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
+images:
 
 ```yaml
     pkger-rpm: ["cargo"]
@@ -107,7 +113,10 @@ if running a simple build and there is a need to specify dependencies for the ta
 
 ### Patches
 
-To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file name in which case **pkger** will look for the patch in the recipe directory, if the path is absolute it will be read directly from the file system and finally if the patch starts with an `http` or `https` prefix the patch will be fetched from remote source.
+To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file
+name in which case **pkger** will look for the patch in the recipe directory, if the path is absolute it will be read
+directly from the file system and finally if the patch starts with an `http` or `https` prefix the patch will be fetched
+from remote source.
 
 ```yaml
   patches:
