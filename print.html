@@ -496,9 +496,7 @@ steps = []
 </ul>
 <p>For this to have any effect the recipes have to have image targets defined (more on that <a href="./metadata.html#optional-fields">here</a>)</p>
 <h3 id="output"><a class="header" href="#output">Output</a></h3>
-<p>After successfully building a package <strong>pkger</strong> will put the output artifact to <code>output_dir</code> specified in 
-<a href="./configuration.html">configuration</a> joined by the image name that was used to build the package.
-Each image will have a separate directory with all of its output packages.</p>
+<p>After successfully building a package <strong>pkger</strong> will put the output artifact to <code>output_dir</code> specified in <a href="./configuration.html">configuration</a> joined by the image name that was used to build the package. Each image will have a separate directory with all of its output packages.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="signing"><a class="header" href="#signing">Signing</a></h1>
 <p>To sign packages automatically using a GPG key add the following to your <a href="./configuration.html">configuration file</a>:</p>
 <pre><code class="language-yaml">gpg_key: /absolute/path/to/the/private/key
