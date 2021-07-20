@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tempdir::TempDir;
 use tokio::task;
-use tracing::{error, info, info_span, trace, warn, Instrument};
+use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     if let Err(e) = ctrlc::set_handler(move || {
