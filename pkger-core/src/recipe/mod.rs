@@ -72,8 +72,12 @@ impl Loader {
     }
 
     pub fn load(&self, recipe: &str) -> Result<Recipe> {
-        let path = self.path.join(recipe).join("recipe.yml");
-        RecipeRep::load(&path).and_then(|rep| Recipe::new(rep, path))
+        let base_path = self.path.join(recipe);
+        let mut path = base_path.join("recipe.yml");
+        if !path.exists() {
+            path = base_path.join("recipe.yaml");
+        }
+        RecipeRep::load(path).and_then(|rep| Recipe::new(rep, base_path))
     }
 
     pub fn list(&self) -> Vec<String> {
