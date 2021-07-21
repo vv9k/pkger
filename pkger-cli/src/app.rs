@@ -110,7 +110,7 @@ impl Application {
                 let tasks = self
                     .process_build_opts(build_opts)
                     .context("processing build opts")?;
-                self.process_tasks(tasks).await?;
+                self.process_tasks(tasks, opts.quiet).await?;
                 self.save_images_state().await;
                 Ok(())
             }
@@ -262,7 +262,7 @@ impl Application {
         Ok(tasks)
     }
 
-    async fn process_tasks(&mut self, tasks: Vec<BuildTask>) -> Result<()> {
+    async fn process_tasks(&mut self, tasks: Vec<BuildTask>, quiet: bool) -> Result<()> {
         let span = info_span!("process-jobs");
         async move {
             let jobs = FuturesUnordered::new();
@@ -290,6 +290,7 @@ impl Application {
                                 is_simple,
                                 self.gpg_key.clone(),
                                 self.config.ssh.clone(),
+                                quiet
                             ))
                             .run(),
                         ));

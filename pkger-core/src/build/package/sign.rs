@@ -23,7 +23,11 @@ pub(crate) async fn upload_gpg_key(
         .context("failed reading the gpg key")?;
 
     ctx.container
-        .upload_files(vec![("./GPG-SIGN-KEY", key.as_slice())], &destination)
+        .upload_files(
+            vec![("./GPG-SIGN-KEY", key.as_slice())],
+            &destination,
+            ctx.build.quiet,
+        )
         .instrument(span)
         .await
         .map(|_| destination.join("GPG-SIGN-KEY"))

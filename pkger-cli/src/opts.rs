@@ -12,7 +12,7 @@ use std::str::FromStr;
 )]
 pub struct Opts {
     #[clap(short, long)]
-    /// Surpress all output (except for errors).
+    /// Suppress all output from containers.
     pub quiet: bool,
     #[clap(short, long)]
     /// Enable debug output.
