@@ -21,8 +21,6 @@ pub fn setup_tracing(opts: &Opts) {
 
     let filter = if let Some(filter) = env::var_os("RUST_LOG") {
         filter.to_string_lossy().to_string()
-    } else if opts.quiet {
-        "pkger=error".to_string()
     } else if opts.trace {
         "pkger=trace".to_string()
     } else if opts.debug {

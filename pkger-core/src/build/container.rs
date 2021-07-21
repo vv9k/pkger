@@ -78,7 +78,7 @@ pub async fn spawn<'ctx>(
 pub async fn checked_exec(ctx: &Context<'_>, opts: &ExecContainerOpts) -> Result<Output<String>> {
     let span = info_span!("checked-exec");
     async move {
-        let out = ctx.container.exec(opts).await?;
+        let out = ctx.container.exec(opts, ctx.build.quiet).await?;
         if out.exit_code != 0 {
             Err(Error::msg(format!(
                 "command failed with exit code {}\nError:\n{}",

@@ -48,6 +48,7 @@ pub struct Context {
     simple: bool,
     gpg_key: Option<GpgKey>,
     ssh: Option<SshConfig>,
+    quiet: bool,
 }
 
 pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
@@ -143,6 +144,7 @@ impl Context {
         simple: bool,
         gpg_key: Option<GpgKey>,
         ssh: Option<SshConfig>,
+        quiet: bool,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -180,6 +182,7 @@ impl Context {
             simple,
             gpg_key,
             ssh,
+            quiet,
         }
     }
 

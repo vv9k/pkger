@@ -107,7 +107,11 @@ pub(crate) async fn build(
         debug!(spec_file = %spec_file, spec = %spec);
 
         ctx.container
-            .upload_files(vec![(["./", &spec_file].join(""), spec.as_bytes())], &specs)
+            .upload_files(
+                vec![(["./", &spec_file].join(""), spec.as_bytes())],
+                &specs,
+                ctx.build.quiet,
+            )
             .await
             .context("failed to upload spec file to container")?;
 
@@ -169,7 +173,8 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
         vec![
             ("./.rpmmacros", macros.as_bytes()),
         ],
-        "/root/"
+        "/root/",
+        ctx.build.quiet,
         ).await.context("failed to upload rpm macros")?;
 
 
