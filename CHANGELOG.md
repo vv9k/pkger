@@ -1,5 +1,6 @@
 # 0.5.0
 - If at least one task fails to build **pkger** will now return with exit code 1 [#66](https://github.com/wojciechkepka/pkger/pull/66)
+- `--quiet` flag now suppresses only container output, normal info output is still available [#67](https://github.com/wojciechkepka/pkger/pull/67)
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/wojciechkepka/pkger/pull/55)

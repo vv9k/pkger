@@ -40,7 +40,11 @@ pub async fn build(
         debug!(control = %control);
 
         ctx.container
-            .upload_files(vec![("./control", control.as_bytes())], &deb_dir)
+            .upload_files(
+                vec![("./control", control.as_bytes())],
+                &deb_dir,
+                ctx.build.quiet,
+            )
             .await
             .context("failed to upload control file to container")?;
 

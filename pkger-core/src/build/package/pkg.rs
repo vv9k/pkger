@@ -92,6 +92,7 @@ pub(crate) async fn build(
             .upload_files(
                 vec![("PKGBUILD".to_string(), pkgbuild.as_bytes())],
                 &bld_dir,
+                ctx.build.quiet,
             )
             .await
             .context("failed to upload PKGBUILD to container")?;

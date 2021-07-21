@@ -187,15 +187,15 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub async fn remove(&self) -> Result<()> {
-        let span = info_span!("container-remove", id = %self.id());
+        let span = info_span!("container-remove");
         async move {
-            info!("stopping container");
+            info!(id = %self.id(), "stopping container");
             self.container
                 .kill(None)
                 .await
                 .context("failed to stop container")?;
 
-            info!("deleting container");
+            info!(id = %self.id(), "deleting container");
             self.container
                 .remove(&RmContainerOpts::builder().force(true).build())
                 .await
@@ -222,7 +222,11 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn exec<'cmd>(&self, opts: &ExecContainerOpts) -> Result<Output<String>> {
+    pub async fn exec<'cmd>(
+        &self,
+        opts: &ExecContainerOpts,
+        quiet: bool,
+    ) -> Result<Output<String>> {
         let span = info_span!("container-exec", id = %self.id());
         async move {
             let exec = Exec::create(&self.docker, self.id(), &opts).await?;
@@ -236,16 +240,20 @@ impl<'job> DockerContainer<'job> {
                     TtyChunk::StdOut(chunk) => {
                         let chunk = str::from_utf8(&chunk)?;
                         output.stdout.push(chunk.to_string());
-                        chunk.lines().for_each(|line| {
-                            info!("{}", line.trim());
-                        })
+                        if !quiet {
+                            chunk.lines().for_each(|line| {
+                                info!("{}", line.trim());
+                            })
+                        }
                     }
                     TtyChunk::StdErr(chunk) => {
                         let chunk = str::from_utf8(&chunk)?;
                         output.stderr.push(chunk.to_string());
-                        chunk.lines().for_each(|line| {
-                            error!("{}", line.trim());
-                        })
+                        if !quiet {
+                            chunk.lines().for_each(|line| {
+                                error!("{}", line.trim());
+                            })
+                        }
                     }
                     _ => unreachable!(),
                 }
@@ -330,7 +338,12 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn upload_files<'files, F, E, P>(&self, files: F, destination: P) -> Result<()>
+    pub async fn upload_files<'files, F, E, P>(
+        &self,
+        files: F,
+        destination: P,
+        quiet: bool,
+    ) -> Result<()>
     where
         F: IntoIterator<Item = (E, &'files [u8])>,
         E: AsRef<Path>,
@@ -356,6 +369,7 @@ impl<'job> DockerContainer<'job> {
                     .cmd(&format!("tar -xf {}", tar_path.display()))
                     .working_dir(&destination)
                     .build(),
+                quiet,
             )
             .await
             .map(|_| ())
