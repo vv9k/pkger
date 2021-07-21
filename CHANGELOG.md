@@ -1,3 +1,6 @@
+# 0.5.0
+- If at least one task fails to build **pkger** will now return with exit code 1 [#66](https://github.com/wojciechkepka/pkger/pull/66)
+
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/wojciechkepka/pkger/pull/55)
 - Add an option to sign DEBs with a GPG key [#56](https://github.com/wojciechkepka/pkger/pull/56)
