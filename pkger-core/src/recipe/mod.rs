@@ -419,7 +419,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    const TEST_RECIPE: &[u8] = include_bytes!("../../../example/recipes/test/recipe.yml");
+    const TEST_RECIPE: &[u8] = include_bytes!("../../../example/recipes/test-suite/recipe.yml");
 
     #[test]
     fn parses_recipe_from_rep() {

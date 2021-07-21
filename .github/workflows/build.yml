@@ -1,4 +1,4 @@
-name: master
+name: pkger CI
 
 on:
   workflow_dispatch:
@@ -64,12 +64,7 @@ jobs:
 
   test:
     needs: [codestyle, lint, compile]
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Setup Rust
@@ -80,5 +75,17 @@ jobs:
         uses: actions/checkout@v1
       - name: Test
         run: cargo test
-      - name: Build test package with custom images
-        run: cargo run -- -d -c example/conf.yml build test
+      - name: Run the test suite
+        run: cargo run -- -d -c example/conf.yml build test-suite
+      - name: Build the test package
+        run: cargo run -- -d -c example/conf.yml build test-package
+      - name: Verify DEB package
+        run: |
+          sudo dpkg -i example/output/debian10/test-package-0.1.0.amd64.deb
+          cat /test/deb/test_file
+      - name: Install alien
+        run: sudo apt install alien
+      - name: Verify RPM package
+        run: |
+          sudo alien -i example/output/centos8/test-package-0.1.0-0.x86_64.rpm
+          cat /test/rpm/test_file
