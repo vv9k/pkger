@@ -1,5 +1,5 @@
 metadata:
-  name: test-pkger
+  name: test-suite
   description: pkger testing suite
   arch: x86_64
   license: MIT
