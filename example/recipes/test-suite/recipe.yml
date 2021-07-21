@@ -51,11 +51,11 @@ build:
         variable PKGER_OS_VERSION is not set properly'; exit 1; fi
     - cmd: >-
         echo PKGER_BLD_DIR=$PKGER_BLD_DIR;
-        if [[ $PKGER_BLD_DIR =~ /tmp/test-pkger-build-[0-9]* ]]; then exit 0; else
+        if [[ $PKGER_BLD_DIR =~ /tmp/test-suite-pkger-build-[0-9]* ]]; then exit 0; else
         echo 'Environment variable PKGER_BLD_DIR is not set properly'; exit 1; fi
     - cmd: >-
         echo PKGER_OUT_DIR=$PKGER_OUT_DIR;
-        if [[ $PKGER_OUT_DIR =~ /tmp/test-pkger-out-[0-9]* ]]; then exit 0; else
+        if [[ $PKGER_OUT_DIR =~ /tmp/test-suite-pkger-out-[0-9]* ]]; then exit 0; else
         echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi
     - cmd: echo 'Testing pkger command syntax'
     # test if pkger commands work correctly
