@@ -295,7 +295,7 @@ impl Application {
                         ));
                 }
 
-            let mut errors = vec![];
+            let mut results = vec![];
 
             for job in jobs {
                 let handle = job.await;
@@ -303,12 +303,14 @@ impl Application {
                     error!(reason = %e, "failed to join the handle for a job");
                     continue;
                 }
-
-                errors.push(handle.unwrap());
+                results.push(handle.unwrap());
             }
 
-            errors.iter().for_each(|err| match err {
+            let mut task_failed = false;
+
+            results.iter().for_each(|err| match err {
                 JobResult::Failure { id, duration, reason } => {
+                    task_failed = true;
                     error!(id = %id, reason = %reason, duration = %format!("{}s", duration.as_secs_f32()), "job failed");
                 }
                 JobResult::Success { id, duration, output } => {
@@ -316,7 +318,11 @@ impl Application {
                 }
             });
 
-            Ok(())
+            if task_failed {
+                Err(Error::msg("at least one of the tasks failed"))
+            } else {
+                Ok(())
+            }
         }.instrument(span).await
     }
 
