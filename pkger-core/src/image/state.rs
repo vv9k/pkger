@@ -6,7 +6,7 @@ use crate::{ErrContext, Result};
 
 use std::collections::{HashMap, HashSet};
 use std::convert::AsRef;
-use std::fs::{self, File};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -106,18 +106,18 @@ impl Default for ImagesState {
 }
 
 impl ImagesState {
-    /// Tries to initialize images state from the given path
+    /// Tries to initialize images state from the given path, if the path doesn't exist creates
+    /// a new ImagesState.
     pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
         let state_file = state_file.as_ref();
         if !state_file.exists() {
-            trace!("state file doesn't exist, creating");
-            File::create(state_file)?;
-
+            debug!("state file doesn't exist");
             return Ok(ImagesState {
                 images: HashMap::new(),
                 state_file: state_file.to_path_buf(),
             });
         }
+        debug!("loading state");
         let contents =
             fs::read(state_file).context("failed to read images state file from the filesystem")?;
         let state =

@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
 
     // config
     let config_path = opts.config.clone().unwrap_or_else(|| {
-        match dirs_next::home_dir() {
+        match dirs::home_dir() {
             Some(home_dir) => {
                 home_dir.join(DEFAULT_CONFIG_FILE).to_string_lossy().to_string()
             }
