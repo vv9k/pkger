@@ -175,6 +175,8 @@ impl Application {
             }
         } else {
             warn!("no recipes to build");
+            warn!("if you meant to build all recipes run `pkger build --all`");
+            warn!("or only specified recipes with `pkger build <RECIPES>...`");
             return Ok(tasks);
         }
 
