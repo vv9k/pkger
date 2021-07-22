@@ -119,7 +119,6 @@ impl TryFrom<PkgRep> for PkgInfo {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct DebRep {
     pub priority: Option<String>,
-    pub installed_size: Option<String>,
     pub built_using: Option<String>,
     pub essential: Option<bool>,
 
@@ -134,7 +133,6 @@ pub struct DebRep {
 #[derive(Clone, Debug, PartialEq)]
 pub struct DebInfo {
     pub priority: Option<String>,
-    pub installed_size: Option<String>,
     pub built_using: Option<String>,
     pub essential: Option<bool>,
 
@@ -152,7 +150,6 @@ impl TryFrom<DebRep> for DebInfo {
     fn try_from(rep: DebRep) -> Result<Self> {
         Ok(Self {
             priority: rep.priority,
-            installed_size: rep.installed_size,
             built_using: rep.built_using,
             essential: rep.essential,
 

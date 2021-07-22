@@ -36,7 +36,24 @@ pub async fn build(
             .await
             .context("failed to create dirs")?;
 
-        let control = ctx.build.recipe.as_deb_control(&image_state.image).render();
+        let size_out = checked_exec(
+            &ctx,
+            &ExecOpts::default()
+                .cmd("du -s .")
+                .working_dir(&ctx.build.container_out_dir)
+                .build(),
+        )
+        .await
+        .context("failed to check size of package files")?
+        .stdout
+        .join("");
+        let size = size_out.split_ascii_whitespace().next();
+
+        let control = ctx
+            .build
+            .recipe
+            .as_deb_control(&image_state.image, size.as_deref())
+            .render();
         debug!(control = %control);
 
         ctx.container

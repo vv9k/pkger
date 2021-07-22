@@ -157,7 +157,7 @@ impl Recipe {
 }
 
 impl Recipe {
-    pub fn as_deb_control(&self, image: &str) -> BinaryDebControl {
+    pub fn as_deb_control(&self, image: &str, installed_size: Option<&str>) -> BinaryDebControl {
         let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
             .version(&self.metadata.version)
             .revision(self.metadata.release())
@@ -185,13 +185,13 @@ impl Recipe {
         if let Some(homepage) = &self.metadata.url {
             builder = builder.homepage(homepage);
         }
+        if let Some(installed_size) = installed_size {
+            builder = builder.installed_size(installed_size)
+        }
 
         if let Some(deb) = &self.metadata.deb {
             if let Some(priority) = &deb.priority {
                 builder = builder.priority(priority);
-            }
-            if let Some(installed_size) = &deb.installed_size {
-                builder = builder.installed_size(installed_size);
             }
             if let Some(built_using) = &deb.built_using {
                 builder = builder.built_using(built_using);
