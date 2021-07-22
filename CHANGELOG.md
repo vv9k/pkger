@@ -4,6 +4,8 @@
 - `pkger build` will now display a warning with instructions on how to start a build [#68](https://github.com/wojciechkepka/pkger/pull/68)
 - Use appropriate cache dir on each OS to store images state [#71](https://github.com/wojciechkepka/pkger/pull/71)
 - Automatically calculate `Installed-Size` when building DEB packages [#72](https://github.com/wojciechkepka/pkger/pull/72)
+- Users can now specify `filter` in the configuration so that if one wants to format the output in a particular way on
+  each build they don't have to pass the `--filter` CLI parameter every time.
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/wojciechkepka/pkger/pull/55)

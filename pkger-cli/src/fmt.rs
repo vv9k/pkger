@@ -1,5 +1,6 @@
 use crate::opts::Opts;
 
+use crate::config::Configuration;
 use chrono::Utc;
 use colored::Colorize;
 use std::env;
@@ -15,7 +16,7 @@ static DEFAULT_FIELD_DELIM: &str = ", ";
 
 //####################################################################################################
 
-pub fn setup_tracing(opts: &Opts) {
+pub fn setup_tracing(opts: &Opts, config: &Configuration) {
     let span = info_span!("setup-tracing");
     let _enter = span.enter();
 
@@ -30,6 +31,8 @@ pub fn setup_tracing(opts: &Opts) {
     };
 
     let fmt_filter = if let Some(filter_str) = &opts.filter {
+        FmtFilter::from(filter_str.as_str())
+    } else if let Some(filter_str) = &config.filter {
         FmtFilter::from(filter_str.as_str())
     } else {
         FmtFilter::default()

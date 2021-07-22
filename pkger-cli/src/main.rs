@@ -12,7 +12,7 @@ use opts::Opts;
 use pkger_core::{Error, Result};
 
 use std::process;
-use tracing::{error, trace, warn};
+use tracing::error;
 
 static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 
@@ -20,30 +20,28 @@ static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
 
-    fmt::setup_tracing(&opts);
-
-    trace!(opts = ?opts);
-
     // config
-    let config_path = opts.config.clone().unwrap_or_else(|| {
-        match dirs::home_dir() {
-            Some(home_dir) => {
-                home_dir.join(DEFAULT_CONFIG_FILE).to_string_lossy().to_string()
-            }
-            None => {
-                warn!(path = %DEFAULT_CONFIG_FILE, "current user has no home directory, using default");
-                DEFAULT_CONFIG_FILE.to_string()
-            }
-        }
-    });
-    trace!(config_path = %config_path);
+    let config_path = opts
+        .config
+        .clone()
+        .unwrap_or_else(|| match dirs::home_dir() {
+            Some(home_dir) => home_dir
+                .join(DEFAULT_CONFIG_FILE)
+                .to_string_lossy()
+                .to_string(),
+            None => DEFAULT_CONFIG_FILE.to_string(),
+        });
     let result = Configuration::load(&config_path);
     if let Err(e) = &result {
-        error!(reason = %e, config_path = %config_path, "failed to read config file");
+        eprintln!(
+            "Failed to read configuration file from `{}` - {}",
+            config_path, e
+        );
         process::exit(1);
     }
     let config = result.unwrap();
-    trace!(config = ?config);
+
+    fmt::setup_tracing(&opts, &config);
 
     let mut app = match Application::new(config) {
         Ok(app) => app,
