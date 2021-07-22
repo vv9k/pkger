@@ -75,7 +75,9 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
                     return Err(Error::msg(error));
                 }
                 ImageBuildChunk::Update { stream } => {
-                    info!("{}", stream);
+                    if !ctx.quiet {
+                        info!("{}", stream);
+                    }
                 }
                 ImageBuildChunk::Digest { aux } => {
                     let state = ImageState::new(
@@ -167,7 +169,9 @@ RUN {} {} {} >/dev/null"#,
                     return Err(Error::msg(error));
                 }
                 ImageBuildChunk::Update { stream } => {
-                    info!("{}", stream);
+                    if !ctx.build.quiet {
+                        info!("{}", stream);
+                    }
                 }
                 ImageBuildChunk::Digest { aux } => {
                     return ImageState::new(
