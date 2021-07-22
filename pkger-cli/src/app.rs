@@ -72,13 +72,16 @@ impl Application {
             .clone()
             .unwrap_or_else(|| _pkger_dir.path().join("images"));
 
+        let state_path = match dirs::cache_dir() {
+            Some(dir) => dir.join(DEFAULT_STATE_FILE),
+            None => PathBuf::from(DEFAULT_STATE_FILE),
+        };
+
         let images_state = Arc::new(RwLock::new(
-            match ImagesState::try_from_path(DEFAULT_STATE_FILE)
-                .context("failed to load images state")
-            {
+            match ImagesState::try_from_path(state_path).context("failed to load images state") {
                 Ok(state) => state,
                 Err(e) => {
-                    warn!(msg = %e);
+                    warn!(msg = ?e);
                     Default::default()
                 }
             },

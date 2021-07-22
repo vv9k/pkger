@@ -271,20 +271,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 
 [[package]]
-name = "dirs-next"
-version = "2.0.0"
+name = "dirs"
+version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
+checksum = "30baa043103c9d0c2a57cf537cc2f35623889dc0d405e6c3cccfadbc81c71309"
 dependencies = [
- "cfg-if 1.0.0",
- "dirs-sys-next",
+ "dirs-sys",
 ]
 
 [[package]]
-name = "dirs-sys-next"
-version = "0.1.2"
+name = "dirs-sys"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
+checksum = "03d86534ed367a67548dc68113a0f5db55432fdfbb6e6f9d77704397d95d5780"
 dependencies = [
  "libc",
  "redox_users",
@@ -1000,7 +999,7 @@ dependencies = [
  "clap",
  "colored",
  "ctrlc",
- "dirs-next",
+ "dirs",
  "futures 0.3.15",
  "pkger-core",
  "rpassword",

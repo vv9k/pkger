@@ -21,7 +21,7 @@ colored = "2"
 ctrlc = "3"
 rpassword = "5"
 
-dirs-next = "2"
+dirs = "3"
 tempdir = "0.3"
 
 serde = {version = "1.0", features = ["derive"]}
