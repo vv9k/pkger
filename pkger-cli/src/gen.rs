@@ -53,7 +53,6 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> Result<()> {
 
     let deb = DebRep {
         priority: opts.priority,
-        installed_size: opts.installed_size,
         built_using: opts.built_using,
         essential: opts.essential,
 

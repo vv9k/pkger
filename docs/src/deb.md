@@ -5,7 +5,6 @@ Optional fields that may be used when building a DEB package.
 ```yaml
   deb:
     priority: ""
-    installed_size: ""
     built_using: ""
     essential: true
     
