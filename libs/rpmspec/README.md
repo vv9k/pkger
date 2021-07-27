@@ -1,6 +1,6 @@
 # rpmspec-rs
 
-[![GitHub Actions](https://github.com/wojciechkepka/rpmspec-rs/workflows/Main/badge.svg)](https://github.com/wojciechkepka/rpmspec-rs/actions) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![Released API docs](https://docs.rs/rpmspec/badge.svg)](http://docs.rs/rpmspec)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 > Crate for RPM spec generation in Rust
 
@@ -23,7 +23,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error + 'static + Sync +
         .install_script(INSTALL)
         .prep_script(r#"cat /etc/os-release"#)
         .check_script("uptime")
-        .url("https://github.com/wojciechkepka/rpmspec")
+        .url("https://some.invalid.url")
         .version("0.1.0")
         .release("1")
         .epoch("42")
@@ -66,4 +66,4 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error + 'static + Sync +
 ```
 
 ## License
-[MIT](https://github.com/wojciechkepka/rpmspec-rs/blob/master/LICENSE)
+[MIT](./LICENSE)

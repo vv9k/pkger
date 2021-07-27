@@ -16,8 +16,8 @@ metadata:
   license: MIT
   version: 0.1.0
   maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
-  url: "https://github.com/wojciech/pkger"
-  git: "https://github.com/wojciechkepka/pkger.git"
+  url: "https://github.com/vv9k/pkger"
+  git: "https://github.com/vv9k/pkger.git"
   provides:
     - pkger
   depends:
