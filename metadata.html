@@ -174,11 +174,11 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
 <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
 <pre><code class="language-yaml">  source: &quot;&quot; # remote source or file system location
 
-  git: https://github.com/wojciechkepka/pkger.git # will default to branch = &quot;master&quot;
+  git: https://github.com/vv9k/pkger.git # will default to branch = &quot;master&quot;
 
   # or specify a branch like this:
   git:
-    url: https://github.com/wojciechkepka/pkger.git
+    url: https://github.com/vv9k/pkger.git
     branch: dev
 </code></pre>
 <h3 id="common"><a class="header" href="#common">common</a></h3>
@@ -190,7 +190,7 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
   maintainer: &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
 
 # The website of the package being built
-  url: https://github.com/wojciechkepka/pkger
+  url: https://github.com/vv9k/pkger
 
   arch: x86_64 # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
 

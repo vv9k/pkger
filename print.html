@@ -150,8 +150,8 @@
 <li><code>paru pkger-rs</code></li>
 </ul>
 <p>On other Linux distributions or MacOS download one of the latest prebuild static binaries from
-<a href="https://github.com/wojciechkepka/pkger/releases">here</a>. If your desired target is not on the list you'll have to build
-<strong>pkger</strong> from source by cloning the repository from <code>https://github.com/wojciechkepka/pkger</code> and building it with:</p>
+<a href="https://github.com/vv9k/pkger/releases">here</a>. If your desired target is not on the list you'll have to build
+<strong>pkger</strong> from source by cloning the repository from <code>https://github.com/vv9k/pkger</code> and building it with:</p>
 <ul>
 <li><code>cargo build --release</code></li>
 </ul>
@@ -202,8 +202,8 @@ To read more on each topic select a subsection in the menu.</p>
   license: MIT
   version: 0.1.0
   maintainer: &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
-  url: &quot;https://github.com/wojciech/pkger&quot;
-  git: &quot;https://github.com/wojciechkepka/pkger.git&quot;
+  url: &quot;https://github.com/vv9k/pkger&quot;
+  git: &quot;https://github.com/vv9k/pkger.git&quot;
   provides:
     - pkger
   depends:
@@ -272,11 +272,11 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
 <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
 <pre><code class="language-yaml">  source: &quot;&quot; # remote source or file system location
 
-  git: https://github.com/wojciechkepka/pkger.git # will default to branch = &quot;master&quot;
+  git: https://github.com/vv9k/pkger.git # will default to branch = &quot;master&quot;
 
   # or specify a branch like this:
   git:
-    url: https://github.com/wojciechkepka/pkger.git
+    url: https://github.com/vv9k/pkger.git
     branch: dev
 </code></pre>
 <h3 id="common"><a class="header" href="#common">common</a></h3>
@@ -288,7 +288,7 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
   maintainer: &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
 
 # The website of the package being built
-  url: https://github.com/wojciechkepka/pkger
+  url: https://github.com/vv9k/pkger
 
   arch: x86_64 # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
 
