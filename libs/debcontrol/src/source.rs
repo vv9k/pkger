@@ -170,7 +170,7 @@ mod tests {
             section: Some("devel".to_string()),
             priority: None,
             installed_size: None,
-            homepage: Some("https://github.com/wojciechkepka/debcontrol".to_string()),
+            homepage: Some("https://github.com/vv9k/debcontrol".to_string()),
             built_using: Some("rustc".to_string()),
             package_type: Some("deb".to_string()),
             testsuite: None,
@@ -179,7 +179,7 @@ mod tests {
             bzr: None,
             cvs: None,
             darcs: None,
-            git: Some("https://github.com/wojciechkepka/debcontrol/source.tar.gz".to_string()),
+            git: Some("https://github.com/vv9k/debcontrol/source.tar.gz".to_string()),
             hg: None,
             mtn: None,
             svn: None,
@@ -205,10 +205,10 @@ Essential:           yes
 Uploaders:           wojciech@wkepka.dev
 Section:             devel
 Package-Type:        deb
-Homepage:            https://github.com/wojciechkepka/debcontrol
+Homepage:            https://github.com/vv9k/debcontrol
 Built-Using:         rustc
 Rules-Requires-Root: no
-Git:                 https://github.com/wojciechkepka/debcontrol/source.tar.gz
+Git:                 https://github.com/vv9k/debcontrol/source.tar.gz
 Depends:             rustc, cargo
 Provides:            debcontrol
 "#;
@@ -222,10 +222,10 @@ Provides:            debcontrol
             .uploaders("wojciech@wkepka.dev")
             .section("devel")
             .package_type("deb")
-            .homepage("https://github.com/wojciechkepka/debcontrol")
+            .homepage("https://github.com/vv9k/debcontrol")
             .built_using("rustc")
             .rules_requires_root("no")
-            .git("https://github.com/wojciechkepka/debcontrol/source.tar.gz")
+            .git("https://github.com/vv9k/debcontrol/source.tar.gz")
             .add_depends_entries(vec!["rustc", "cargo"])
             .add_provides_entries(vec!["debcontrol"])
             .build();

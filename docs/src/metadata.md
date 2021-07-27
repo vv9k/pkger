@@ -42,11 +42,11 @@ archive like `.tar.gz` or `.tar.xz` or `.zip` it will be directly extracted to
 ```yaml
   source: "" # remote source or file system location
 
-  git: https://github.com/wojciechkepka/pkger.git # will default to branch = "master"
+  git: https://github.com/vv9k/pkger.git # will default to branch = "master"
 
   # or specify a branch like this:
   git:
-    url: https://github.com/wojciechkepka/pkger.git
+    url: https://github.com/vv9k/pkger.git
     branch: dev
 ```
 
@@ -63,7 +63,7 @@ Optional fields shared across all targets.
   maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
 
 # The website of the package being built
-  url: https://github.com/wojciechkepka/pkger
+  url: https://github.com/vv9k/pkger
 
   arch: x86_64 # defaults to `noarch` on RPM and `all` on DEB, `x86_64` automatically converted to `amd64` on DEB...
 

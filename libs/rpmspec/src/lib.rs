@@ -258,11 +258,11 @@ install -m 644 README /docs/README"#;
             .install_script(INSTALL)
             .prep_script(r#"cat /etc/os-release"#)
             .check_script("uptime")
-            .url("https://github.com/wojciechkepka/rpmspec")
+            .url("https://some.invalid.url")
             .version("0.1.0")
             .release("1")
             .epoch("42")
-            .vendor("Wojciech Kępka")
+            .vendor("Vendor")
             .packager("Wojciech Kępka <wojciech@wkepka.dev>")
             .copyright("2021 test")
             .build_arch("noarch")
@@ -296,8 +296,8 @@ install -m 644 README /docs/README"#;
             version: "0.1.0".to_string(),
             release: "1".to_string(),
             epoch: Some("42".to_string()),
-            vendor: Some("Wojciech Kępka".to_string()),
-            url: Some("https://github.com/wojciechkepka/rpmspec".to_string()),
+            vendor: Some("Vendor".to_string()),
+            url: Some("https://some.invalid.url".to_string()),
             copyright: Some("2021 test".to_string()),
             build_arch: Some("noarch".to_string()),
             exclude_arch: Some("x86_64".to_string()),
@@ -342,8 +342,8 @@ Version:       0.1.0
 Release:       1
 Summary:       short summary
 Epoch:         42
-Vendor:        Wojciech Kępka
-URL:           https://github.com/wojciechkepka/rpmspec
+Vendor:        Vendor
+URL:           https://some.invalid.url
 Copyright:     2021 test
 Packager:      Wojciech Kępka <wojciech@wkepka.dev>
 Group:         group

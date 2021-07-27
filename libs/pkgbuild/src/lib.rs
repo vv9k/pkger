@@ -241,7 +241,7 @@ mod tests {
             .pkgrel("1")
             .epoch("42")
             .pkgdesc("short description...")
-            .url("https://github.com/wojciechkepka/pkgbuild")
+            .url("https://some.invalid.url")
             .add_license_entries(vec!["MIT"])
             .install("install.sh")
             .changelog("CHANGELOG.md")
@@ -258,7 +258,7 @@ pkgver=0.1.0
 pkgrel=1
 pkgdesc='short description...'
 epoch=42
-url=https://github.com/wojciechkepka/pkgbuild
+url=https://some.invalid.url
 license=('MIT')
 install=install.sh
 changelog=CHANGELOG.md

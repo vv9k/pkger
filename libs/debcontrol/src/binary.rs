@@ -154,7 +154,7 @@ mod tests {
             section: Some("devel".to_string()),
             priority: None,
             installed_size: Some("1Mb".to_string()),
-            homepage: Some("https://github.com/wojciechkepka/debcontrol".to_string()),
+            homepage: Some("https://some.invalid.url".to_string()),
             built_using: Some("rustc".to_string()),
             essential: true,
             pre_depends: vec!["rustc".to_string(), "cargo".to_string()],
@@ -180,7 +180,7 @@ Maintainer:     Wojciech Kępka <wojciech@wkepka.dev>
 Source:         package.tar.gz
 Section:        devel
 Installed-Size: 1Mb
-Homepage:       https://github.com/wojciechkepka/debcontrol
+Homepage:       https://some.invalid.url
 Built-Using:    rustc
 Pre-Depends:    rustc, cargo
 Depends:        rustc, cargo
@@ -198,7 +198,7 @@ Enchances:      rustc, cargo
             .essential(true)
             .installed_size("1Mb")
             .section("devel")
-            .homepage("https://github.com/wojciechkepka/debcontrol")
+            .homepage("https://some.invalid.url")
             .built_using("rustc")
             .add_pre_depends_entries(vec!["rustc", "cargo"])
             .add_depends_entries(vec!["rustc", "cargo"])
