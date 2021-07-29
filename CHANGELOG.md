@@ -6,6 +6,7 @@
 - Automatically calculate `Installed-Size` when building DEB packages [#72](https://github.com/vv9k/pkger/pull/72)
 - Users can now specify `filter` in the configuration so that if one wants to format the output in a particular way on
   each build they don't have to pass the `--filter` CLI parameter every time.
+- Fix a typo in deb field - `enchances` -> `enhances`  
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)
