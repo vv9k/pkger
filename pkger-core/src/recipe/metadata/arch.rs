@@ -37,7 +37,7 @@ impl BuildArch {
             Armv6h => "armhf",
             Armv7h => "armhf",
             Arm64 => "arm64",
-            Other(arch) => &arch,
+            Other(arch) => arch,
         }
     }
 
@@ -51,7 +51,7 @@ impl BuildArch {
             Armv6h => "armv6hl",
             Armv7h => "armv7hl",
             Arm64 => "aarch64",
-            Other(arch) => &arch,
+            Other(arch) => arch,
         }
     }
 
@@ -65,7 +65,7 @@ impl BuildArch {
             Armv6h => "armv6h",
             Armv7h => "armv7h",
             Arm64 => "aarch64",
-            Other(arch) => &arch,
+            Other(arch) => arch,
         }
     }
 }

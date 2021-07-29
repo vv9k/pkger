@@ -160,19 +160,13 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub fn id(&self) -> &str {
-        convert_id(&self.container.id())
+        convert_id(self.container.id())
     }
 
     pub async fn spawn(&mut self, opts: &ContainerCreateOpts) -> Result<()> {
         let span = info_span!("container-spawn");
         async move {
-            let container = self
-                .docker
-                .containers()
-                .create(&opts)
-                .await?
-                .id()
-                .to_owned();
+            let container = self.docker.containers().create(opts).await?.id().to_owned();
 
             self.container = self.docker.containers().get(container);
             info!(id = %self.id(), "created container");
@@ -229,7 +223,7 @@ impl<'job> DockerContainer<'job> {
     ) -> Result<Output<String>> {
         let span = info_span!("container-exec", id = %self.id());
         async move {
-            let exec = Exec::create(&self.docker, self.id(), &opts).await?;
+            let exec = Exec::create(self.docker, self.id(), opts).await?;
             let mut stream = exec.start();
 
             let mut output = Output::default();
@@ -367,7 +361,7 @@ impl<'job> DockerContainer<'job> {
             self.exec(
                 &ExecOpts::default()
                     .cmd(&format!("tar -xf {}", tar_path.display()))
-                    .working_dir(&destination)
+                    .working_dir(destination)
                     .build(),
                 quiet,
             )

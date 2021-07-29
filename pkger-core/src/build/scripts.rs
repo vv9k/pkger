@@ -62,7 +62,7 @@ macro_rules! run_script {
     }};
 }
 
-pub async fn execute_scripts(ctx: &Context<'_>) -> Result<()> {
+pub async fn run(ctx: &Context<'_>) -> Result<()> {
     let span = info_span!("exec-scripts");
     async move {
         if let Some(config_script) = &ctx.build.recipe.configure_script {

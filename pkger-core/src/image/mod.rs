@@ -1,7 +1,7 @@
 pub mod os;
 pub mod state;
 
-pub use os::find_os;
+pub use os::find;
 pub use state::{ImageState, ImagesState};
 
 use crate::recipe::BuildTarget;
@@ -23,7 +23,7 @@ impl Image {
         Self { name, path }
     }
 
-    fn simple_image(target: BuildTarget) -> (&'static str, &'static str) {
+    fn simple(target: BuildTarget) -> (&'static str, &'static str) {
         match target {
             BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
             BuildTarget::Deb => ("ubuntu:latest", "pkger-deb"),
@@ -33,7 +33,7 @@ impl Image {
     }
 
     pub fn create(images_dir: &Path, target: BuildTarget) -> Result<Image> {
-        let (image, name) = Self::simple_image(target);
+        let (image, name) = Self::simple(target);
 
         let image_dir = images_dir.join(name);
         fs::create_dir_all(&image_dir)?;
@@ -44,8 +44,8 @@ impl Image {
         Image::try_from_path(image_dir)
     }
 
-    pub fn get_or_create(images_dir: &Path, target: BuildTarget) -> Result<Image> {
-        let (_, name) = Self::simple_image(target);
+    pub fn try_get_or_create(images_dir: &Path, target: BuildTarget) -> Result<Image> {
+        let (_, name) = Self::simple(target);
 
         let image_dir = images_dir.join(name);
         if image_dir.exists() {

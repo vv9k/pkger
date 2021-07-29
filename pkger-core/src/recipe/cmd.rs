@@ -51,3 +51,28 @@ impl Command {
         .unwrap_or_default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn should_run_on_works() {
+        let mut cmd = Command::from("echo 123");
+        assert!(cmd.should_run_on(&BuildTarget::Deb));
+        assert!(cmd.should_run_on(&BuildTarget::Rpm));
+        assert!(cmd.should_run_on(&BuildTarget::Pkg));
+        assert!(cmd.should_run_on(&BuildTarget::Gzip));
+        cmd.rpm = Some(true);
+        assert!(cmd.should_run_on(&BuildTarget::Rpm));
+        assert!(!cmd.should_run_on(&BuildTarget::Gzip));
+        assert!(!cmd.should_run_on(&BuildTarget::Pkg));
+        assert!(!cmd.should_run_on(&BuildTarget::Deb));
+        cmd.deb = Some(true);
+        cmd.pkg = Some(true);
+        cmd.gzip = Some(true);
+        assert!(cmd.should_run_on(&BuildTarget::Rpm));
+        assert!(cmd.should_run_on(&BuildTarget::Gzip));
+        assert!(cmd.should_run_on(&BuildTarget::Pkg));
+        assert!(cmd.should_run_on(&BuildTarget::Deb));
+    }
+}

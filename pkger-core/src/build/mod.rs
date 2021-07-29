@@ -59,27 +59,27 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
 
         let out_dir = ctx.create_out_dir(&image_state).await?;
 
-        let mut container_ctx = container::spawn(&ctx, &image_state).await?;
+        let mut container_ctx = container::spawn(ctx, &image_state).await?;
 
         cleanup!(container_ctx);
 
         let image_state = if image_state.tag != image::CACHED {
-            let mut deps = deps::pkger_deps(
+            let mut deps = deps::default(
                 ctx.target.build_target(),
                 &ctx.recipe,
                 ctx.gpg_key.is_some(),
             );
-            deps.extend(deps::recipe_deps(&container_ctx, &image_state));
+            deps.extend(deps::recipe(&container_ctx, &image_state));
             let new_state =
                 image::cache_image(&container_ctx, &ctx.docker, &image_state, &deps).await?;
             info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
 
             trace!("saving image state");
             let mut state = ctx.image_state.write().await;
-            (*state).update(&ctx.target, &new_state);
+            (*state).update(ctx.target.clone(), new_state.clone());
 
             container_ctx.container.remove().await?;
-            container_ctx = container::spawn(&ctx, &new_state).await?;
+            container_ctx = container::spawn(ctx, &new_state).await?;
 
             new_state
         } else {
@@ -103,7 +103,7 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
         cleanup!(container_ctx);
 
         if let Some(patches) = &ctx.recipe.metadata.patches {
-            let patches = collect_patches(&container_ctx, &patches).await?;
+            let patches = collect_patches(&container_ctx, patches).await?;
 
             cleanup!(container_ctx);
 
@@ -112,7 +112,7 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
 
         cleanup!(container_ctx);
 
-        scripts::execute_scripts(&container_ctx).await?;
+        scripts::run(&container_ctx).await?;
 
         cleanup!(container_ctx);
 
@@ -230,7 +230,7 @@ pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
             info!(exclude_dirs = ?exclude_paths);
 
             container::checked_exec(
-                &ctx,
+                ctx,
                 &ExecOpts::default()
                     .cmd(&format!("rm -rvf {}", exclude_paths.join(" ")))
                     .working_dir(&ctx.build.container_out_dir)
@@ -255,7 +255,7 @@ pub async fn apply_patches(
         for (patch, location) in patches {
             debug!(patch = ?patch, "applying");
             if let Err(e) = container::checked_exec(
-                &ctx,
+                ctx,
                 &ExecOpts::default()
                     .cmd(&format!(
                         "patch -p{} < {}",
@@ -285,7 +285,7 @@ pub async fn collect_patches(
     async move {
         let mut out = Vec::new();
         let patch_dir = ctx.build.container_tmp_dir.join("patches");
-        container::create_dirs(&ctx, &[patch_dir.as_path()]).await?;
+        container::create_dirs(ctx, &[patch_dir.as_path()]).await?;
 
         let mut to_copy = Vec::new();
 
@@ -293,7 +293,7 @@ pub async fn collect_patches(
             let src = patch.patch();
             if src.starts_with("http") {
                 trace!(source = %src, "found http source");
-                remote::get_http_source(ctx, src, &patch_dir).await?;
+                remote::fetch_http_source(ctx, src, &patch_dir).await?;
                 out.push((
                     patch.clone(),
                     patch_dir.join(src.split('/').last().unwrap_or_default()),
@@ -321,7 +321,7 @@ pub async fn collect_patches(
         let to_copy = to_copy.iter().map(PathBuf::as_path).collect::<Vec<_>>();
 
         let patches_archive = ctx.build.container_tmp_dir.join("patches.tar");
-        remote::copy_files_into(ctx, &to_copy, &patches_archive).await?;
+        remote::fetch_fs_source(ctx, &to_copy, &patches_archive).await?;
 
         container::checked_exec(
             ctx,

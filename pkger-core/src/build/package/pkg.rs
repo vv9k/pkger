@@ -37,13 +37,13 @@ pub(crate) async fn build(
 
         let dirs = [tmp_dir.as_path(), bld_dir.as_path(), src_dir.as_path()];
 
-        create_dirs(&ctx, &dirs[..])
+        create_dirs(ctx, &dirs[..])
             .await
             .context("failed to create dirs")?;
 
         trace!("copy source files to temporary location");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("cp -rv . {}", src_dir.display()))
                 .working_dir(&ctx.build.container_out_dir)
@@ -54,7 +54,7 @@ pub(crate) async fn build(
 
         trace!("prepare archived source files");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
                 .working_dir(src_dir.as_path())
@@ -64,7 +64,7 @@ pub(crate) async fn build(
 
         trace!("calculate source MD5 checksum");
         let sum = checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("md5sum {}", source_tar_path.display()))
                 .build(),
@@ -99,21 +99,21 @@ pub(crate) async fn build(
 
         trace!("create build user");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("useradd -m {}", BUILD_USER))
                 .build(),
         )
         .await?;
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("passwd -d {}", BUILD_USER))
                 .build(),
         )
         .await?;
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("chown -Rv {0}:{0} .", BUILD_USER))
                 .working_dir(bld_dir.as_path())
@@ -121,7 +121,7 @@ pub(crate) async fn build(
         )
         .await?;
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd("chmod 644 PKGBUILD")
                 .working_dir(bld_dir.as_path())
@@ -131,7 +131,7 @@ pub(crate) async fn build(
 
         trace!("makepkg");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd("makepkg")
                 .working_dir(bld_dir.as_path())

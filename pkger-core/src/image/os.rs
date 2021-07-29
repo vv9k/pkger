@@ -6,7 +6,7 @@ use crate::{ErrContext, Error, Result};
 use tracing::{info_span, trace, Instrument};
 
 /// Finds out the operating system and version of the image with id `image_id`
-pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
+pub async fn find(image_id: &str, docker: &Docker) -> Result<Os> {
     let span = info_span!("find-os");
     macro_rules! return_if_ok {
         ($check:expr) => {
@@ -20,14 +20,14 @@ pub async fn find_os(image_id: &str, docker: &Docker) -> Result<Os> {
         };
     }
 
-    return_if_ok!(os_from_osrelease(image_id, docker));
-    return_if_ok!(os_from_issue(image_id, docker));
-    return_if_ok!(os_from_rhrelease(image_id, docker));
+    return_if_ok!(from_osrelease(image_id, docker));
+    return_if_ok!(from_issue(image_id, docker));
+    return_if_ok!(from_rhrelease(image_id, docker));
 
     Err(Error::msg("failed to determine distribution"))
 }
 
-async fn os_from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
+async fn from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {
     let out = oneshot::run(&OneShotCtx::new(
         docker,
         &ContainerCreateOpts::builder(&image_id)
@@ -98,10 +98,10 @@ async fn os_from(image_id: &str, docker: &Docker, file: &str) -> Result<Os> {
     Os::new(out, os_version)
 }
 
-async fn os_from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
+async fn from_rhrelease(image_id: &str, docker: &Docker) -> Result<Os> {
     os_from(image_id, docker, "/etc/redhat-release").await
 }
 
-async fn os_from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
+async fn from_issue(image_id: &str, docker: &Docker) -> Result<Os> {
     os_from(image_id, docker, "/etc/issue").await
 }

@@ -4,7 +4,7 @@ use crate::recipe::{BuildTarget, Recipe};
 
 use std::collections::HashSet;
 
-pub fn recipe_deps<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
+pub fn recipe<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
     if let Some(deps) = &ctx.build.recipe.metadata.build_depends {
         deps.resolve_names(&state.image)
     } else {
@@ -12,11 +12,7 @@ pub fn recipe_deps<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'c
     }
 }
 
-pub fn pkger_deps(
-    target: &BuildTarget,
-    recipe: &Recipe,
-    enable_gpg: bool,
-) -> HashSet<&'static str> {
+pub fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashSet<&'static str> {
     let mut deps = HashSet::new();
     deps.insert("tar");
     match target {

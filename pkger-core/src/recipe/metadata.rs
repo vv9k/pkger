@@ -127,7 +127,7 @@ pub struct DebRep {
     pub suggests: Option<YamlValue>,
     pub breaks: Option<YamlValue>,
     pub replaces: Option<YamlValue>,
-    pub enchances: Option<YamlValue>,
+    pub enhances: Option<YamlValue>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -141,7 +141,7 @@ pub struct DebInfo {
     pub suggests: Option<Dependencies>,
     pub breaks: Option<Dependencies>,
     pub replaces: Option<Dependencies>,
-    pub enchances: Option<Dependencies>,
+    pub enhances: Option<Dependencies>,
 }
 
 impl TryFrom<DebRep> for DebInfo {
@@ -158,7 +158,7 @@ impl TryFrom<DebRep> for DebInfo {
             suggests: if_let_some_ty!(rep.suggests, Dependencies),
             breaks: if_let_some_ty!(rep.breaks, Dependencies),
             replaces: if_let_some_ty!(rep.replaces, Dependencies),
-            enchances: if_let_some_ty!(rep.enchances, Dependencies),
+            enhances: if_let_some_ty!(rep.enhances, Dependencies),
         })
     }
 }

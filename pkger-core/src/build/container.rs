@@ -68,7 +68,7 @@ pub async fn spawn<'ctx>(
             .working_dir(ctx.container_bld_dir.to_string_lossy())
             .build();
 
-        let mut ctx = Context::new(&ctx, opts);
+        let mut ctx = Context::new(ctx, opts);
         ctx.container.spawn(&ctx.opts).await.map(|_| ctx)
     }
     .instrument(span)

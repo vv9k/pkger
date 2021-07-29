@@ -8,12 +8,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, Instrument};
 
-pub async fn clone_git_to_bld_dir(ctx: &Context<'_>, repo: &GitSource) -> Result<()> {
+pub async fn fetch_git_source(ctx: &Context<'_>, repo: &GitSource) -> Result<()> {
     let span = info_span!("clone-git");
     async move {
                 info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %ctx.build.container_bld_dir.display(), "cloning git source repository to build directory");
                 checked_exec(
-                    &ctx,
+                    ctx,
                     &ExecOpts::default().cmd(
                     &format!(
                     "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
@@ -28,12 +28,12 @@ pub async fn clone_git_to_bld_dir(ctx: &Context<'_>, repo: &GitSource) -> Result
         .await
 }
 
-pub async fn get_http_source(ctx: &Context<'_>, source: &str, dest: &Path) -> Result<()> {
+pub async fn fetch_http_source(ctx: &Context<'_>, source: &str, dest: &Path) -> Result<()> {
     let span = info_span!("download-http");
     async move {
         info!(url = %source, destination = %dest.display(), "fetching");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("curl -LO {}", source))
                 .working_dir(dest)
@@ -46,7 +46,7 @@ pub async fn get_http_source(ctx: &Context<'_>, source: &str, dest: &Path) -> Re
     .await
 }
 
-pub async fn copy_files_into(ctx: &Context<'_>, files: &[&Path], dest: &Path) -> Result<()> {
+pub async fn fetch_fs_source(ctx: &Context<'_>, files: &[&Path], dest: &Path) -> Result<()> {
     let span = info_span!("copy-files-into");
     let mut entries = Vec::new();
     for f in files {
@@ -73,13 +73,13 @@ pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
     let span = info_span!("fetch");
     async move {
         if let Some(repo) = &ctx.build.recipe.metadata.git {
-            clone_git_to_bld_dir(ctx, repo).await?;
+            fetch_git_source(ctx, repo).await?;
         } else if let Some(source) = &ctx.build.recipe.metadata.source {
             if source.starts_with("http") {
-                get_http_source(ctx, source.as_str(), &ctx.build.container_tmp_dir).await?;
+                fetch_http_source(ctx, source.as_str(), &ctx.build.container_tmp_dir).await?;
             } else {
                 let src_path = PathBuf::from(source);
-                copy_files_into(ctx, &[src_path.as_path()], &ctx.build.container_tmp_dir).await?;
+                fetch_fs_source(ctx, &[src_path.as_path()], &ctx.build.container_tmp_dir).await?;
             }
             checked_exec(
                 ctx,
