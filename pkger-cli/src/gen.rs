@@ -61,7 +61,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> Result<()> {
         suggests: vec_as_deps!(opts.suggests),
         breaks: vec_as_deps!(opts.breaks),
         replaces: vec_as_deps!(opts.replaces.clone()),
-        enchances: vec_as_deps!(opts.enchances),
+        enhances: vec_as_deps!(opts.enchances),
     };
 
     let rpm = RpmRep {

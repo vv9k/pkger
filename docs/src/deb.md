@@ -14,5 +14,5 @@ Optional fields that may be used when building a DEB package.
     suggests: []
     breaks: []
     replaces: []
-    enchances: []
+    enhances: []
 ```
