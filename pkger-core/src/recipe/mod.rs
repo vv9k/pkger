@@ -215,7 +215,7 @@ impl Recipe {
             if let Some(replaces) = &deb.replaces {
                 builder = builder.add_replaces_entries(replaces.resolve_names(image));
             }
-            if let Some(enchances) = &deb.enchances {
+            if let Some(enchances) = &deb.enhances {
                 builder = builder.add_enchances_entries(enchances.resolve_names(image));
             }
         }
@@ -350,7 +350,7 @@ pub struct RecipeRep {
 
 impl RecipeRep {
     pub fn from_yaml_bytes(data: &[u8]) -> Result<Self> {
-        Ok(serde_yaml::from_slice(&data)?)
+        Ok(serde_yaml::from_slice(data)?)
     }
 
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn parses_recipe_from_rep() {
-        let rep = RecipeRep::from_yaml_bytes(&TEST_RECIPE).unwrap();
+        let rep = RecipeRep::from_yaml_bytes(TEST_RECIPE).unwrap();
         let parsed = Recipe::new(rep.clone(), PathBuf::new()).unwrap();
 
         let rep_config = rep.configure.unwrap();

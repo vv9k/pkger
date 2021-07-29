@@ -56,3 +56,25 @@ impl Env {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn renders_entries_as_vars() {
+        let mut env = Env::new();
+        assert!(env.is_empty());
+
+        env.insert("key", "val");
+        env.insert("second", "val2");
+
+        let envs = env.clone().kv_vec();
+
+        assert!(envs.contains(&"key=val".to_string()));
+        assert!(envs.contains(&"second=val2".to_string()));
+
+        env.remove("key");
+        env.remove("second");
+        assert!(env.is_empty());
+    }
+}

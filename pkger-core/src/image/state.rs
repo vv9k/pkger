@@ -1,4 +1,4 @@
-use crate::image::find_os;
+use crate::image::find;
 
 use crate::docker::{image::ImageDetails, Docker};
 use crate::recipe::{Os, RecipeTarget};
@@ -51,7 +51,7 @@ impl ImageState {
             let os = if let Some(os) = target.image_os() {
                 os.clone()
             } else {
-                find_os(id, docker).await?
+                find(id, docker).await?
             };
             debug!(os = ?os, "parsed image info");
 
@@ -127,8 +127,8 @@ impl ImagesState {
     }
 
     /// Updates the target image with a new state
-    pub fn update(&mut self, target: &RecipeTarget, state: &ImageState) {
-        self.images.insert(target.clone(), state.clone());
+    pub fn update(&mut self, target: RecipeTarget, state: ImageState) {
+        self.images.insert(target, state);
     }
 
     /// Saves the images state to the filesystem

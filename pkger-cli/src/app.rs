@@ -278,7 +278,7 @@ impl Application {
                         (recipe, image, target, false)
                     }
                     BuildTask::Simple { recipe, target } => {
-                        let image = Image::get_or_create(&self._pkger_dir.path().join("images"), target)?;
+                        let image = Image::try_get_or_create(&self._pkger_dir.path().join("images"), target)?;
                         let name = image.name.clone();
                         (recipe, image, ImageTarget::new(name, target, None::<&str>), true)
                     }

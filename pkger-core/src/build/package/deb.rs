@@ -20,7 +20,7 @@ pub async fn build(
     ]
     .join("");
     let arch = ctx.build.recipe.metadata.arch.deb_name();
-    let package_name = [&name, ".", &arch].join("");
+    let package_name = [&name, ".", arch].join("");
 
     let span = info_span!("DEB", package = %package_name);
     async move {
@@ -32,12 +32,12 @@ pub async fn build(
         let deb_dir = base_dir.join("DEBIAN");
         let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
 
-        create_dirs(&ctx, &dirs[..])
+        create_dirs(ctx, &dirs[..])
             .await
             .context("failed to create dirs")?;
 
         let size_out = checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd("du -s .")
                 .working_dir(&ctx.build.container_out_dir)
@@ -67,7 +67,7 @@ pub async fn build(
 
         trace!("copy source files to build dir");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("cp -rv . {}", base_dir.display()))
                 .working_dir(&ctx.build.container_out_dir)
@@ -83,7 +83,7 @@ pub async fn build(
         };
 
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!(
                     "dpkg-deb {} {}",
@@ -129,7 +129,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 
         trace!("get key id");
         let key_id = checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd("gpg --list-keys --with-colons")
                 .build(),
@@ -151,7 +151,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 
         trace!("add signature");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!(
                     r#"dpkg-sig -k {} -g "--pinentry-mode=loopback --passphrase {}" --sign {} {}"#,

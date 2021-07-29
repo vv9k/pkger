@@ -23,11 +23,11 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
     let span = info_span!("image-build");
     async move {
         let mut deps = if let Some(deps) = &ctx.recipe.metadata.build_depends {
-            deps.resolve_names(&ctx.target.image())
+            deps.resolve_names(ctx.target.image())
         } else {
             Default::default()
         };
-        deps.extend(deps::pkger_deps(
+        deps.extend(deps::default(
             ctx.target.build_target(),
             &ctx.recipe,
             ctx.gpg_key.is_some(),
@@ -92,7 +92,7 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
                     .await?;
 
                     let mut image_state = ctx.image_state.write().await;
-                    (*image_state).update(&ctx.target, &state);
+                    (*image_state).update(ctx.target.clone(), state.clone());
 
                     return Ok(state);
                 }
@@ -179,7 +179,7 @@ RUN {} {} {} >/dev/null"#,
                         &ctx.build.target,
                         CACHED,
                         &SystemTime::now(),
-                        &docker,
+                        docker,
                         deps,
                         ctx.build.simple,
                     )
@@ -210,7 +210,7 @@ pub async fn find_cached_state(
 
     trace!("checking if image should be rebuilt");
     let states = state.read().await;
-    if let Some(state) = (*states).images.get(&target) {
+    if let Some(state) = (*states).images.get(target) {
         if simple {
             return Some(state.to_owned());
         }

@@ -38,7 +38,7 @@ pub(crate) async fn upload_gpg_key(
 pub(crate) async fn import_gpg_key(ctx: &Context<'_>, gpg_key: &GpgKey, path: &Path) -> Result<()> {
     let span = info_span!("import-key", path = %path.display());
     checked_exec(
-        &ctx,
+        ctx,
         &ExecOpts::default()
             .cmd(&format!(
                 r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,

@@ -21,7 +21,7 @@ pub(crate) async fn build(
     .join("");
     let release = ctx.build.recipe.metadata.release();
     let arch = ctx.build.recipe.metadata.arch.rpm_name();
-    let buildroot_name = [&name, "-", &release, ".", &arch].join("");
+    let buildroot_name = [&name, "-", release, ".", arch].join("");
     let source_tar = [&name, ".tar.gz"].join("");
 
     let span = info_span!("RPM", package = %buildroot_name);
@@ -48,13 +48,13 @@ pub(crate) async fn build(
             srpms.as_path(),
         ];
 
-        create_dirs(&ctx, &dirs[..])
+        create_dirs(ctx, &dirs[..])
             .await
             .context("failed to create directories")?;
 
         trace!("copy source files to temporary location");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!(
                     "cp -rv {} {}",
@@ -68,7 +68,7 @@ pub(crate) async fn build(
 
         trace!("prepare archived source files");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("tar -zcvf {} .", source_tar_path.display(),))
                 .working_dir(tmp_buildroot.as_path())
@@ -78,7 +78,7 @@ pub(crate) async fn build(
 
         trace!("find source file paths");
         let files = checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(r#"find . -type f -o -type l -name "*""#)
                 .working_dir(&ctx.build.container_out_dir)
@@ -117,7 +117,7 @@ pub(crate) async fn build(
 
         trace!("rpmbuild");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!(
                     "setarch {0} rpmbuild -bb --target {0} {1}",
@@ -180,7 +180,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 
         trace!("export public key");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!(
                     r#"gpg --pinentry-mode=loopback --passphrase {} --export -a '{}' > public.key"#,
@@ -195,7 +195,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 
         trace!("import key to rpm database");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd("rpm --import public.key")
                 .working_dir(&ctx.build.container_tmp_dir)
@@ -205,7 +205,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 
         trace!("add signature");
         checked_exec(
-            &ctx,
+            ctx,
             &ExecOpts::default()
                 .cmd(&format!("rpm --addsign {}", package.display()))
                 .build(),
