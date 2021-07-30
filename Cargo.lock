@@ -292,8 +292,9 @@ dependencies = [
 
 [[package]]
 name = "docker-api"
-version = "0.4.0"
-source = "git+https://github.com/vv9k/docker-api-rs?branch=master#fae6f69b17511a42bae3d0a0705c4d746c4f9d16"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84df26e844b577320d9e618203f8031bf66a66888add9ace2b6f7d7c05cf4f4c"
 dependencies = [
  "base64",
  "byteorder",
