@@ -11,6 +11,7 @@
   target or os on each recipe, now recipe only requires the image name , and the definition is in the configuration.
   WARNING! this makes old state files not compatible and requires manual deletion of `$XDG_CACHE_HOME/pkger.state` file.
   [#73](https://github.com/vv9k/pkger/pull/73)
+- Add `list packages` subcommand that lists built packages from output directory.
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)

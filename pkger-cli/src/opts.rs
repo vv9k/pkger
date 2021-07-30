@@ -52,7 +52,7 @@ pub enum Commands {
 
 #[derive(Debug, Clap)]
 pub struct ListOpts {
-    /// What objects to list, can be one of: `images`, `recipes`
+    /// What objects to list, can be one of: `images`, `recipes`, `packages`
     pub object: ListObject,
 }
 
@@ -60,6 +60,7 @@ pub struct ListOpts {
 pub enum ListObject {
     Images,
     Recipes,
+    Packages,
 }
 
 impl FromStr for ListObject {
@@ -69,6 +70,7 @@ impl FromStr for ListObject {
         match s {
             "images" => Ok(ListObject::Images),
             "recipes" => Ok(ListObject::Recipes),
+            "packages" => Ok(ListObject::Packages),
             _ => Err(Error::msg(format!("unknown object {}", s))),
         }
     }
