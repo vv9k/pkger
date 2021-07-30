@@ -187,11 +187,20 @@ impl Application {
             debug!("building all recipes for all targets");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
-                    for target in images {
-                        tasks.push(BuildTask::Custom {
-                            recipe: recipe.clone(),
-                            target: target.clone(),
-                        });
+                    for target_image in images {
+                        if let Some(target) = self
+                            .config
+                            .images
+                            .iter()
+                            .find(|target| &target.image == target_image)
+                        {
+                            tasks.push(BuildTask::Custom {
+                                recipe: recipe.clone(),
+                                target: target.clone(),
+                            });
+                        } else {
+                            warn!(image = %target_image, "not found in configuration");
+                        }
                     }
                 } else {
                     warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
@@ -213,11 +222,22 @@ impl Application {
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for image in opt_images {
-                        if let Some(target) = images.iter().find(|target| &target.image == image) {
-                            tasks.push(BuildTask::Custom {
-                                recipe: recipe.clone(),
-                                target: target.clone(),
-                            });
+                        // first we check if the recipe contains the image
+                        if images.iter().any(|target| target == image) {
+                            // then we fetch the target from configuration images
+                            if let Some(target) = self
+                                .config
+                                .images
+                                .iter()
+                                .find(|target| &target.image == image)
+                            {
+                                tasks.push(BuildTask::Custom {
+                                    recipe: recipe.clone(),
+                                    target: target.clone(),
+                                });
+                            } else {
+                                warn!(%image, "not found in configuration");
+                            }
                         }
                     }
                 } else {
@@ -232,11 +252,20 @@ impl Application {
                         warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                         continue;
                     }
-                    for target in images {
-                        tasks.push(BuildTask::Custom {
-                            recipe: recipe.clone(),
-                            target: target.clone(),
-                        });
+                    for target_image in images {
+                        if let Some(target) = self
+                            .config
+                            .images
+                            .iter()
+                            .find(|target| &target.image == target_image)
+                        {
+                            tasks.push(BuildTask::Custom {
+                                recipe: recipe.clone(),
+                                target: target.clone(),
+                            });
+                        } else {
+                            warn!(image = %target_image, "not found in configuration");
+                        }
                     }
                 } else {
                     warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");

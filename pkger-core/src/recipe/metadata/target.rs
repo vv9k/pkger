@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::{AsRef, TryFrom};
 
 #[derive(Copy, Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
+#[serde(rename_all = "lowercase")]
 pub enum BuildTarget {
     Rpm,
     Deb,

@@ -7,7 +7,9 @@ use std::convert::TryFrom;
 
 #[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 pub struct ImageTarget {
+    #[serde(rename = "name")]
     pub image: String,
+    #[serde(rename = "target")]
     pub build_target: BuildTarget,
     pub os: Option<Os>,
 }
@@ -24,6 +26,29 @@ impl ImageTarget {
             os: os.map(|os| Os::new(os, None::<&str>).unwrap()),
         }
     }
+}
+
+pub fn deserialize_images<'de, D>(deserializer: D) -> Result<Vec<ImageTarget>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    let mut images = Vec::new();
+    let mapping = serde_yaml::Sequence::deserialize(deserializer)?;
+    for value in mapping {
+        match value {
+            serde_yaml::Value::Mapping(map) => {
+                images.push(ImageTarget::try_from(map).map_err(D::Error::custom)?);
+            }
+            _ => {
+                return Err(D::Error::custom(
+                    "invalid value for image target, expected mapping",
+                ))
+            }
+        }
+    }
+    Ok(images)
 }
 
 impl TryFrom<Mapping> for ImageTarget {
