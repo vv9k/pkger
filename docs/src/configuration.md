@@ -28,6 +28,18 @@ ssh:
 
   # This will allow tools that use SSH to connect to hosts that are not present in the `known_hosts` file
   disable_key_verification: true
+
+
+# To define custom images add the following
+images:
+  - name: centos8
+    target: rpm
+  - name: debian10
+    target: deb
+# if pkger fails to find out the operating system you can specify it by os parameter
+  - name: arch
+    target: pkg
+    os: Arch Linux
 ```
 
 The required fields when running a build are `recipes_dir` and `output_dir`. First tells **pkger** where to look for
