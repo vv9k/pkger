@@ -9,6 +9,7 @@
 - Fix a typo in deb field - `enchances` -> `enhances`  
 - Images are now be defined in the global configuration file. Previously users would have to define an image with a
   target or os on each recipe, now recipe only requires the image name , and the definition is in the configuration.
+  WARNING! this makes old state files not compatible and requires manual deletion of `$XDG_CACHE_HOME/pkger.state` file.
   [#73](https://github.com/vv9k/pkger/pull/73)
 
 # 0.4.0
