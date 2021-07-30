@@ -8,9 +8,7 @@ metadata:
   exclude:
     - share
     - info
-  images:
-    - name: debian10
-    - name: centos8
+  images: [ debian10, centos8 ]
 env:
   ENV_VAR_TEST: 'test.com:1010'
 configure:

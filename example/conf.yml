@@ -2,3 +2,11 @@ images_dir: "example/images"
 recipes_dir: "example/recipes"
 output_dir: "example/output"
 
+images:
+  - name: arch
+    target: pkg
+    os: Arch Linux
+  - name: centos8
+    target: rpm
+  - name: debian10
+    target: deb

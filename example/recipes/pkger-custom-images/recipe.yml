@@ -9,13 +9,7 @@ metadata:
   maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
   provides:
     - pkger
-  images:
-    - name: centos8
-      target: rpm
-    - name: debian10
-      target: deb
-    - name: arch
-      target: pkg
+  images: [ arch, centos8, debian10 ]
   depends:
     debian10:
       - libssl-dev

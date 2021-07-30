@@ -5,11 +5,7 @@ metadata:
   description: pkger test package
   arch: x86_64
   license: MIT
-  images:
-    - name: centos8
-      target: rpm
-    - name: debian10
-      target: deb
+  images: [ centos8, debian10 ]
 build:
   steps: []
 install:

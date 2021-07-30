@@ -1,4 +1,5 @@
 use crate::Result;
+use pkger_core::recipe::{deserialize_images, ImageTarget};
 use pkger_core::ssh::SshConfig;
 
 use serde::Deserialize;
@@ -15,6 +16,8 @@ pub struct Configuration {
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
     pub ssh: Option<SshConfig>,
+    #[serde(deserialize_with = "deserialize_images")]
+    pub images: Vec<ImageTarget>,
 }
 
 impl Configuration {

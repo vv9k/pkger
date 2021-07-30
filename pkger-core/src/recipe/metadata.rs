@@ -9,7 +9,7 @@ mod target;
 pub use arch::BuildArch;
 pub use deps::Dependencies;
 pub use git::GitSource;
-pub use image::ImageTarget;
+pub use image::{deserialize_images, ImageTarget};
 pub use os::{Distro, Os, PackageManager};
 pub use patches::{Patch, Patches};
 pub use target::BuildTarget;
@@ -38,7 +38,7 @@ pub struct MetadataRep {
     pub description: String,
     pub license: String,
 
-    pub images: Option<Vec<YamlValue>>,
+    pub images: Option<Vec<String>>,
 
     // Common optional
     pub maintainer: Option<String>,
@@ -216,7 +216,7 @@ pub struct Metadata {
     pub license: String,
     pub arch: BuildArch,
 
-    pub images: Option<Vec<ImageTarget>>,
+    pub images: Option<Vec<String>>,
     pub maintainer: Option<String>,
     /// The URL of the web site for this package
     pub url: Option<String>,
@@ -266,22 +266,12 @@ impl TryFrom<MetadataRep> for Metadata {
     type Error = Error;
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
-        let images = if let Some(rep_images) = rep.images {
-            let mut images = vec![];
-            for image in rep_images.into_iter().map(ImageTarget::try_from) {
-                images.push(image?);
-            }
-            Some(images)
-        } else {
-            None
-        };
-
         Ok(Self {
             name: rep.name,
             version: rep.version,
             description: rep.description,
             license: rep.license,
-            images,
+            images: rep.images,
 
             arch: rep
                 .arch
