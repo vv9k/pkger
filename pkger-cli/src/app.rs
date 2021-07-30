@@ -127,6 +127,10 @@ impl Application {
                     self.list_recipes();
                     Ok(())
                 }
+                ListObject::Packages => {
+                    self.list_packages();
+                    Ok(())
+                }
             },
         }
     }
@@ -134,6 +138,47 @@ impl Application {
     fn list_recipes(&self) {
         for name in self.recipes.list() {
             println!("{}", name);
+        }
+    }
+
+    fn list_packages(&self) {
+        let images = match fs::read_dir(&self.config.output_dir) {
+            Ok(entries) => entries.filter_map(|e| {
+                if e.is_ok() {
+                    e.map(|e| e.path()).ok()
+                } else {
+                    None
+                }
+            }),
+            Err(e) => {
+                error!(reason = ?e, "failed to list output directories");
+                return;
+            }
+        };
+
+        for image in images {
+            let image_name = image
+                .file_name()
+                .unwrap_or_else(|| image.as_os_str())
+                .to_string_lossy();
+            println!("{}:", image_name);
+            match fs::read_dir(&image) {
+                Ok(packages) => {
+                    for package in packages {
+                        match package {
+                            Ok(package) => {
+                                println!("\t{}", package.file_name().to_string_lossy());
+                            }
+                            Err(e) => {
+                                error!(reason = ?e, image = %image_name, "failed to list a package");
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!(reason = ?e, image = %image_name, "failed to list packages");
+                }
+            }
         }
     }
 
