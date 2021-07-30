@@ -181,6 +181,18 @@ ssh:
 
   # This will allow tools that use SSH to connect to hosts that are not present in the `known_hosts` file
   disable_key_verification: true
+
+
+# To define custom images add the following
+images:
+  - name: centos8
+    target: rpm
+  - name: debian10
+    target: deb
+# if pkger fails to find out the operating system you can specify it by os parameter
+  - name: arch
+    target: pkg
+    os: Arch Linux
 </code></pre>
 <p>The required fields when running a build are <code>recipes_dir</code> and <code>output_dir</code>. First tells <strong>pkger</strong> where to look for
 <a href="./recipes.html">recipes</a> to build, the second is the directory where the final packages will end up.</p>
@@ -253,16 +265,7 @@ install:
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
 <p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored
 when building with <code>--simple</code> flag.</p>
-<pre><code class="language-yaml">  images:
-    - name: centos8
-      target: rpm
-    - name: debian10
-      target: deb
-
-    # if pkger fails to find out the operating system you can specify it by os parameter
-    - name: arch
-      target: pkg
-      os: Arch
+<pre><code class="language-yaml">  images: [ centos8, debian10 ]
 </code></pre>
 <h3 id="sources"><a class="header" href="#sources">sources</a></h3>
 <p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified

@@ -155,16 +155,7 @@
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
 <p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored
 when building with <code>--simple</code> flag.</p>
-<pre><code class="language-yaml">  images:
-    - name: centos8
-      target: rpm
-    - name: debian10
-      target: deb
-
-    # if pkger fails to find out the operating system you can specify it by os parameter
-    - name: arch
-      target: pkg
-      os: Arch
+<pre><code class="language-yaml">  images: [ centos8, debian10 ]
 </code></pre>
 <h3 id="sources"><a class="header" href="#sources">sources</a></h3>
 <p>This fields are responsible for fetching the files used for the build. When both <code>git</code> and <code>source</code> are specified
