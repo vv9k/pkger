@@ -249,7 +249,14 @@ impl Application {
         if opts.all {
             debug!("building all recipes for all targets");
             for recipe in &recipes {
-                if let Some(images) = &recipe.metadata.images {
+                if recipe.metadata.all_images {
+                    for image in &self.config.images {
+                        tasks.push(BuildTask::Custom {
+                            target: image.clone(),
+                            recipe: recipe.clone(),
+                        });
+                    }
+                } else if let Some(images) = &recipe.metadata.images {
                     for target_image in images {
                         add_task_if_target_found!(target_image, recipe, self, tasks);
                     }
@@ -271,7 +278,11 @@ impl Application {
         } else if let Some(opt_images) = &opts.images {
             debug!("building only specified recipes for specified images");
             for recipe in &recipes {
-                if let Some(images) = &recipe.metadata.images {
+                if recipe.metadata.all_images {
+                    for image in opt_images {
+                        add_task_if_target_found!(image, recipe, self, tasks);
+                    }
+                } else if let Some(images) = &recipe.metadata.images {
                     for image in opt_images {
                         // first we check if the recipe contains the image
                         if images.iter().any(|target| target == image) {
@@ -286,7 +297,14 @@ impl Application {
         } else {
             trace!("building only specified recipes for all targets");
             for recipe in &recipes {
-                if let Some(images) = &recipe.metadata.images {
+                if recipe.metadata.all_images {
+                    for image in &self.config.images {
+                        tasks.push(BuildTask::Custom {
+                            target: image.clone(),
+                            recipe: recipe.clone(),
+                        });
+                    }
+                } else if let Some(images) = &recipe.metadata.images {
                     if images.is_empty() {
                         warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
                         continue;

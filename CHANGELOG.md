@@ -16,6 +16,8 @@
 - Improved error messages during initialization now contain full context of how the error originated.
 - Save image state only when it changed.
 - Automatically convert `_` to `-` when building a DEB. Debian packages don't allow underscores in package names.
+- Add `all_images` field to recipe metadata so that if a recipe is used with all images they don't have to be listed
+  one by one.
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)
