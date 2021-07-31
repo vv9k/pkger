@@ -105,7 +105,6 @@ pub struct ImagesState {
     /// [ImageState](ImageState) struct representing the state of the image.
     pub images: HashMap<RecipeTarget, ImageState>,
     /// Path to a file containing image state
-    #[serde(rename = "state_file")] // for backwards compability
     path: PathBuf,
     #[serde(skip_serializing)]
     #[serde(default)]
