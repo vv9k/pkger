@@ -113,26 +113,26 @@ pub struct ImagesState {
 
 impl Default for ImagesState {
     fn default() -> Self {
-        ImagesState {
-            images: HashMap::new(),
-            path: PathBuf::from(DEFAULT_STATE_FILE),
-            has_changed: false,
-        }
+        ImagesState::new(DEFAULT_STATE_FILE)
     }
 }
 
 impl ImagesState {
+    pub fn new<P: Into<PathBuf>>(path: P) -> Self {
+        Self {
+            images: HashMap::new(),
+            path: path.into(),
+            has_changed: false,
+        }
+    }
+
     /// Tries to initialize images state from the given path, if the path doesn't exist creates
     /// a new ImagesState.
     pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
         let state_file = state_file.as_ref();
         if !state_file.exists() {
             debug!("state file doesn't exist");
-            return Ok(ImagesState {
-                images: HashMap::new(),
-                path: state_file.to_path_buf(),
-                has_changed: false,
-            });
+            return Ok(ImagesState::new(state_file));
         }
         debug!("loading state");
         let contents =
