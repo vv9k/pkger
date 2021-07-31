@@ -38,6 +38,9 @@ pub struct MetadataRep {
     pub description: String,
     pub license: String,
 
+    #[serde(default)]
+    /// If specified all images will apply to this metadata and `images` will be ignored.
+    pub all_images: bool,
     pub images: Option<Vec<String>>,
 
     // Common optional
@@ -216,6 +219,7 @@ pub struct Metadata {
     pub license: String,
     pub arch: BuildArch,
 
+    pub all_images: bool,
     pub images: Option<Vec<String>>,
     pub maintainer: Option<String>,
     /// The URL of the web site for this package
@@ -271,6 +275,7 @@ impl TryFrom<MetadataRep> for Metadata {
             version: rep.version,
             description: rep.description,
             license: rep.license,
+            all_images: rep.all_images,
             images: rep.images,
 
             arch: rep

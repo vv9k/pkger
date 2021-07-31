@@ -9,7 +9,7 @@ metadata:
   maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
   provides:
     - pkger
-  images: [ arch, centos8, debian10 ]
+  all_images: true
   depends:
     debian10:
       - libssl-dev

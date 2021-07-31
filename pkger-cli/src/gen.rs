@@ -88,6 +88,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> Result<()> {
         version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
         description: opts.description.unwrap_or_else(|| "missing".to_string()),
         license: opts.license.unwrap_or_else(|| "missing".to_string()),
+        all_images: false,
         images: None,
 
         maintainer: opts.maintainer,

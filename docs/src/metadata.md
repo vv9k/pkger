@@ -21,6 +21,12 @@ when building with `--simple` flag.
   images: [ centos8, debian10 ]
 ```
 
+You can also specify that all images apply to this recipe with:
+
+```yaml
+  all_images: true
+```
+
 ### sources
 
 This fields are responsible for fetching the files used for the build. When both `git` and `source` are specified
