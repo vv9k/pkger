@@ -28,6 +28,18 @@ pub struct ImageState {
     pub simple: bool,
 }
 
+impl PartialEq for ImageState {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.image == other.image
+            && self.tag == other.tag
+            && self.os == other.os
+            && self.timestamp == other.timestamp
+            && self.deps == other.deps
+            && self.simple == other.simple
+    }
+}
+
 impl ImageState {
     pub async fn new(
         id: &str,
@@ -95,6 +107,9 @@ pub struct ImagesState {
     /// Path to a file containing image state
     #[serde(rename = "state_file")] // for backwards compability
     path: PathBuf,
+    #[serde(skip_serializing)]
+    #[serde(default)]
+    has_changed: bool,
 }
 
 impl Default for ImagesState {
@@ -102,6 +117,7 @@ impl Default for ImagesState {
         ImagesState {
             images: HashMap::new(),
             path: PathBuf::from(DEFAULT_STATE_FILE),
+            has_changed: false,
         }
     }
 }
@@ -116,6 +132,7 @@ impl ImagesState {
             return Ok(ImagesState {
                 images: HashMap::new(),
                 path: state_file.to_path_buf(),
+                has_changed: false,
             });
         }
         debug!("loading state");
@@ -127,12 +144,17 @@ impl ImagesState {
         Ok(state)
     }
 
-    /// Updates the target image with a new state
+    /// Updates the target image with a new state.
     pub fn update(&mut self, target: RecipeTarget, state: ImageState) {
+        if let Some(old_state) = self.images.get(&target) {
+            if old_state != &state {
+                self.has_changed = true
+            }
+        }
         self.images.insert(target, state);
     }
 
-    /// Saves the images state to the filesystem
+    /// Saves the images state to the filesystem.
     pub fn save(&self) -> Result<()> {
         trace!("saving images state");
         serde_cbor::to_vec(&self)
@@ -148,5 +170,10 @@ impl ImagesState {
     /// Clears the state to contain no images.
     pub fn clear(&mut self) {
         self.images.clear();
+    }
+
+    /// Returns true if the state was updated.
+    pub fn has_changed(&self) -> bool {
+        self.has_changed
     }
 }
