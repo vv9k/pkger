@@ -119,15 +119,11 @@ impl Loader {
                             recipes.push(recipe);
                         }
                         Err(e) => {
-                            let reason = format!("{:?}", e);
-                            warn!(recipe = %filename, %reason, "failed to read recipe")
+                            warn!(recipe = %filename, reason = %format!("{:?}", e), "failed to read recipe")
                         }
                     }
                 }
-                Err(e) => {
-                    let reason = format!("{:?}", e);
-                    warn!(%reason, "invalid entry")
-                }
+                Err(e) => warn!(reason = %format!("{:?}", e), "invalid entry"),
             }
         }
 
