@@ -267,7 +267,8 @@ pub async fn apply_patches(
             )
             .await
             {
-                warn!(patch = ?patch, reason = %e, "applying failed");
+                let reason = format!("{:?}", e);
+                warn!(patch = ?patch, %reason, "applying failed");
             }
         }
 

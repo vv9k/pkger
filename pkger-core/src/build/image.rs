@@ -217,7 +217,8 @@ pub async fn find_cached_state(
         if let Ok(entries) = fs::read_dir(image) {
             for file in entries {
                 if let Err(e) = file {
-                    warn!(reason = %e, "error while loading file");
+                    let reason = format!("{:?}", e);
+                    warn!(%reason, "error while loading file");
                     continue;
                 }
                 let file = file.unwrap();
@@ -225,9 +226,10 @@ pub async fn find_cached_state(
                 trace!(path = %path.display(), "checking");
                 let metadata = fs::metadata(path.as_path());
                 if let Err(e) = metadata {
+                    let reason = format!("{:?}", e);
                     warn!(
                         path = %path.display(),
-                        reason = %e,
+                        %reason,
                         "failed to read metadata",
                     );
                     continue;
@@ -235,9 +237,10 @@ pub async fn find_cached_state(
                 let metadata = metadata.unwrap();
                 let mod_time = metadata.modified();
                 if let Err(e) = &mod_time {
+                    let reason = format!("{:?}", e);
                     warn!(
                         path = %path.display(),
-                        reason = %e,
+                        %reason,
                         "failed to check modification time",
                     );
                     continue;

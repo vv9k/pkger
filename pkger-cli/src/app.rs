@@ -31,8 +31,8 @@ fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
 
 fn create_app_dirs() -> Result<TempDir> {
     let tempdir = TempDir::new("pkger")?;
-    let pkger_dir = tempdir.path();
-    let images_dir = pkger_dir.join("images");
+    let app_dir = tempdir.path();
+    let images_dir = app_dir.join("images");
     if !images_dir.exists() {
         fs::create_dir_all(&images_dir)?;
     }
@@ -47,7 +47,7 @@ pub struct Application {
     images_state: Arc<RwLock<ImagesState>>,
     user_images_dir: PathBuf,
     is_running: Arc<AtomicBool>,
-    _pkger_dir: TempDir,
+    app_dir: TempDir,
     gpg_key: Option<GpgKey>,
 }
 
@@ -65,12 +65,13 @@ pub enum BuildTask {
 
 impl Application {
     pub fn new(config: Configuration) -> Result<Self> {
-        let _pkger_dir = create_app_dirs()?;
-        let recipes = recipe::Loader::new(&config.recipes_dir)?;
+        let app_dir = create_app_dirs()?;
+        let recipes = recipe::Loader::new(&config.recipes_dir)
+            .context("failed to initialize recipe loader")?;
         let user_images_dir = config
             .images_dir
             .clone()
-            .unwrap_or_else(|| _pkger_dir.path().join("images"));
+            .unwrap_or_else(|| app_dir.path().join("images"));
 
         let state_path = match dirs::cache_dir() {
             Some(dir) => dir.join(DEFAULT_STATE_FILE),
@@ -81,7 +82,8 @@ impl Application {
             match ImagesState::try_from_path(state_path).context("failed to load images state") {
                 Ok(state) => state,
                 Err(e) => {
-                    warn!(msg = ?e);
+                    let e = format!("{:?}", e);
+                    warn!(msg = %e);
                     Default::default()
                 }
             },
@@ -89,19 +91,19 @@ impl Application {
 
         trace!(?images_state);
 
-        let pkger = Application {
+        let app = Application {
             config: Arc::new(config),
             recipes: Arc::new(recipes),
             docker: Arc::new(DockerConnectionPool::default()),
             images_state,
             user_images_dir,
             is_running: Arc::new(AtomicBool::new(true)),
-            _pkger_dir,
+            app_dir,
             gpg_key: None,
         };
-        let is_running = pkger.is_running.clone();
+        let is_running = app.is_running.clone();
         set_ctrlc_handler(is_running);
-        Ok(pkger)
+        Ok(app)
     }
 
     pub async fn process_opts(&mut self, opts: Opts) -> Result<()> {
@@ -119,18 +121,9 @@ impl Application {
             }
             Command::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
             Command::List(list_opts) => match list_opts.object {
-                ListObject::Images => {
-                    self.list_images();
-                    Ok(())
-                }
-                ListObject::Recipes => {
-                    self.list_recipes();
-                    Ok(())
-                }
-                ListObject::Packages => {
-                    self.list_packages();
-                    Ok(())
-                }
+                ListObject::Images => self.list_images(),
+                ListObject::Recipes => self.list_recipes(),
+                ListObject::Packages => self.list_packages(),
             },
             Command::CleanCache => self.clean_cache().await,
         }
@@ -151,26 +144,22 @@ impl Application {
         Ok(())
     }
 
-    fn list_recipes(&self) {
-        for name in self.recipes.list() {
+    fn list_recipes(&self) -> Result<()> {
+        for name in self.recipes.list()? {
             println!("{}", name);
         }
+        Ok(())
     }
 
-    fn list_packages(&self) {
-        let images = match fs::read_dir(&self.config.output_dir) {
-            Ok(entries) => entries.filter_map(|e| {
-                if e.is_ok() {
-                    e.map(|e| e.path()).ok()
-                } else {
-                    None
-                }
-            }),
+    fn list_packages(&self) -> Result<()> {
+        let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
+            Ok(e) => Some(e.path()),
             Err(e) => {
-                error!(reason = ?e, "failed to list output directories");
-                return;
+                let reason = format!("{:?}", e);
+                warn!(%reason, "invalid entry");
+                None
             }
-        };
+        });
 
         for image in images {
             let image_name = image
@@ -186,34 +175,38 @@ impl Application {
                                 println!("\t{}", package.file_name().to_string_lossy());
                             }
                             Err(e) => {
-                                error!(reason = ?e, image = %image_name, "failed to list a package");
+                                let reason = format!("{:?}", e);
+                                error!(%reason, image = %image_name, "failed to list a package");
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    error!(reason = ?e, image = %image_name, "failed to list packages");
+                    let reason = format!("{:?}", e);
+                    error!(%reason, image = %image_name, "failed to list packages");
                 }
             }
         }
+
+        Ok(())
     }
 
-    fn list_images(&self) {
-        if let Err(reason) = fs::read_dir(&self.user_images_dir).map(|entries| {
-            entries
-                .filter_map(|e| {
-                    if e.is_ok() {
-                        e.map(|e| e.file_name().to_string_lossy().to_string()).ok()
-                    } else {
-                        None
-                    }
-                })
-                .for_each(|entry| {
-                    println!("{}", entry);
-                })
-        }) {
-            error!(%reason, "failed listing images");
-        };
+    fn list_images(&self) -> Result<()> {
+        fs::read_dir(&self.config.output_dir)?
+            .filter_map(|e| match e {
+                Ok(e) => {
+                    println!("{}", e.file_name().to_string_lossy());
+                    Some(e)
+                }
+                Err(e) => {
+                    let reason = format!("{:?}", e);
+                    warn!(%reason, "invalid entry");
+                    None
+                }
+            })
+            .for_each(|_| {});
+
+        Ok(())
     }
 
     fn process_build_opts(&mut self, opts: BuildOpts) -> Result<Vec<BuildTask>> {
@@ -368,7 +361,7 @@ impl Application {
                         (recipe, image, target, false)
                     }
                     BuildTask::Simple { recipe, target } => {
-                        let image = Image::try_get_or_create(&self._pkger_dir.path().join("images"), target)?;
+                        let image = Image::try_get_or_create(&self.app_dir.path().join("images"), target)?;
                         let name = image.name.clone();
                         (recipe, image, ImageTarget::new(name, target, None::<&str>), true)
                     }
@@ -429,7 +422,8 @@ impl Application {
         let state = self.images_state.read().await;
 
         if let Err(e) = state.save() {
-            error!(reason = %e, "failed to save image state");
+            let reason = format!("{:?}", e);
+            error!(%reason, "failed to save image state");
         }
     }
 }

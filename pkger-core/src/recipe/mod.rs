@@ -11,6 +11,7 @@ pub use metadata::{
 
 use crate::{Error, Result};
 
+use anyhow::Context;
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 use pkgbuild::PkgBuild;
 use rpmspec::RpmSpec;
@@ -62,7 +63,10 @@ impl Loader {
     /// Initializes a recipe loader without loading any recipes. The provided `path` must be a directory
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
-        if !path.is_dir() {
+        let metadata = fs::metadata(path)
+            .context(format!("failed to verify recipe path `{}`", path.display()))?;
+
+        if !metadata.is_dir() {
             return Err(Error::msg("recipes path is not a directory"));
         }
 
@@ -80,7 +84,7 @@ impl Loader {
         RecipeRep::load(path).and_then(|rep| Recipe::new(rep, base_path))
     }
 
-    pub fn list(&self) -> Vec<String> {
+    pub fn list(&self) -> Result<Vec<String>> {
         fs::read_dir(&self.path)
             .map(|entries| {
                 entries
@@ -92,7 +96,7 @@ impl Loader {
                     })
                     .collect()
             })
-            .unwrap_or_default()
+            .context("failed to list recipes")
     }
 
     /// Loads all recipes in the underlying directory
@@ -114,10 +118,16 @@ impl Loader {
                             trace!(recipe = ?recipe);
                             recipes.push(recipe);
                         }
-                        Err(e) => warn!(recipe = %filename, reason = %e, "failed to read recipe"),
+                        Err(e) => {
+                            let reason = format!("{:?}", e);
+                            warn!(recipe = %filename, %reason, "failed to read recipe")
+                        }
                     }
                 }
-                Err(e) => warn!(reason = %e, "invalid entry"),
+                Err(e) => {
+                    let reason = format!("{:?}", e);
+                    warn!(%reason, "invalid entry")
+                }
             }
         }
 
