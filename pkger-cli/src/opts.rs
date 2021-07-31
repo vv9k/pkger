@@ -32,7 +32,7 @@ pub struct Opts {
 
     #[clap(subcommand)]
     /// Subcommand to run
-    pub command: Commands,
+    pub command: Command,
 }
 
 impl Opts {
@@ -42,12 +42,15 @@ impl Opts {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum Commands {
+pub enum Command {
     /// Runs a build creating specified packages on target platforms.
     Build(BuildOpts),
-    /// Creates a directory with a recipe generated from provided arguments
+    /// Creates a directory with a recipe generated from provided arguments.
     GenRecipe(Box<GenRecipeOpts>),
+    /// Lists the specified objects like images.
     List(ListOpts),
+    /// Deletes the cache files with image state.
+    CleanCache,
 }
 
 #[derive(Debug, Clap)]

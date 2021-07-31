@@ -1,7 +1,7 @@
 use crate::config::Configuration;
 use crate::gen;
 use crate::job::{JobCtx, JobResult};
-use crate::opts::{BuildOpts, Commands, ListObject, Opts};
+use crate::opts::{BuildOpts, Command, ListObject, Opts};
 use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
@@ -106,7 +106,7 @@ impl Application {
 
     pub async fn process_opts(&mut self, opts: Opts) -> Result<()> {
         match opts.command {
-            Commands::Build(build_opts) => {
+            Command::Build(build_opts) => {
                 if !build_opts.no_sign {
                     self.gpg_key = load_gpg_key(&self.config)?;
                 }
@@ -117,8 +117,8 @@ impl Application {
                 self.save_images_state().await;
                 Ok(())
             }
-            Commands::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
-            Commands::List(list_opts) => match list_opts.object {
+            Command::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
+            Command::List(list_opts) => match list_opts.object {
                 ListObject::Images => {
                     self.list_images();
                     Ok(())
@@ -132,7 +132,23 @@ impl Application {
                     Ok(())
                 }
             },
+            Command::CleanCache => self.clean_cache().await,
         }
+    }
+
+    async fn clean_cache(&mut self) -> Result<()> {
+        let span = info_span!("clean-cache");
+        let _entered = span.enter();
+
+        let mut state = self.images_state.write().await;
+
+        span.in_scope(|| {
+            state.clear();
+            state.save()
+        })?;
+
+        info!("ok");
+        Ok(())
     }
 
     fn list_recipes(&self) {

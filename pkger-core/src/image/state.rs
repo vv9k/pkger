@@ -93,14 +93,15 @@ pub struct ImagesState {
     /// [ImageState](ImageState) struct representing the state of the image.
     pub images: HashMap<RecipeTarget, ImageState>,
     /// Path to a file containing image state
-    pub state_file: PathBuf,
+    #[serde(rename = "state_file")] // for backwards compability
+    path: PathBuf,
 }
 
 impl Default for ImagesState {
     fn default() -> Self {
         ImagesState {
             images: HashMap::new(),
-            state_file: PathBuf::from(DEFAULT_STATE_FILE),
+            path: PathBuf::from(DEFAULT_STATE_FILE),
         }
     }
 }
@@ -114,7 +115,7 @@ impl ImagesState {
             debug!("state file doesn't exist");
             return Ok(ImagesState {
                 images: HashMap::new(),
-                state_file: state_file.to_path_buf(),
+                path: state_file.to_path_buf(),
             });
         }
         debug!("loading state");
@@ -136,6 +137,16 @@ impl ImagesState {
         trace!("saving images state");
         serde_cbor::to_vec(&self)
             .context("failed to serialize image state")
-            .and_then(|d| fs::write(&self.state_file, d).context("failed to save state file"))
+            .and_then(|d| fs::write(&self.path, d).context("failed to save state file"))
+    }
+
+    /// Returns the location from which this state was initialized.
+    pub fn locations(&self) -> &Path {
+        &self.path
+    }
+
+    /// Clears the state to contain no images.
+    pub fn clear(&mut self) {
+        self.images.clear();
     }
 }
