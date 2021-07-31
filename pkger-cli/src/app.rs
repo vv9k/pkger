@@ -116,11 +116,6 @@ impl Application {
                     .process_build_opts(build_opts)
                     .context("processing build opts")?;
                 self.process_tasks(tasks, opts.quiet).await?;
-                if self.images_state.read().await.has_changed() {
-                    self.save_images_state().await;
-                } else {
-                    trace!("images state unchanged, not saving");
-                }
                 Ok(())
             }
             Command::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
@@ -384,6 +379,12 @@ impl Application {
                     info!(id = %id, output = %output, duration = %format!("{}s", duration.as_secs_f32()), "job succeded");
                 }
             });
+
+            if self.images_state.read().await.has_changed() {
+                self.save_images_state().await;
+            } else {
+                trace!("images state unchanged, not saving");
+            }
 
             if task_failed {
                 Err(Error::msg("at least one of the tasks failed"))
