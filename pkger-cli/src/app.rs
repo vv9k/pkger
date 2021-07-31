@@ -116,7 +116,11 @@ impl Application {
                     .process_build_opts(build_opts)
                     .context("processing build opts")?;
                 self.process_tasks(tasks, opts.quiet).await?;
-                self.save_images_state().await;
+                if self.images_state.read().await.has_changed() {
+                    self.save_images_state().await;
+                } else {
+                    trace!("images state unchanged, not saving");
+                }
                 Ok(())
             }
             Command::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
