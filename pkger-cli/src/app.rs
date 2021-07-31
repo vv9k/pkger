@@ -193,18 +193,14 @@ impl Application {
     }
 
     fn list_images(&self) -> Result<()> {
-        fs::read_dir(&self.config.output_dir)?
-            .filter_map(|e| match e {
-                Ok(e) => {
-                    println!("{}", e.file_name().to_string_lossy());
-                    Some(e)
-                }
-                Err(e) => {
-                    warn!(reason = %format!("{:?}", e), "invalid entry");
-                    None
-                }
-            })
-            .for_each(|_| {});
+        fs::read_dir(&self.config.output_dir)?.for_each(|e| match e {
+            Ok(e) => {
+                println!("{}", e.file_name().to_string_lossy());
+            }
+            Err(e) => {
+                warn!(reason = %format!("{:?}", e), "invalid entry");
+            }
+        });
 
         Ok(())
     }
@@ -237,24 +233,30 @@ impl Application {
             return Ok(tasks);
         }
 
+        macro_rules! add_task_if_target_found {
+            ($target:ident, $recipe:ident, $self:ident, $tasks:ident) => {
+                if let Some(target) = $self
+                    .config
+                    .images
+                    .iter()
+                    .find(|target| &target.image == $target)
+                {
+                    $tasks.push(BuildTask::Custom {
+                        recipe: $recipe.clone(),
+                        target: target.clone(),
+                    });
+                } else {
+                    warn!(image = %$target, "not found in configuration");
+                }
+            };
+        }
+
         if opts.all {
             debug!("building all recipes for all targets");
             for recipe in &recipes {
                 if let Some(images) = &recipe.metadata.images {
                     for target_image in images {
-                        if let Some(target) = self
-                            .config
-                            .images
-                            .iter()
-                            .find(|target| &target.image == target_image)
-                        {
-                            tasks.push(BuildTask::Custom {
-                                recipe: recipe.clone(),
-                                target: target.clone(),
-                            });
-                        } else {
-                            warn!(image = %target_image, "not found in configuration");
-                        }
+                        add_task_if_target_found!(target_image, recipe, self, tasks);
                     }
                 } else {
                     warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
@@ -279,19 +281,7 @@ impl Application {
                         // first we check if the recipe contains the image
                         if images.iter().any(|target| target == image) {
                             // then we fetch the target from configuration images
-                            if let Some(target) = self
-                                .config
-                                .images
-                                .iter()
-                                .find(|target| &target.image == image)
-                            {
-                                tasks.push(BuildTask::Custom {
-                                    recipe: recipe.clone(),
-                                    target: target.clone(),
-                                });
-                            } else {
-                                warn!(%image, "not found in configuration");
-                            }
+                            add_task_if_target_found!(image, recipe, self, tasks);
                         }
                     }
                 } else {
@@ -307,19 +297,7 @@ impl Application {
                         continue;
                     }
                     for target_image in images {
-                        if let Some(target) = self
-                            .config
-                            .images
-                            .iter()
-                            .find(|target| &target.image == target_image)
-                        {
-                            tasks.push(BuildTask::Custom {
-                                recipe: recipe.clone(),
-                                target: target.clone(),
-                            });
-                        } else {
-                            warn!(image = %target_image, "not found in configuration");
-                        }
+                        add_task_if_target_found!(target_image, recipe, self, tasks);
                     }
                 } else {
                     warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
