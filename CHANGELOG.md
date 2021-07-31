@@ -15,6 +15,7 @@
 - Add `clean-cache` subcommand that deletes the cached state from OS. Use this to migrate **pkger** to the newest version.
 - Improved error messages during initialization now contain full context of how the error originated.
 - Save image state only when it changed.
+- Automatically convert `_` to `-` when building a DEB. Debian packages don't allow underscores in package names.
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)

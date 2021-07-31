@@ -23,6 +23,7 @@ pub async fn build(
     let package_name = [&name, ".", arch].join("");
 
     let span = info_span!("DEB", package = %package_name);
+    let _span = span.clone();
     async move {
         info!("building DEB package");
 
@@ -49,11 +50,12 @@ pub async fn build(
         .join("");
         let size = size_out.split_ascii_whitespace().next();
 
-        let control = ctx
-            .build
-            .recipe
-            .as_deb_control(&image_state.image, size.as_deref())
-            .render();
+        let control = _span.in_scope(|| {
+            ctx.build
+                .recipe
+                .as_deb_control(&image_state.image, size.as_deref())
+                .render()
+        });
         debug!(control = %control);
 
         ctx.container

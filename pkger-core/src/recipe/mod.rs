@@ -164,7 +164,14 @@ impl Recipe {
 
 impl Recipe {
     pub fn as_deb_control(&self, image: &str, installed_size: Option<&str>) -> BinaryDebControl {
-        let mut builder = DebControlBuilder::binary_package_builder(&self.metadata.name)
+        let name = if self.metadata.name.contains('_') {
+            warn!("Debian package names can't contain `_`, converting to `-`");
+            self.metadata.name.replace('_', "-")
+        } else {
+            self.metadata.name.to_owned()
+        };
+
+        let mut builder = DebControlBuilder::binary_package_builder(&name)
             .version(&self.metadata.version)
             .revision(self.metadata.release())
             .description(&self.metadata.description)
