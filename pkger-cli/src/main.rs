@@ -46,15 +46,13 @@ async fn main() -> Result<()> {
     let mut app = match Application::new(config) {
         Ok(app) => app,
         Err(error) => {
-            let reason = format!("{:?}", error); // somehow `?error` formats it incorrectly?
-            error!(%reason, "failed to initialize pkger");
+            error!(reason = %format!("{:?}", error), "failed to initialize pkger");
             process::exit(1);
         }
     };
 
     if let Err(error) = app.process_opts(opts).await {
-        let reason = format!("{:?}", error); // somehow `?error` formats it incorrectly?
-        error!(%reason, "execution failed");
+        error!(reason = %format!("{:?}", error), "execution failed");
         process::exit(1);
     }
     Ok(())

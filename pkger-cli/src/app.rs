@@ -159,8 +159,7 @@ impl Application {
         let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
             Ok(e) => Some(e.path()),
             Err(e) => {
-                let reason = format!("{:?}", e);
-                warn!(%reason, "invalid entry");
+                warn!(reason = %format!("{:?}", e), "invalid entry");
                 None
             }
         });
@@ -179,15 +178,13 @@ impl Application {
                                 println!("\t{}", package.file_name().to_string_lossy());
                             }
                             Err(e) => {
-                                let reason = format!("{:?}", e);
-                                error!(%reason, image = %image_name, "failed to list a package");
+                                error!(reason = %format!("{:?}", e), image = %image_name, "failed to list a package");
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    let reason = format!("{:?}", e);
-                    error!(%reason, image = %image_name, "failed to list packages");
+                    error!(reason = %format!("{:?}", e), image = %image_name, "failed to list packages");
                 }
             }
         }
@@ -203,8 +200,7 @@ impl Application {
                     Some(e)
                 }
                 Err(e) => {
-                    let reason = format!("{:?}", e);
-                    warn!(%reason, "invalid entry");
+                    warn!(reason = %format!("{:?}", e), "invalid entry");
                     None
                 }
             })
@@ -426,8 +422,7 @@ impl Application {
         let state = self.images_state.read().await;
 
         if let Err(e) = state.save() {
-            let reason = format!("{:?}", e);
-            error!(%reason, "failed to save image state");
+            error!(reason = %format!("{:?}", e), "failed to save image state");
         }
     }
 }
