@@ -288,6 +288,8 @@ impl Application {
                         if images.iter().any(|target| target == image) {
                             // then we fetch the target from configuration images
                             add_task_if_target_found!(image, recipe, self, tasks);
+                        } else {
+                            warn!(recipe = %recipe.metadata.name, %image, "image not found in recipe targets");
                         }
                     }
                 } else {
