@@ -3,7 +3,7 @@ metadata:
   description: pkger testing suite
   arch: x86_64
   license: MIT
-  version: 0.1.0
+  version: 0.2.0
   skip_default_deps: true
   exclude:
     - share
@@ -55,6 +55,18 @@ build:
         echo PKGER_OUT_DIR=$PKGER_OUT_DIR;
         if [[ $PKGER_OUT_DIR =~ /tmp/test-suite-out-[0-9]* ]]; then exit 0; else
         echo 'Environment variable PKGER_OUT_DIR is not set properly'; exit 1; fi
+    - cmd: >-
+        echo RECIPE=$RECIPE;
+        if [[ $RECIPE =~ test-suite ]]; then exit 0; else
+        echo 'Environment variable RECIPE is not set properly'; exit 1; fi
+    - cmd: >-
+        echo RECIPE_VERSION=$RECIPE_VERSION;
+        if [[ $RECIPE_VERSION =~ 0.2.0 ]]; then exit 0; else
+        echo 'Environment variable RECIPE_VERSION is not set properly'; exit 1; fi
+    - cmd: >-
+        echo RECIPE_RELEASE=$RECIPE_RELEASE;
+        if [[ $RECIPE_RELEASE =~ 0 ]]; then exit 0; else
+        echo 'Environment variable RECIPE_RELEASE is not set properly'; exit 1; fi
     - cmd: echo 'Testing pkger command syntax'
     # test if pkger commands work correctly
     - images: ["centos8"]
