@@ -88,7 +88,7 @@ pub(crate) async fn build(
         .map(|out| {
             out.stdout
                 .join("")
-                .split_ascii_whitespace()
+                .split("\n")
                 .filter(|s| !s.is_empty())
                 .map(|s| s.trim_start_matches('.').to_string())
                 .collect::<Vec<_>>()

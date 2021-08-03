@@ -20,6 +20,7 @@
   one by one.
 - Add a warning when image specified as cli arg is not found in recipe image targets.
 - Add support for extracting all types of tar archives as source.
+- Fix rpm build not working when packaging files with spaces.
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)
