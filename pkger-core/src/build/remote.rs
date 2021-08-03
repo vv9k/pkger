@@ -88,7 +88,7 @@ pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
                         r#"
                         for file in *;
                         do
-                            if [[ $file == *.tar* ]]
+                            if [[ $file =~ (.*[.]tar.*|.*[.](tgz|tbz|txz|tlz|tsz|taz|tz)) ]]
                             then
                                 tar xvf $file -C {0}
                             elif [[ $file == *.zip ]]

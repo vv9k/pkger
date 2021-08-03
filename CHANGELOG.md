@@ -19,6 +19,7 @@
 - Add `all_images` field to recipe metadata so that if a recipe is used with all images they don't have to be listed
   one by one.
 - Add a warning when image specified as cli arg is not found in recipe image targets.
+- Add support for extracting all types of tar archives as source.
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)
