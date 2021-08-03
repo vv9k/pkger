@@ -155,8 +155,9 @@ impl RpmSpec {
                 if !self.$field.is_empty() {
                     spec.push_str(&format!("\n%{}\n", $name));
                     for entry in &self.$field {
+                        spec.push('"');
                         spec.push_str(entry.as_str());
-                        spec.push('\n');
+                        spec.push_str("\"\n");
                     }
                 }
             };
@@ -205,8 +206,9 @@ impl RpmSpec {
         };
         spec.push_str("\n%files\n");
         for entry in &self.files {
+            spec.push('"');
             spec.push_str(entry.as_str());
-            spec.push('\n');
+            spec.push_str("\"\n");
         }
         if_not_empty_entries!(file doc_files, "doc");
         if_not_empty_entries!(file license_files, "license");
@@ -396,14 +398,14 @@ true
 %global python(-c) import os
 
 %files
-/bin/test.bin
-/docs/README
+"/bin/test.bin"
+"/docs/README"
 
 %doc
-README
+"README"
 
 %license
-LICENSE
+"LICENSE"
 
 %changelog
 "#;
