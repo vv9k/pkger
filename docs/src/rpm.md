@@ -13,6 +13,9 @@ Optional fields that will be used when building RPM target.
     post_script: ""
     preun_script: ""
     postun_script: ""
+    
+    # Disable automatic dependency processing. Setting this to true has no effect.
+    auto_req_prov: false
 
     # acts the same as other dependencies - can be passed as array
     #obsoletes: ["foo"]

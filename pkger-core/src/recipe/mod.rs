@@ -268,6 +268,11 @@ impl Recipe {
             if let Some(icon) = &rpm.icon {
                 builder = builder.icon(icon);
             }
+
+            if !rpm.auto_req_prov {
+                builder = builder.disable_auto_req_prov();
+            }
+
             if let Some(pre_script) = &rpm.pre_script {
                 builder = builder.pre_script(pre_script);
             }

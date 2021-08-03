@@ -69,6 +69,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> Result<()> {
         vendor: opts.vendor,
         icon: opts.icon,
         summary: opts.summary,
+        auto_req_prov: None,
         pre_script: None,
         post_script: None,
         preun_script: None,
