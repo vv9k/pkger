@@ -105,9 +105,14 @@ pub struct RpmSpec {
 
     changelog: Vec<String>,
 
-    /// User defined macros
     #[skip]
+    /// User defined macros
     macros: Vec<String>,
+
+    #[skip]
+    /// Set the value of `AutoReqProv` field in the spec. If set to `false` RPM won't do automatic
+    /// dependencies processing.
+    auto_req_prov: Option<bool>,
 }
 
 impl RpmSpec {
@@ -193,6 +198,12 @@ impl RpmSpec {
         if_not_empty_entries!(build_requires, "BuildRequires: {}\n");
         if_not_empty_entries!(..i patches,    "Patch{}:        {}\n");
         if_not_empty_entries!(..i sources,    "Source{}:       {}\n");
+        if let Some(auto_req_prov) = self.auto_req_prov {
+            spec.push_str("AutoReqProv:   ");
+            let enable = if auto_req_prov {"Yes"} else {"No"};
+            spec.push_str(enable);
+            spec.push('\n');
+        }
         spec.push_str(&format!("\n%description\n{}\n\n", self.description));
         if_some_script!("prep", prep_script);
         if_some_script!("build", build_script);
@@ -236,6 +247,11 @@ impl RpmSpecBuilder {
             format!("{} {}", name.as_ref(), body.as_ref())
         };
         self.inner.macros.push(_macro);
+        self
+    }
+
+    pub fn disable_auto_req_prov(mut self) -> Self {
+        self.inner.auto_req_prov = Some(false);
         self
     }
 }
@@ -289,6 +305,7 @@ install -m 644 README /docs/README"#;
             .postun_script("true")
             .add_macro("githash", None::<&str>, "0ab32f")
             .add_macro("python", Some("-c"), "import os")
+            .disable_auto_req_prov()
             .build();
 
         println!("{}", spec.render());
@@ -335,6 +352,7 @@ install -m 644 README /docs/README"#;
                 "githash 0ab32f".to_string(),
                 "python(-c) import os".to_string(),
             ],
+            auto_req_prov: Some(false),
         };
 
         assert_eq!(expect, spec);
@@ -364,6 +382,7 @@ Patch0:        patch.1
 Patch1:        patch.2
 Source0:       source.tar.gz
 Source1:       source-2.tar.xz
+AutoReqProv:   No
 
 %description
 very long summary...
