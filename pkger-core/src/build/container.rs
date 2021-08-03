@@ -43,6 +43,9 @@ pub async fn spawn<'ctx>(
         env.insert("PKGER_OUT_DIR", ctx.container_out_dir.to_string_lossy());
         env.insert("PKGER_OS", image_state.os.name());
         env.insert("PKGER_OS_VERSION", image_state.os.version());
+        env.insert("RECIPE", &ctx.recipe.metadata.name);
+        env.insert("RECIPE_VERSION", &ctx.recipe.metadata.version);
+        env.insert("RECIPE_RELEASE", ctx.recipe.metadata.release());
 
         if let Some(ssh) = &ctx.ssh {
             if ssh.forward_agent {
