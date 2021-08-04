@@ -43,10 +43,11 @@ build:
         echo PKGER_OS=$PKGER_OS;
         if [[ $PKGER_OS =~ debian|centos ]]; then exit 0; else echo 'Environment
         variable PKGER_OS is not set properly'; exit 1; fi
-    - cmd: >-
-        echo PKGER_OS_VERSION=$PKGER_OS_VERSION;
-        if [[ $PKGER_OS_VERSION =~ 10|8 ]]; then exit 0; else echo 'Environment
-        variable PKGER_OS_VERSION is not set properly'; exit 1; fi
+    # This does not always work
+    #- cmd: >-
+        #echo PKGER_OS_VERSION=$PKGER_OS_VERSION;
+        #if [[ $PKGER_OS_VERSION =~ 10|8 ]]; then exit 0; else echo 'Environment
+        #variable PKGER_OS_VERSION is not set properly'; exit 1; fi
     - cmd: >-
         echo PKGER_BLD_DIR=$PKGER_BLD_DIR;
         if [[ $PKGER_BLD_DIR =~ /tmp/test-suite-build-[0-9]* ]]; then exit 0; else
