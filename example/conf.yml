@@ -8,5 +8,7 @@ images:
     os: Arch Linux
   - name: centos8
     target: rpm
+    os: CentOS
   - name: debian10
     target: deb
+    os: Debian
