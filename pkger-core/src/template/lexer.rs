@@ -19,6 +19,15 @@ impl<'text> Lexer<'text> {
         self.pos = 0;
     }
 
+    fn nth(&self, n: usize) -> Option<char> {
+        if self.pos < self.text.len() {
+            // This is much faster than self.text.chars().nth()
+            self.text[n..n + 1].chars().next()
+        } else {
+            None
+        }
+    }
+
     fn next_pos(&mut self) -> bool {
         if self.pos < self.text.len() {
             self.pos += 1;
@@ -29,11 +38,11 @@ impl<'text> Lexer<'text> {
     }
 
     fn peek(&self) -> Option<char> {
-        self.text.chars().nth(self.pos + 1)
+        self.nth(self.pos + 1)
     }
 
     fn cur(&self) -> char {
-        self.text.chars().nth(self.pos).unwrap_or_default()
+        self.nth(self.pos).unwrap_or_default()
     }
 
     fn is_eof(&self) -> bool {
@@ -77,9 +86,7 @@ impl<'text> Lexer<'text> {
                         &self.text[var_start..self.pos],
                         self.text[var_start + 2..self.pos - 1].trim(),
                     ));
-                } else if (!cur.is_ascii_alphanumeric() && cur != '_' && cur != '-')
-                    || !self.next_pos()
-                {
+                } else if Variable::is_valid_name_char(cur) || !self.next_pos() {
                     return Token::Text(&self.text[var_start..self.pos]);
                 }
             }
@@ -179,6 +186,13 @@ mod tests {
             lexer.next_token(),
             Token::Variable(Variable::new("${}", ""))
         );
+        assert_eq!(lexer.next_token(), Token::EOF);
+    }
+
+    #[test]
+    fn empty_text() {
+        let text = "";
+        let mut lexer = Lexer::new(text);
         assert_eq!(lexer.next_token(), Token::EOF);
     }
 }

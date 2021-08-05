@@ -20,6 +20,10 @@ impl<'text> Variable<'text> {
     pub fn text(&self) -> &str {
         self.text
     }
+
+    pub fn is_valid_name_char(ch: char) -> bool {
+        !ch.is_ascii_alphanumeric() && ch != '_' && ch != '-'
+    }
 }
 
 #[derive(Debug, PartialEq)]
