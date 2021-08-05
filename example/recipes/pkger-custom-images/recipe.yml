@@ -27,9 +27,11 @@ metadata:
       - libssl-dev
     arch:
       - cargo
+env:
+  RUSTUP_URL: https://sh.rustup.rs
 configure:
   steps:
-    - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
+    - cmd: curl -o /tmp/install_rust.sh  $RUSTUP_URL
       images: ["debian10"]
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
       images: ["debian10"]

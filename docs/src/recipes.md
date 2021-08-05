@@ -18,27 +18,20 @@ metadata:
   maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
   url: "https://github.com/vv9k/pkger"
   git: "https://github.com/vv9k/pkger.git"
-  provides:
-    - pkger
+  provides: [ pkger ]
   depends:
-    pkger-deb:
-      - libssl-dev
-    pkger-rpm:
-      - openssl-devel
+    pkger-deb: [ libssl-dev ]
+    pkger-rpm: [ openssl-devel ]
   build_depends:
-    all:
-      - gcc
-      - pkg-config
-    pkger-rpm:
-      - cargo
-    pkger-deb:
-      - curl
-      - libssl-dev
-    pkger-pkg:
-      - cargo
+    all: [ gcc, pkg-config ]
+    pkger-deb: [ curl libssl-dev ]
+    pkger-rpm: [ cargo ]
+    pkger-pkg: [ cargo ]
+env:
+  RUSTUP_URL: https://sh.rustup.rs
 configure:
   steps:
-    - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
+    - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
       deb: true
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
       deb: true
