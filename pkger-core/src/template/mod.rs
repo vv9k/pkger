@@ -39,16 +39,15 @@ where
 
     loop {
         match lexer.next_token() {
-            Some(Token::Text(txt)) => rendered.push_str(txt),
-            Some(Token::Variable(var)) => {
+            Token::Text(txt) => rendered.push_str(txt),
+            Token::Variable(var) => {
                 if let Some(value) = vars.get(var.name()) {
                     rendered.push_str(value.as_ref());
                 } else {
                     rendered.push_str(var.text());
                 }
             }
-            None => {}
-            Some(Token::EOF) => break,
+            Token::EOF => break,
         }
     }
 
