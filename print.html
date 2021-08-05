@@ -285,6 +285,9 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
     url: https://github.com/vv9k/pkger.git
     branch: dev
 </code></pre>
+<p><a href="./env.html">Environment variables</a> are available for this fields so this is possible:</p>
+<pre><code class="language-yaml">  source: &quot;https://github.com/vv9k/${RECIPE}/${RECIPE_VERSION}&quot;
+</code></pre>
 <h3 id="common"><a class="header" href="#common">common</a></h3>
 <p>Optional fields shared across all targets.</p>
 <pre><code class="language-yaml">  release: &quot;1&quot; # defaults to &quot;0&quot;
@@ -409,9 +412,9 @@ be executed like:</p>
 </code></pre>
 <p>To set a working directory during the script phase set the <code>working_dir</code> parameter like so:</p>
 <pre><code class="language-yaml">  working_dir: /tmp
-
-  # you can also use the available pkger variables here
-  working_dir: $PKGER_BLD_DIR/test-123
+</code></pre>
+<p><a href="./env.html">Environment variables</a> are available for this field so this is possible:</p>
+<pre><code class="language-yaml">  working_dir: ${PKGER_BLD_DIR}/${RECIPE}-${RECIPE_VERSION}-${SOME_USER_DEFINED_VAR}
 </code></pre>
 <p>To use a different shell to execute each command set the <code>shell</code> parameter:</p>
 <pre><code class="language-yaml">  shell: &quot;/bin/bash&quot; # optionally change default `/bin/sh`
@@ -465,7 +468,14 @@ install:
 <li><code>$PKGER_OS_VERSION</code> version of the distribution if applies</li>
 <li><code>$PKGER_BLD_DIR</code> the build directory with fetched source or git repo in the container</li>
 <li><code>$PKGER_OUT_DIR</code> the final directory from which <strong>pkger</strong> will copy files to target package</li>
+<li><code>$RECIPE</code> the name of the recipe that is built</li>
+<li><code>$RECIPE_VERSION</code> the version of the recipe</li>
+<li><code>$RECIPE_RELEASE</code> the release of the recipe</li>
 </ul>
+<p>When using environment variables for fields other than <code>cmd</code> it is required to wrap the variable in braces like so:</p>
+<pre><code>${This_Is_Correct}
+${ this-is-also-correct1 }
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
 <p>To generate a recipe declaratively from CLI use subcommand <code>gen-recipe</code>. By default it requires only the name of the
 package and prints the recipe to stdout. If <code>output_dir</code> is provided <strong>pkger</strong> will create a directory with the name

@@ -175,6 +175,9 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
     url: https://github.com/vv9k/pkger.git
     branch: dev
 </code></pre>
+<p><a href="./env.html">Environment variables</a> are available for this fields so this is possible:</p>
+<pre><code class="language-yaml">  source: &quot;https://github.com/vv9k/${RECIPE}/${RECIPE_VERSION}&quot;
+</code></pre>
 <h3 id="common"><a class="header" href="#common">common</a></h3>
 <p>Optional fields shared across all targets.</p>
 <pre><code class="language-yaml">  release: &quot;1&quot; # defaults to &quot;0&quot;

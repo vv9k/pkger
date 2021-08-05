@@ -155,9 +155,9 @@ be executed like:</p>
 </code></pre>
 <p>To set a working directory during the script phase set the <code>working_dir</code> parameter like so:</p>
 <pre><code class="language-yaml">  working_dir: /tmp
-
-  # you can also use the available pkger variables here
-  working_dir: $PKGER_BLD_DIR/test-123
+</code></pre>
+<p><a href="./env.html">Environment variables</a> are available for this field so this is possible:</p>
+<pre><code class="language-yaml">  working_dir: ${PKGER_BLD_DIR}/${RECIPE}-${RECIPE_VERSION}-${SOME_USER_DEFINED_VAR}
 </code></pre>
 <p>To use a different shell to execute each command set the <code>shell</code> parameter:</p>
 <pre><code class="language-yaml">  shell: &quot;/bin/bash&quot; # optionally change default `/bin/sh`
