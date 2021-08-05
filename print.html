@@ -216,27 +216,20 @@ To read more on each topic select a subsection in the menu.</p>
   maintainer: &quot;Wojciech Kępka &lt;wojciech@wkepka.dev&gt;&quot;
   url: &quot;https://github.com/vv9k/pkger&quot;
   git: &quot;https://github.com/vv9k/pkger.git&quot;
-  provides:
-    - pkger
+  provides: [ pkger ]
   depends:
-    pkger-deb:
-      - libssl-dev
-    pkger-rpm:
-      - openssl-devel
+    pkger-deb: [ libssl-dev ]
+    pkger-rpm: [ openssl-devel ]
   build_depends:
-    all:
-      - gcc
-      - pkg-config
-    pkger-rpm:
-      - cargo
-    pkger-deb:
-      - curl
-      - libssl-dev
-    pkger-pkg:
-      - cargo
+    all: [ gcc, pkg-config ]
+    pkger-deb: [ curl libssl-dev ]
+    pkger-rpm: [ cargo ]
+    pkger-pkg: [ cargo ]
+env:
+  RUSTUP_URL: https://sh.rustup.rs
 configure:
   steps:
-    - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
+    - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
       deb: true
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
       deb: true
@@ -456,13 +449,14 @@ install:
         install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="env-optional"><a class="header" href="#env-optional">env (Optional)</a></h1>
-<p>Optional environment variables that should be available during the <a href="./scripts.html">scripts</a>.</p>
-<pre><code class="language-yaml">  env:
-    HTTPS_PROXY: http://proxy.domain.com:1234
-    RUST_LOG: trace
+<p>Optional environment variables that should be available during the <a href="./scripts.html">scripts</a> phase and
+in some metadata fields.</p>
+<pre><code class="language-yaml">env:
+  HTTPS_PROXY: http://proxy.domain.com:1234
+  RUST_LOG: trace
 </code></pre>
 <h1 id="pkger-variables"><a class="header" href="#pkger-variables"><strong>pkger</strong> variables</a></h1>
-<p>Some env variables will be available to use during the build like:</p>
+<p>Some variables will be available to use during the build like:</p>
 <ul>
 <li><code>$PKGER_OS</code> the distribution of current container</li>
 <li><code>$PKGER_OS_VERSION</code> version of the distribution if applies</li>
