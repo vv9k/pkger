@@ -10,5 +10,6 @@ pub mod image;
 pub mod oneshot;
 pub mod recipe;
 pub mod ssh;
+pub mod template;
 
 pub use anyhow::{anyhow, Context as ErrContext, Error, Result};

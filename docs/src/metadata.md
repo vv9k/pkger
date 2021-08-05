@@ -47,6 +47,11 @@ archive like `.tar.gz` or `.tar.xz` or `.zip` it will be directly extracted to
     branch: dev
 ```
 
+[Environment variables](./env.md) are available for this fields so this is possible:
+```yaml
+  source: "https://github.com/vv9k/${RECIPE}/${RECIPE_VERSION}"
+```
+
 
 ### common
 

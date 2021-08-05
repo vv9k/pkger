@@ -15,9 +15,10 @@ be executed like:
 To set a working directory during the script phase set the `working_dir` parameter like so:
 ```yaml
   working_dir: /tmp
-
-  # you can also use the available pkger variables here
-  working_dir: $PKGER_BLD_DIR/test-123
+```
+[Environment variables](./env.md) are available for this field so this is possible:
+```yaml
+  working_dir: ${PKGER_BLD_DIR}/${RECIPE}-${RECIPE_VERSION}-${SOME_USER_DEFINED_VAR}
 ```
 
 To use a different shell to execute each command set the `shell` parameter:

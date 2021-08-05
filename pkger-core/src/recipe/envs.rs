@@ -55,6 +55,14 @@ impl Env {
             .map(|(k, v)| format!("{}={}", k, v))
             .collect()
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &String)> {
+        self.0.iter()
+    }
+
+    pub fn inner(&self) -> &HashMap<String, String> {
+        &self.0
+    }
 }
 
 #[cfg(test)]
