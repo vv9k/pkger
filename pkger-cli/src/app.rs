@@ -119,10 +119,10 @@ impl Application {
                 Ok(())
             }
             Command::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
-            Command::List(list_opts) => match list_opts.object {
+            Command::List { object } => match object {
                 ListObject::Images => self.list_images(),
                 ListObject::Recipes => self.list_recipes(),
-                ListObject::Packages => self.list_packages(),
+                ListObject::Packages { images } => self.list_packages(images),
             },
             Command::CleanCache => self.clean_cache().await,
         }
@@ -150,7 +150,7 @@ impl Application {
         Ok(())
     }
 
-    fn list_packages(&self) -> Result<()> {
+    fn list_packages(&self, images_filter: Option<Vec<String>>) -> Result<()> {
         let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
             Ok(e) => Some(e.path()),
             Err(e) => {
@@ -158,6 +158,22 @@ impl Application {
                 None
             }
         });
+
+        let images: Vec<_> = if let Some(filter) = images_filter {
+            images
+                .filter(|image| {
+                    filter.contains(
+                        &image
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string(),
+                    )
+                })
+                .collect()
+        } else {
+            images.collect()
+        };
 
         for image in images {
             let image_name = image

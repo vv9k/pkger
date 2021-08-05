@@ -9,7 +9,7 @@ use app::Application;
 use config::Configuration;
 use opts::Opts;
 
-use pkger_core::{Error, Result};
+use pkger_core::Result;
 
 use std::process;
 use tracing::error;

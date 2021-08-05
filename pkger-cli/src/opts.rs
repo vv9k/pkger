@@ -1,8 +1,5 @@
-use crate::Error;
 use clap::{Clap, Subcommand};
 use std::path::PathBuf;
-use std::str::FromStr;
-
 #[derive(Debug, Clap)]
 #[clap(
     name = "pkger",
@@ -48,35 +45,23 @@ pub enum Command {
     /// Creates a directory with a recipe generated from provided arguments.
     GenRecipe(Box<GenRecipeOpts>),
     /// Lists the specified objects like images.
-    List(ListOpts),
+    List {
+        #[clap(subcommand)]
+        /// A object to list like `image`, `recipe` or `package`.
+        object: ListObject,
+    },
     /// Deletes the cache files with image state.
     CleanCache,
 }
 
-#[derive(Debug, Clap)]
-pub struct ListOpts {
-    /// What objects to list, can be one of: `images`, `recipes`, `packages`
-    pub object: ListObject,
-}
-
-#[derive(Debug, Clap)]
+#[derive(Debug, Subcommand)]
 pub enum ListObject {
     Images,
     Recipes,
-    Packages,
-}
-
-impl FromStr for ListObject {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Error> {
-        match s {
-            "images" => Ok(ListObject::Images),
-            "recipes" => Ok(ListObject::Recipes),
-            "packages" => Ok(ListObject::Packages),
-            _ => Err(Error::msg(format!("unknown object {}", s))),
-        }
-    }
+    Packages {
+        #[clap(short, long)]
+        images: Option<Vec<String>>,
+    },
 }
 
 #[derive(Debug, Clap)]
