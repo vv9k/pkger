@@ -23,6 +23,8 @@
 - Fix rpm build not working when packaging files with spaces.
 - Add an option to set `AutoReqProv` value during RPM build (used to disable automatic dependency processing).
 - Add `RECIPE`, `RECIPE_VERSION`, `RECIPE_RELEASE` environment variables that can be used during the build.
+- Enable usage of environment variables for `working_dir` and `source` fields of recipe. This can greatly reduce
+  the number of changes one has to make when adding a recipe for other version. [#74](https://github.com/vv9k/pkger/pull/74)
 
 # 0.4.0
 - Add an option to sign RPMs with a GPG key [#55](https://github.com/vv9k/pkger/pull/55)

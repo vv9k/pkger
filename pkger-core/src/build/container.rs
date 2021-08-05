@@ -5,6 +5,7 @@ use crate::image::ImageState;
 use crate::ssh;
 use crate::{Error, Result};
 
+use crate::recipe::Env;
 use std::path::Path;
 use tracing::{info_span, trace, Instrument};
 
@@ -12,6 +13,7 @@ pub struct Context<'job> {
     pub container: DockerContainer<'job>,
     pub opts: ContainerCreateOpts,
     pub build: &'job build::Context,
+    pub vars: Env,
 }
 
 impl<'job> Context<'job> {
@@ -21,7 +23,12 @@ impl<'job> Context<'job> {
             container: DockerContainer::new(&build.docker, Some(build.is_running.clone())),
             opts,
             build,
+            vars: Env::new(),
         }
+    }
+
+    pub fn set_env(&mut self, env: Env) {
+        self.vars = env;
     }
 }
 
@@ -67,11 +74,12 @@ pub async fn spawn<'ctx>(
             .cmd(vec!["sleep infinity"])
             .entrypoint(vec!["/bin/sh", "-c"])
             .volumes(volumes)
-            .env(env.kv_vec())
+            .env(env.clone().kv_vec())
             .working_dir(ctx.container_bld_dir.to_string_lossy())
             .build();
 
         let mut ctx = Context::new(ctx, opts);
+        ctx.set_env(env);
         ctx.container.spawn(&ctx.opts).await.map(|_| ctx)
     }
     .instrument(span)

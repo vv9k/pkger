@@ -2,6 +2,7 @@ use crate::archive::create_tarball;
 use crate::build::container::{checked_exec, Context};
 use crate::container::ExecOpts;
 use crate::recipe::GitSource;
+use crate::template;
 use crate::Result;
 
 use std::fs;
@@ -75,6 +76,7 @@ pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
         if let Some(repo) = &ctx.build.recipe.metadata.git {
             fetch_git_source(ctx, repo).await?;
         } else if let Some(source) = &ctx.build.recipe.metadata.source {
+            let source = template::render(source, ctx.vars.inner());
             if source.starts_with("http") {
                 fetch_http_source(ctx, source.as_str(), &ctx.build.container_tmp_dir).await?;
             } else {
