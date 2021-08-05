@@ -6,8 +6,13 @@ metadata:
   arch: x86_64
   license: MIT
   images: [ centos8, debian10 ]
+configure:
+  steps:
+    - cmd: mkdir -p $PKGER_OUT_DIR/$RECIPE_VERSION/$RECIPE
 build:
-  steps: []
+  working_dir: ${PKGER_OUT_DIR}/${RECIPE_VERSION}/${RECIPE}
+  steps:
+    - cmd: echo $PWD
 install:
   steps:
     - cmd: mkdir -p $PKGER_OUT_DIR/test/deb
