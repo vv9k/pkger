@@ -86,7 +86,7 @@ impl<'text> Lexer<'text> {
                         &self.text[var_start..self.pos],
                         self.text[var_start + 2..self.pos - 1].trim(),
                     ));
-                } else if Variable::is_valid_name_char(cur) || !self.next_pos() {
+                } else if !Variable::is_valid_name_char(cur) || !self.next_pos() {
                     return Token::Text(&self.text[var_start..self.pos]);
                 }
             }
