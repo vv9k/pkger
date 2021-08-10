@@ -18,9 +18,3 @@ Some variables will be available to use during the build like:
  - `$RECIPE` the name of the recipe that is built
  - `$RECIPE_VERSION` the version of the recipe
  - `$RECIPE_RELEASE` the release of the recipe
-
-When using environment variables for fields other than `cmd` it is required to wrap the variable in braces like so:
-```
-${This_Is_Correct}
-${ this-is-also-correct1 }
-```

@@ -60,41 +60,67 @@ impl<'text> Lexer<'text> {
         }
     }
 
-    fn parse_variable(&mut self) -> Token {
+    fn parse_braced_variable(&mut self) -> Token {
         let var_start = self.pos - 1;
 
-        if self.cur() == '{' {
+        self.next_pos();
+        if self.cur() == ' ' {
             self.next_pos();
-            if self.cur() == ' ' {
+        }
+        loop {
+            let cur = self.cur();
+            let ok = if cur == '}' {
                 self.next_pos();
-            }
-            loop {
-                let cur = self.cur();
-                let ok = if cur == '}' {
-                    self.next_pos();
-                    true
-                } else if cur.is_ascii_whitespace() && self.peek() == Some('}') {
-                    self.next_pos();
-                    self.next_pos();
-                    true
-                } else {
-                    false
-                };
+                true
+            } else if cur.is_ascii_whitespace() && self.peek() == Some('}') {
+                self.next_pos();
+                self.next_pos();
+                true
+            } else {
+                false
+            };
 
-                if ok {
-                    return Token::Variable(Variable::new(
-                        &self.text[var_start..self.pos],
-                        self.text[var_start + 2..self.pos - 1].trim(),
-                    ));
-                } else if !Variable::is_valid_name_char(cur) || !self.next_pos() {
-                    return Token::Text(&self.text[var_start..self.pos]);
-                }
+            if ok {
+                return Token::Variable(Variable::new(
+                    &self.text[var_start..self.pos],
+                    self.text[var_start + 2..self.pos - 1].trim(),
+                ));
+            } else if !Variable::is_valid_name_char(cur) || !self.next_pos() {
+                return Token::Text(&self.text[var_start..self.pos]);
             }
         }
+    }
 
-        self.next_pos();
+    fn parse_unbraced_variable(&mut self) -> Token {
+        let var_start = self.pos - 1;
+        loop {
+            let cur = self.cur();
+            if !Variable::is_valid_name_char(cur) {
+                if var_start == self.pos - 1 {
+                    return Token::Text(&self.text[var_start..self.pos]);
+                } else {
+                    return Token::Variable(Variable::new(
+                        &self.text[var_start..self.pos],
+                        self.text[var_start + 1..self.pos].trim(),
+                    ));
+                }
+            }
 
-        Token::Text(&self.text[var_start..self.pos])
+            if !self.next_pos() {
+                return Token::Variable(Variable::new(
+                    &self.text[var_start..self.pos],
+                    self.text[var_start..self.pos].trim(),
+                ));
+            }
+        }
+    }
+
+    fn parse_variable(&mut self) -> Token {
+        if self.cur() == '{' {
+            self.parse_braced_variable()
+        } else {
+            self.parse_unbraced_variable()
+        }
     }
 
     fn parse_text(&mut self) -> Token {
@@ -174,7 +200,8 @@ mod tests {
         assert_eq!(lexer.next_token(), Token::Text("this "));
         assert_eq!(lexer.next_token(), Token::Text("${should"));
         assert_eq!(lexer.next_token(), Token::Text(" be just text"));
-        assert_eq!(lexer.next_token(), Token::Text("$}"));
+        assert_eq!(lexer.next_token(), Token::Text("$"));
+        assert_eq!(lexer.next_token(), Token::Text("}"));
         assert_eq!(
             lexer.next_token(),
             Token::Variable(Variable::new(
@@ -186,6 +213,21 @@ mod tests {
             lexer.next_token(),
             Token::Variable(Variable::new("${}", ""))
         );
+        assert_eq!(lexer.next_token(), Token::EOF);
+    }
+
+    #[test]
+    fn no_braces() {
+        let text = "this is my super $COOL_ $} text.";
+        let mut lexer = Lexer::new(text);
+        assert_eq!(lexer.next_token(), Token::Text("this is my super "));
+        assert_eq!(
+            lexer.next_token(),
+            Token::Variable(Variable::new("$COOL_", "COOL_"))
+        );
+        assert_eq!(lexer.next_token(), Token::Text(" "));
+        assert_eq!(lexer.next_token(), Token::Text("$"));
+        assert_eq!(lexer.next_token(), Token::Text("} text."));
         assert_eq!(lexer.next_token(), Token::EOF);
     }
 

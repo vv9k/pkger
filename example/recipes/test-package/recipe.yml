@@ -10,7 +10,7 @@ configure:
   steps:
     - cmd: mkdir -p $PKGER_OUT_DIR/$RECIPE_VERSION/$RECIPE
 build:
-  working_dir: ${PKGER_OUT_DIR}/${RECIPE_VERSION}/${RECIPE}
+  working_dir: $PKGER_OUT_DIR/$RECIPE_VERSION/$RECIPE
   steps:
     - cmd: echo $PWD
 install:
