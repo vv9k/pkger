@@ -1,6 +1,6 @@
 [package]
 name = "pkger"
-version = "0.4.0"
+version = "0.5.0"
 description = "Package building tool utilizing Docker"
 authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
 repository = "https://github.com/vv9k/pkger"
