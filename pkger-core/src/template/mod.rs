@@ -64,7 +64,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[test]
-    fn renders_vars() {
+    fn renders_braced_vars() {
         let text = "cd $TEST_VAR/${PKGER_BLD_DIR}/${ RECIPE }/${ RECIPE_VERSION}${DOESNT_EXIST}";
         let mut vars = HashMap::new();
         vars.insert("PKGER_BLD_DIR".to_string(), "/tmp/test".to_string());
@@ -74,6 +74,20 @@ mod tests {
         assert_eq!(
             render(text, &vars),
             "cd $TEST_VAR//tmp/test/pkger-test/0.1.0${DOESNT_EXIST}".to_string()
+        );
+    }
+
+    #[test]
+    fn renders_unbraced_vars() {
+        let text = "cd $TEST_VAR/$PKGER_BLD_DIR/$RECIPE/$RECIPE_VERSION$DOESNT_EXIST";
+        let mut vars = HashMap::new();
+        vars.insert("PKGER_BLD_DIR".to_string(), "/tmp/test".to_string());
+        vars.insert("RECIPE".to_string(), "pkger-test".to_string());
+        vars.insert("RECIPE_VERSION".to_string(), "0.1.0".to_string());
+
+        assert_eq!(
+            render(text, &vars),
+            "cd $TEST_VAR//tmp/test/pkger-test/0.1.0$DOESNT_EXIST".to_string()
         );
     }
 }
