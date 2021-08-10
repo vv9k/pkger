@@ -53,12 +53,7 @@ jobs:
 
   test:
     needs: [codestyle, lint, compile]
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Setup Rust
@@ -70,7 +65,7 @@ jobs:
       - name: Test
         run: cargo test
       - name: Build test package with custom images
-        run: cargo run -- -d -c example/conf.yml build test
+        run: cargo run -- -d -c example/conf.yml build test-suite test-package
 
   build_and_upload_artifacts:
     name: Upload Artifacts
