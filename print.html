@@ -466,10 +466,6 @@ in some metadata fields.</p>
 <li><code>$RECIPE_VERSION</code> the version of the recipe</li>
 <li><code>$RECIPE_RELEASE</code> the release of the recipe</li>
 </ul>
-<p>When using environment variables for fields other than <code>cmd</code> it is required to wrap the variable in braces like so:</p>
-<pre><code>${This_Is_Correct}
-${ this-is-also-correct1 }
-</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
 <p>To generate a recipe declaratively from CLI use subcommand <code>gen-recipe</code>. By default it requires only the name of the
 package and prints the recipe to stdout. If <code>output_dir</code> is provided <strong>pkger</strong> will create a directory with the name
