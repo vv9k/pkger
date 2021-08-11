@@ -89,3 +89,14 @@ jobs:
         run: |
           sudo alien -i example/output/centos8/test-package-0.1.0-0.x86_64.rpm
           cat /test/rpm/test_file
+      - name: Create a new image
+        run: |
+          cargo run -- -c example/conf.yml new image test-image
+          cat example/images/test-image/Dockerfile
+      - name: Create a new recipe
+        run: |
+          cargo run -- -c example/conf.yml new recipe test-recipe --version 0.1.0 --license MIT
+          cat example/recipes/test-recipe/recipe.yml
+          cat example/recipes/test-recipe/recipe.yml | grep name
+          cat example/recipes/test-recipe/recipe.yml | grep license
+          cat example/recipes/test-recipe/recipe.yml | grep version
