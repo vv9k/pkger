@@ -2,6 +2,8 @@
 - Use default OS config directory instead of home directory to read the configuration file by default.
 - Add `init` subcommand that creates necessary directories and adds a configuration file.
 - Add `edit` subcommand that invokes `$EDITOR` and lets users easily edit recipes and images with the default editor.
+- Remove `gen-recipe` subcommand and add `new <recipe|image>` subcommand that creates the directories for the new recipes
+  and images as well as the files inside.
 
 # 0.5.0
 - If at least one task fails to build **pkger** will now return with exit code 1 [#66](https://github.com/vv9k/pkger/pull/66)

@@ -9,10 +9,10 @@
     - [PKG](./pkg.md)
   - [Scripts](./scripts.md)
   - [Env](./env.md)
-- [Generate recipes](./generate.md)
 - [Images](./images.md)
 - [Build a package](./usage.md)
 - [Signing packages](./signing.md)  
 - [Formatting output](./output.md)
+- [Create new recipes and images](./new.md)
 - [Edit recipes, images and config](./edit.md)
 

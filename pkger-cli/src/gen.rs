@@ -1,12 +1,10 @@
 use crate::opts::GenRecipeOpts;
-use crate::Result;
 use pkger_core::recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 
 use serde_yaml::{Mapping, Value as YamlValue};
-use std::fs;
 use tracing::{info_span, trace, warn};
 
-pub fn recipe(opts: Box<GenRecipeOpts>) -> Result<()> {
+pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
     let span = info_span!("gen-recipe");
     let _enter = span.enter();
     trace!(opts = ?opts);
@@ -114,20 +112,11 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> Result<()> {
         pkg: Some(pkg),
     };
 
-    let recipe = RecipeRep {
+    RecipeRep {
         metadata,
         env: if env.is_empty() { None } else { Some(env) },
         configure: None,
         build: Default::default(),
         install: None,
-    };
-
-    let rendered = serde_yaml::to_string(&recipe)?;
-
-    if let Some(output_dir) = opts.output_dir {
-        fs::write(output_dir.as_path(), rendered)?;
-    } else {
-        println!("{}", rendered);
     }
-    Ok(())
 }

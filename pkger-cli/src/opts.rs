@@ -42,8 +42,6 @@ impl Opts {
 pub enum Command {
     /// Runs a build creating specified packages on target platforms.
     Build(BuildOpts),
-    /// Creates a directory with a recipe generated from provided arguments.
-    GenRecipe(Box<GenRecipeOpts>),
     /// Lists the specified objects like images.
     List {
         #[clap(subcommand)]
@@ -57,6 +55,12 @@ pub enum Command {
         #[clap(subcommand)]
         /// An object to edit like `image`, `recipe` or `config`.
         object: EditObject,
+    },
+    /// Generate a new image or recipe.
+    New {
+        #[clap(subcommand)]
+        /// An object to create like `image` or `recipe`.
+        object: NewObject,
     },
     /// Initializes required directories and a configuration file at specified or default locations.
     Init(InitOpts),
@@ -111,6 +115,15 @@ pub enum ListObject {
     },
 }
 
+#[derive(Debug, Subcommand)]
+pub enum NewObject {
+    Recipe(Box<GenRecipeOpts>),
+    Image {
+        /// The name of the image to create.
+        name: String,
+    },
+}
+
 #[derive(Debug, Clap)]
 pub struct BuildOpts {
     /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
@@ -147,9 +160,7 @@ pub struct BuildOpts {
 pub struct GenRecipeOpts {
     /// Name of the recipe to generate
     pub name: String,
-    /// Parent directory in which a directory with the recipe should be created. If no path is
-    /// provided the recipe will be printed to stdout.
-    pub output_dir: Option<PathBuf>,
+
     #[clap(long)]
     pub version: Option<String>,
     #[clap(long)]

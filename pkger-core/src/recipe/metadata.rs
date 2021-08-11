@@ -41,55 +41,78 @@ pub struct MetadataRep {
     #[serde(default)]
     /// If specified all images will apply to this metadata and `images` will be ignored.
     pub all_images: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<String>>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     // Common optional
     pub maintainer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The URL of the web site for this package
     pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub arch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Git repository as source
     pub git: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Whether to install default dependencies before build
     pub skip_default_deps: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The release number. This is usually a positive integer number that allows to differentiate
     /// between consecutive builds of the same version of a package
     pub release: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Used to force the package to be seen as newer than any previous version with a lower epoch
     pub epoch: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub build_depends: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub depends: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub conflicts: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub provides: Option<YamlValue>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Patches to be applied to the source code. Can be specified only for certain images same
     /// as dependencies.
     pub patches: Option<YamlValue>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     // Only DEB
     pub deb: Option<DebRep>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     // Only RPM
     pub rpm: Option<RpmRep>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     // Only PKG
     pub pkg: Option<PkgRep>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct PkgRep {
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// The name of the .install script to be included in the package
     pub install: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// A list of files that can contain user-made changes and should be preserved during upgrade
     /// or removal of a package
     pub backup: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub replaces: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional dependencies needed for full functionality of the package
     pub optdepends: Option<Vec<String>>,
 }
@@ -121,15 +144,24 @@ impl TryFrom<PkgRep> for PkgInfo {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct DebRep {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub built_using: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub essential: Option<bool>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_depends: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recommends: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub suggests: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub breaks: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub replaces: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enhances: Option<YamlValue>,
 }
 
@@ -168,15 +200,25 @@ impl TryFrom<DebRep> for DebInfo {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RpmRep {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub obsoletes: Option<YamlValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vendor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_req_prov: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_script: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub post_script: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preun_script: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub postun_script: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub config_noreplace: Option<String>,
 }
 

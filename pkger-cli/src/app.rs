@@ -1,7 +1,7 @@
 use crate::config::Configuration;
 use crate::gen;
 use crate::job::{JobCtx, JobResult};
-use crate::opts::{BuildOpts, Command, EditObject, ListObject, Opts};
+use crate::opts::{BuildOpts, Command, EditObject, ListObject, NewObject, Opts};
 use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
@@ -22,6 +22,12 @@ use std::sync::Arc;
 use tempdir::TempDir;
 use tokio::task;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
+
+macro_rules! err {
+    ($($tt:tt)*) => {
+        Err(Error::msg(format!($($tt)*)))
+    };
+}
 
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     if let Err(e) = ctrlc::set_handler(move || {
@@ -130,7 +136,6 @@ impl Application {
                 self.process_tasks(tasks, opts.quiet).await?;
                 Ok(())
             }
-            Command::GenRecipe(gen_recipe_opts) => gen::recipe(gen_recipe_opts),
             Command::List { object } => match object {
                 ListObject::Images => self.list_images(),
                 ListObject::Recipes => self.list_recipes(),
@@ -139,6 +144,41 @@ impl Application {
             Command::CleanCache => self.clean_cache().await,
             Command::Init { .. } => unreachable!(),
             Command::Edit { object } => self.edit(object),
+            Command::New { object } => self.create(object),
+        }
+    }
+
+    fn create(&self, object: NewObject) -> Result<()> {
+        match object {
+            NewObject::Image { name } => {
+                let path = self.config.images_dir.clone().context("can't create an image when images directory is not specified in the configuration.")?.join(&name);
+                if path.exists() {
+                    return err!("image `{}` already exists", name);
+                }
+                println!("creating directory for image ~> `{}`", path.display());
+                fs::create_dir(&path).context("failed to create a directory for the image")?;
+                let path = path.join("Dockerfile");
+                println!("creating a Dockerfile ~> `{}`", path.display());
+                fs::write(path, "").context("failed to create a Dockerfile")
+            }
+            NewObject::Recipe(opts) => {
+                let path = self.config.recipes_dir.join(&opts.name);
+
+                if path.exists() {
+                    return err!("recipe `{}` already exists", &opts.name);
+                }
+
+                let recipe = gen::recipe(opts);
+                println!("creating directory for recipe ~> `{}`", path.display());
+                fs::create_dir(&path).context("failed to create a directory for the recipe")?;
+                let path = path.join("recipe.yml");
+                println!("saving recipe ~> `{}`", path.display());
+                fs::write(
+                    path,
+                    &serde_yaml::to_string(&recipe).context("failed to serialize recipe")?,
+                )
+                .context("failed to save recipe file")
+            }
         }
     }
 
@@ -152,10 +192,10 @@ impl Application {
                     base_path.join("recipe.yaml")
                 };
                 if !path.exists() {
-                    return Err(Error::msg(format!(
+                    return err!(
                         "recipe `{}` not found or no `recipe.yml`/`recipe.yaml` file",
                         name
-                    )));
+                    );
                 }
                 let status = open_editor(path)?;
                 if let Some(code) = status.code() {
