@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">5.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">6.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="signing.html"><strong aria-hidden="true">7.</strong> Signing packages</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">8.</strong> Formatting output</a></li><li class="chapter-item expanded "><a href="edit.html"><strong aria-hidden="true">9.</strong> Edit recipes, images and config</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">4.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">5.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="signing.html"><strong aria-hidden="true">6.</strong> Signing packages</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">7.</strong> Formatting output</a></li><li class="chapter-item expanded "><a href="new.html"><strong aria-hidden="true">8.</strong> Create new recipes and images</a></li><li class="chapter-item expanded "><a href="edit.html"><strong aria-hidden="true">9.</strong> Edit recipes, images and config</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -469,51 +469,6 @@ in some metadata fields.</p>
 <li><code>$RECIPE_VERSION</code> the version of the recipe</li>
 <li><code>$RECIPE_RELEASE</code> the release of the recipe</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
-<p>To generate a recipe declaratively from CLI use subcommand <code>gen-recipe</code>. By default it requires only the name of the
-package and prints the recipe to stdout. If <code>output_dir</code> is provided <strong>pkger</strong> will create a directory with the name
-of the package and a <code>recipe.yml</code> containing generated recipe.</p>
-<p>Example generated recipe with no options printed to stdout:</p>
-<pre><code>&gt; pkger gen-recipe blank
-[metadata]
-name = &quot;blank&quot;
-version = &quot;1.0.0&quot;
-description = &quot;missing&quot;
-license = &quot;missing&quot;
-images = []
-
-[metadata.deb]
-
-[metadata.rpm]
-
-[metadata.pkg]
-
-[build]
-steps = []
-</code></pre>
-<p>Or a more complex one, all of the metadata fields can be added using declarative syntax:</p>
-<pre><code>&gt; pkger gen-recipe test --arch x86_64 --description &quot;A very interesting package...&quot; \
-                        --provides test-bin --version 1.0.0 --build-depends curl make \
-                        --license MIT
-[metadata]
-name = &quot;test&quot;
-version = &quot;1.0.0&quot;
-description = &quot;A very interesting package...&quot;
-license = &quot;MIT&quot;
-images = []
-arch = &quot;x86_64&quot;
-build_depends = [&quot;curl&quot;, &quot;make&quot;]
-provides = [&quot;test-bin&quot;]
-
-[metadata.deb]
-
-[metadata.rpm]
-
-[metadata.pkg]
-
-[build]
-steps = []
-</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="images"><a class="header" href="#images">Images</a></h1>
 <p>Images are an optional feature of <strong>pkger</strong>.By default <strong>pkger</strong> will create necessary images to build simple targets,
 they are completely distinct from user defined ones. User images offer higher customisation when it comes to preparing
@@ -569,6 +524,12 @@ Characters are case insensitive, the order doesn't matter and duplicates are sil
 <li><code>l</code> hides the level</li>
 <li><code>s</code> hides the spans entirely</li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
+<p>To generate a recipe declaratively from CLI use the <code>pkger new recipe</code> subcommand. By default it requires only the name
+of the  package and creates a directory with <code>recipe.yml</code> in it.</p>
+<h1 id="create-images"><a class="header" href="#create-images">Create images</a></h1>
+<p>To create images use <code>pkger new image &lt;name&gt;</code>. This will create a directory with a <code>Dockerfile</code> in the <code>images_dir</code>
+specified in the <a href="./configuration.html">configuration</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="edit-recipes-images-and-config"><a class="header" href="#edit-recipes-images-and-config">Edit recipes, images and config</a></h1>
 <p><strong>pkger</strong> provides utility subcommand <code>edit</code> that invokes the default editor defined by <code>$EDITOR</code> environment variable.
 To make this functionality work, export this variable in your shell's init script like <code>~/.bashrc</code>.</p>
