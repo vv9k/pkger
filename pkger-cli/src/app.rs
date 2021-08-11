@@ -488,6 +488,11 @@ impl Application {
             let mut results = vec![];
 
             for job in jobs {
+                if !self.is_running.load(Ordering::Relaxed) {
+                    warn!("got ctrl-c, killing job");
+                    job.abort();
+                    continue
+                }
                 let handle = job.await;
                 if let Err(e) = handle {
                     error!(reason = %e, "failed to join the handle for a job");
