@@ -59,36 +59,39 @@ pub enum Command {
         object: EditObject,
     },
     /// Initializes required directories and a configuration file at specified or default locations.
-    Init {
-        #[clap(short, long)]
-        /// Override the default location to which the configuration file will be saved.
-        config: Option<PathBuf>,
-        #[clap(short, long)]
-        /// Override the default location of custom images.
-        images: Option<PathBuf>,
-        #[clap(short, long)]
-        /// Override the default location of output packages.
-        output: Option<PathBuf>,
-        #[clap(short, long)]
-        /// Override the default location of recipes.
-        recipes: Option<PathBuf>,
-        #[clap(short, long)]
-        /// Filter string that sets which fields are displayed during builds.
-        filter: Option<String>,
-        #[clap(short, long)]
-        /// URL to Docker daemon listening on a unix or tcp socket. An example could be
-        /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
-        /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
-        /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
-        /// `127.0.0.1:8080` is used.
-        docker: Option<String>,
-        #[clap(long)]
-        /// Absolute path to the GPG key used to sign packages.
-        gpg_key: Option<PathBuf>,
-        #[clap(long)]
-        /// The value of the `Name` field of the GPG key `gpg_key`.
-        gpg_name: Option<String>,
-    },
+    Init(InitOpts),
+}
+
+#[derive(Debug, Clap)]
+pub struct InitOpts {
+    #[clap(short, long)]
+    /// Override the default location to which the configuration file will be saved.
+    pub config: Option<PathBuf>,
+    #[clap(short, long)]
+    /// Override the default location of custom images.
+    pub images: Option<PathBuf>,
+    #[clap(short, long)]
+    /// Override the default location of output packages.
+    pub output: Option<PathBuf>,
+    #[clap(short, long)]
+    /// Override the default location of recipes.
+    pub recipes: Option<PathBuf>,
+    #[clap(short, long)]
+    /// Filter string that sets which fields are displayed during builds.
+    pub filter: Option<String>,
+    #[clap(short, long)]
+    /// URL to Docker daemon listening on a unix or tcp socket. An example could be
+    /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
+    /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
+    /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
+    /// `127.0.0.1:8080` is used.
+    pub docker: Option<String>,
+    #[clap(long)]
+    /// Absolute path to the GPG key used to sign packages.
+    pub gpg_key: Option<PathBuf>,
+    #[clap(long)]
+    /// The value of the `Name` field of the GPG key `gpg_key`.
+    pub gpg_name: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]

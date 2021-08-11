@@ -21,23 +21,15 @@ static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
 
-    if let opts::Command::Init {
-        config,
-        images,
-        output,
-        recipes,
-        filter,
-        docker,
-        gpg_key,
-        gpg_name,
-    } = opts.command
-    {
+    if let opts::Command::Init(opts) = opts.command {
         let config_dir = dirs::config_dir().context("missing config directory")?;
         let pkger_dir = config_dir.join("pkger");
-        let recipes_dir = recipes.unwrap_or_else(|| pkger_dir.join("recipes"));
-        let output_dir = output.unwrap_or_else(|| pkger_dir.join("output"));
-        let images_dir = images.unwrap_or_else(|| pkger_dir.join("images"));
-        let config_path = config.unwrap_or_else(|| config_dir.join(DEFAULT_CONFIG_FILE));
+        let recipes_dir = opts.recipes.unwrap_or_else(|| pkger_dir.join("recipes"));
+        let output_dir = opts.output.unwrap_or_else(|| pkger_dir.join("output"));
+        let images_dir = opts.images.unwrap_or_else(|| pkger_dir.join("images"));
+        let config_path = opts
+            .config
+            .unwrap_or_else(|| config_dir.join(DEFAULT_CONFIG_FILE));
 
         if !images_dir.exists() {
             println!("creating images directory ~> `{}`", images_dir.display());
@@ -56,10 +48,10 @@ async fn main() -> Result<()> {
             recipes_dir,
             output_dir,
             images_dir: Some(images_dir),
-            filter,
-            docker,
-            gpg_key,
-            gpg_name,
+            filter: opts.filter,
+            docker: opts.docker,
+            gpg_key: opts.gpg_key,
+            gpg_name: opts.gpg_name,
             ssh: None,
             images: vec![],
             path: config_path,
