@@ -125,6 +125,7 @@ impl Application {
                 ListObject::Packages { images } => self.list_packages(images),
             },
             Command::CleanCache => self.clean_cache().await,
+            Command::Init { .. } => unreachable!(),
         }
     }
 

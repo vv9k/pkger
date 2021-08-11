@@ -1,13 +1,13 @@
 use crate::{Error, Result};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 #[cfg(target_os = "linux")]
 use {crate::ErrContext, std::env};
 
 pub const SOCK_ENV: &str = "SSH_AUTH_SOCK";
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug, Serialize)]
 pub struct SshConfig {
     #[serde(default)]
     pub forward_agent: bool,

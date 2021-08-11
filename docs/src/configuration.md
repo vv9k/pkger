@@ -53,3 +53,8 @@ parameter.
 If an option is available as both configuration parameter and cli argument **pkger** will favour the arguments passed
 during startup.
 
+
+## Generate configuration file and directories
+
+To quickly start of with **pkger** use the `pkger init` subcommand that will create necessary directories and the
+configuration file. Default locations can be overridden by command line parameters.
