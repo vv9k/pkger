@@ -144,9 +144,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
-<p>By default <strong>pkger</strong> will look for the config file in the home directory of the user running the process in a file
-<code>.pkger.yml</code>. If there is no global configuration current directory will be scand for the same file. To specify the
-location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
+<p>By default <strong>pkger</strong> will look for the config file named <code>.pkger.yml</code> in the config directory appropriate for the OS 
+that <strong>pkger</strong> is run on. If there is no global configuration, current directory will be scanned for the same file. 
+To specify the location of the config file use <code>--config</code> or <code>-c</code> parameter.</p>
 <p>The configuration file has a following structure:</p>
 <pre><code class="language-yaml"># required
 recipes_dir: &quot;&quot;
