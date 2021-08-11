@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Formatting output - pkger</title>
+        <title>Edit recipes and images - pkger</title>
                 
 
         <!-- Custom HTML head -->
@@ -82,7 +82,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="edit.html"><strong aria-hidden="true">5.</strong> Edit recipes and images</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">6.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">7.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="signing.html"><strong aria-hidden="true">8.</strong> Signing packages</a></li><li class="chapter-item expanded "><a href="output.html" class="active"><strong aria-hidden="true">9.</strong> Formatting output</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="recipes.html"><strong aria-hidden="true">3.</strong> Recipes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="metadata.html"><strong aria-hidden="true">3.1.</strong> Metadata</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rpm.html"><strong aria-hidden="true">3.1.1.</strong> RPM</a></li><li class="chapter-item expanded "><a href="deb.html"><strong aria-hidden="true">3.1.2.</strong> DEB</a></li><li class="chapter-item expanded "><a href="pkg.html"><strong aria-hidden="true">3.1.3.</strong> PKG</a></li></ol></li><li class="chapter-item expanded "><a href="scripts.html"><strong aria-hidden="true">3.2.</strong> Scripts</a></li><li class="chapter-item expanded "><a href="env.html"><strong aria-hidden="true">3.3.</strong> Env</a></li></ol></li><li class="chapter-item expanded "><a href="generate.html"><strong aria-hidden="true">4.</strong> Generate recipes</a></li><li class="chapter-item expanded "><a href="edit.html" class="active"><strong aria-hidden="true">5.</strong> Edit recipes and images</a></li><li class="chapter-item expanded "><a href="images.html"><strong aria-hidden="true">6.</strong> Images</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">7.</strong> Build a package</a></li><li class="chapter-item expanded "><a href="signing.html"><strong aria-hidden="true">8.</strong> Signing packages</a></li><li class="chapter-item expanded "><a href="output.html"><strong aria-hidden="true">9.</strong> Formatting output</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -143,28 +143,28 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="formatting-output"><a class="header" href="#formatting-output">Formatting output</a></h1>
-<p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or
-<code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set
-<code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
-<p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells
-<strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output.
-Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
-<ul>
-<li><code>d</code> hides the timestamp</li>
-<li><code>f</code> hides the fields in spans (the values between curly braces like <code>{id = vw89wje92}</code>)</li>
-<li><code>l</code> hides the level</li>
-<li><code>s</code> hides the spans entirely</li>
-</ul>
+                        <h1 id="edit-recipes-and-images"><a class="header" href="#edit-recipes-and-images">Edit recipes and images</a></h1>
+<p><strong>pkger</strong> provides utility subcommand <code>edit</code> that invokes the default editor defined by <code>$EDITOR</code> environment variable.
+To make this functionality work, export this variable in your shell's init script like <code>~/.bashrc</code>.</p>
+<p>Edit images and recipes by name:</p>
+<pre><code># This will open up the Dockerfile in the `centos8` image.
+$ pkger edit image centos8 
+
+# This will open up the `recipe.yml` or `recipe.yaml` file in `pkger-simple` recipe directory
+$ pkger edit recipe pkger-simple
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="signing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="generate.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
+                                                    <a rel="next" href="images.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
                         
                         <div style="clear: both"></div>
                     </nav>
@@ -172,10 +172,13 @@ Characters are case insensitive, the order doesn't matter and duplicates are sil
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="signing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="generate.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
+                                    <a rel="next" href="images.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
                             </nav>
 
         </div>
