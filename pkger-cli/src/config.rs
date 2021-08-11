@@ -19,19 +19,25 @@ pub struct Configuration {
     pub ssh: Option<SshConfig>,
     #[serde(deserialize_with = "deserialize_images")]
     pub images: Vec<ImageTarget>,
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    pub path: PathBuf,
 }
 
 impl Configuration {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
-        serde_yaml::from_slice(
-            &fs::read(path.as_ref()).context("failed to read configuration file")?,
-        )
-        .context("failed to deserialize configuration file")
+        let path = path.as_ref();
+        serde_yaml::from_slice(&fs::read(path).context("failed to read configuration file")?)
+            .context("failed to deserialize configuration file")
+            .map(|mut cfg: Configuration| {
+                cfg.path = path.to_path_buf();
+                cfg
+            })
     }
 
-    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         fs::write(
-            path.as_ref(),
+            &self.path,
             &serde_yaml::to_string(&self).context("failed to serialize configuration file")?,
         )
         .context("failed to save configuration file")

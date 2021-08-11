@@ -14,4 +14,5 @@
 - [Build a package](./usage.md)
 - [Signing packages](./signing.md)  
 - [Formatting output](./output.md)
+- [Edit recipes, images and config](./edit.md)
 

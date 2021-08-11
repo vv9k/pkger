@@ -1,7 +1,7 @@
 use crate::config::Configuration;
 use crate::gen;
 use crate::job::{JobCtx, JobResult};
-use crate::opts::{BuildOpts, Command, ListObject, Opts};
+use crate::opts::{BuildOpts, Command, EditObject, ListObject, Opts};
 use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
@@ -12,8 +12,11 @@ use pkger_core::{ErrContext, Error, Result};
 use async_rwlock::RwLock;
 use futures::stream::FuturesUnordered;
 use std::convert::TryFrom;
+use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process;
+use std::process::ExitStatus;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tempdir::TempDir;
@@ -38,6 +41,15 @@ fn create_app_dirs() -> Result<TempDir> {
     }
 
     Ok(tempdir)
+}
+
+fn open_editor<P: AsRef<Path>>(path: P) -> Result<ExitStatus> {
+    let editor = env::var("EDITOR").context("expected $EDITOR env variable set")?;
+    let mut cmd = process::Command::new(editor)
+        .arg(path.as_ref().to_string_lossy().to_string())
+        .spawn()
+        .context("failed to open an editor")?;
+    cmd.wait().context("failed to wait for child process")
 }
 
 pub struct Application {
@@ -126,6 +138,51 @@ impl Application {
             },
             Command::CleanCache => self.clean_cache().await,
             Command::Init { .. } => unreachable!(),
+            Command::Edit { object } => self.edit(object),
+        }
+    }
+
+    fn edit(&self, object: EditObject) -> Result<()> {
+        match object {
+            EditObject::Recipe { name } => {
+                let base_path = self.config.recipes_dir.join(&name);
+                let path = if base_path.join("recipe.yml").exists() {
+                    base_path.join("recipe.yml")
+                } else {
+                    base_path.join("recipe.yaml")
+                };
+                if !path.exists() {
+                    return Err(Error::msg(format!(
+                        "recipe `{}` not found or no `recipe.yml`/`recipe.yaml` file",
+                        name
+                    )));
+                }
+                let status = open_editor(path)?;
+                if let Some(code) = status.code() {
+                    process::exit(code);
+                }
+                Ok(())
+            }
+            EditObject::Image { name } => {
+                if let Some(images_dir) = &self.config.images_dir {
+                    let path = images_dir.join(&name).join("Dockerfile");
+                    if path.exists() {
+                        let status = open_editor(path)?;
+                        if let Some(code) = status.code() {
+                            process::exit(code);
+                        }
+                        return Ok(());
+                    }
+                }
+                Err(Error::msg(format!("image `{}` not found", name)))
+            }
+            EditObject::Config => {
+                let status = open_editor(&self.config.path)?;
+                if let Some(code) = status.code() {
+                    process::exit(code);
+                }
+                Ok(())
+            }
         }
     }
 

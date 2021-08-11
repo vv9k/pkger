@@ -47,11 +47,17 @@ pub enum Command {
     /// Lists the specified objects like images.
     List {
         #[clap(subcommand)]
-        /// A object to list like `image`, `recipe` or `package`.
+        /// An object to list like `image`, `recipe` or `package`.
         object: ListObject,
     },
     /// Deletes the cache files with image state.
     CleanCache,
+    /// Edit a recipe or an image.
+    Edit {
+        #[clap(subcommand)]
+        /// An object to edit like `image`, `recipe` or `config`.
+        object: EditObject,
+    },
     /// Initializes required directories and a configuration file at specified or default locations.
     Init {
         #[clap(short, long)]
@@ -83,6 +89,13 @@ pub enum Command {
         /// The value of the `Name` field of the GPG key `gpg_key`.
         gpg_name: Option<String>,
     },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum EditObject {
+    Recipe { name: String },
+    Image { name: String },
+    Config,
 }
 
 #[derive(Debug, Subcommand)]

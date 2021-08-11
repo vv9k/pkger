@@ -62,9 +62,10 @@ async fn main() -> Result<()> {
             gpg_name,
             ssh: None,
             images: vec![],
+            path: config_path,
         };
 
-        if config_path.exists() {
+        if cfg.path.exists() {
             let mut line = String::new();
             loop {
                 println!("configuration file already exists, overwrite? y/n");
@@ -81,8 +82,8 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        println!("saving configuration ~> `{}`", config_path.display());
-        cfg.save(config_path)?;
+        println!("saving configuration ~> `{}`", cfg.path.display());
+        cfg.save()?;
         process::exit(0);
     }
 
