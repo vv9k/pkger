@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{err, Error, Result};
 
 use std::path::{Path, PathBuf};
 
@@ -14,10 +14,7 @@ impl GpgKey {
     /// returns an error.
     pub fn new(path: &Path, name: &str, pass: &str) -> Result<Self> {
         if !path.exists() {
-            return Err(Error::msg(format!(
-                "gpg key does not exist in `{}`",
-                path.display()
-            )));
+            return err!("gpg key does not exist in `{}`", path.display());
         }
         Ok(Self {
             path: path.to_path_buf(),

@@ -9,7 +9,7 @@ pub use metadata::{
     Metadata, MetadataRep, Os, PackageManager, Patch, Patches, PkgInfo, PkgRep, RpmInfo, RpmRep,
 };
 
-use crate::{Error, Result};
+use crate::{err, Error, Result};
 
 use anyhow::Context;
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
@@ -67,7 +67,7 @@ impl Loader {
             .context(format!("failed to verify recipe path `{}`", path.display()))?;
 
         if !metadata.is_dir() {
-            return Err(Error::msg("recipes path is not a directory"));
+            return err!("recipes path is not a directory");
         }
 
         Ok(Loader {

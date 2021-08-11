@@ -3,7 +3,7 @@ use crate::container::{DockerContainer, ExecOpts, Output};
 use crate::docker::{api::ContainerCreateOpts, ExecContainerOpts};
 use crate::image::ImageState;
 use crate::ssh;
-use crate::{Error, Result};
+use crate::{err, Error, Result};
 
 use crate::recipe::Env;
 use std::path::Path;
@@ -91,11 +91,11 @@ pub async fn checked_exec(ctx: &Context<'_>, opts: &ExecContainerOpts) -> Result
     async move {
         let out = ctx.container.exec(opts, ctx.build.quiet).await?;
         if out.exit_code != 0 {
-            Err(Error::msg(format!(
+            err!(
                 "command failed with exit code {}\nError:\n{}",
                 out.exit_code,
                 out.stderr.join("\n")
-            )))
+            )
         } else {
             Ok(out)
         }

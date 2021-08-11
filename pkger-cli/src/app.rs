@@ -23,12 +23,6 @@ use tempdir::TempDir;
 use tokio::task;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
 
-macro_rules! err {
-    ($($tt:tt)*) => {
-        Err(Error::msg(format!($($tt)*)))
-    };
-}
-
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     if let Err(e) = ctrlc::set_handler(move || {
         warn!("got ctrl-c");
@@ -214,7 +208,7 @@ impl Application {
                         return Ok(());
                     }
                 }
-                Err(Error::msg(format!("image `{}` not found", name)))
+                err!("image `{}` not found", name)
             }
             EditObject::Config => {
                 let status = open_editor(&self.config.path)?;
@@ -521,7 +515,7 @@ impl Application {
             }
 
             if task_failed {
-                Err(Error::msg("at least one of the tasks failed"))
+                err!("at least one of the tasks failed")
             } else {
                 Ok(())
             }
@@ -547,7 +541,7 @@ fn load_gpg_key(config: &Configuration) -> Result<Option<GpgKey>> {
         if let Some(name) = &config.gpg_name {
             Ok(Some(GpgKey::new(key, name, &pass)?))
         } else {
-            Err(Error::msg("missing `gpg_name` field from configuration"))
+            err!("missing `gpg_name` field from configuration")
         }
     } else {
         Ok(None)

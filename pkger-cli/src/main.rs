@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate pkger_core;
+
 mod app;
 mod config;
 mod fmt;

@@ -5,7 +5,7 @@ use crate::docker::{
 };
 use crate::image::{ImageState, ImagesState};
 use crate::recipe::RecipeTarget;
-use crate::{Error, Result};
+use crate::{err, Error, Result};
 
 use async_rwlock::RwLock;
 use futures::StreamExt;
@@ -72,7 +72,7 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
                     error,
                     error_detail: _,
                 } => {
-                    return Err(Error::msg(error));
+                    return err!(error);
                 }
                 ImageBuildChunk::Update { stream } => {
                     if !ctx.quiet {
@@ -100,7 +100,7 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
             }
         }
 
-        Err(Error::msg("stream ended before image id was received"))
+        err!("stream ended before image id was received")
     }
     .instrument(span)
     .await
@@ -119,10 +119,10 @@ pub async fn cache_image(
         let tag = format!("{}:{}", state.image, state.tag);
 
         if pkg_mngr_name.is_empty() {
-            return Err(Error::msg(format!(
+            return err!(
                 "caching image failed - no package manger found for os `{}`",
                 state.os.name()
-            )));
+            );
         }
 
         let deps_joined = deps.iter().map(|s| s.to_string()).collect::<Vec<_>>();
@@ -166,7 +166,7 @@ RUN {} {} {} >/dev/null"#,
                     error,
                     error_detail: _,
                 } => {
-                    return Err(Error::msg(error));
+                    return err!(error);
                 }
                 ImageBuildChunk::Update { stream } => {
                     if !ctx.build.quiet {
@@ -189,7 +189,7 @@ RUN {} {} {} >/dev/null"#,
             }
         }
 
-        Err(Error::msg("id of image not received"))
+        err!("id of image not received")
     }
     .instrument(span)
     .await

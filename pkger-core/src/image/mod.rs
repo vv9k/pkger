@@ -5,7 +5,7 @@ pub use os::find;
 pub use state::{ImageState, ImagesState};
 
 use crate::recipe::BuildTarget;
-use crate::{Error, Result};
+use crate::{err, Error, Result};
 
 use std::convert::AsRef;
 use std::fs;
@@ -59,10 +59,7 @@ impl Image {
     pub fn try_from_path<P: AsRef<Path>>(path: P) -> Result<Image> {
         let path = path.as_ref().to_path_buf();
         if !path.join("Dockerfile").exists() {
-            return Err(Error::msg(format!(
-                "Dockerfile missing from image `{}`",
-                path.display()
-            )));
+            return err!("Dockerfile missing from image `{}`", path.display());
         }
         Ok(Image {
             // we can unwrap here because we know the Dockerfile exists

@@ -1,7 +1,7 @@
 use crate::docker::{api::ContainerCreateOpts, Docker};
 use crate::oneshot::{self, OneShotCtx};
 use crate::recipe::Os;
-use crate::{ErrContext, Error, Result};
+use crate::{err, ErrContext, Error, Result};
 
 use tracing::{info_span, trace, Instrument};
 
@@ -24,7 +24,7 @@ pub async fn find(image_id: &str, docker: &Docker) -> Result<Os> {
     return_if_ok!(from_issue(image_id, docker));
     return_if_ok!(from_rhrelease(image_id, docker));
 
-    Err(Error::msg("failed to determine distribution"))
+    err!("failed to determine distribution")
 }
 
 async fn from_osrelease(image_id: &str, docker: &Docker) -> Result<Os> {

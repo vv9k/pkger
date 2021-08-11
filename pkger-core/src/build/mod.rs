@@ -12,7 +12,7 @@ use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::ssh::SshConfig;
-use crate::{ErrContext, Error, Result};
+use crate::{err, ErrContext, Error, Result};
 
 use async_rwlock::RwLock;
 use std::fs;
@@ -26,7 +26,7 @@ use tracing::{debug, info, info_span, trace, warn, Instrument};
 macro_rules! cleanup {
     ($ctx:ident) => {
         if !$ctx.container.is_running().await? {
-            return Err(Error::msg("job interrupted by ctrl-c signal"));
+            return err!("job interrupted by ctrl-c signal");
         }
     };
 }

@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::{err, Error, Result};
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -26,7 +26,7 @@ pub fn auth_sock() -> Result<String> {
 
     let path = PathBuf::from(&socket);
     if !path.exists() {
-        return Err(Error::msg("ssh auth socket does not exist"));
+        return err!("ssh auth socket does not exist");
     }
 
     Ok(socket)
