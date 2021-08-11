@@ -1,8 +1,8 @@
 # Configuration
 
-By default **pkger** will look for the config file in the home directory of the user running the process in a file
-`.pkger.yml`. If there is no global configuration current directory will be scand for the same file. To specify the
-location of the config file use `--config` or `-c` parameter.
+By default **pkger** will look for the config file named `.pkger.yml` in the config directory appropriate for the OS 
+that **pkger** is run on. If there is no global configuration, current directory will be scanned for the same file. 
+To specify the location of the config file use `--config` or `-c` parameter.
 
 The configuration file has a following structure:
 

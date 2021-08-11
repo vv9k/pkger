@@ -24,8 +24,8 @@ async fn main() -> Result<()> {
     let config_path = opts
         .config
         .clone()
-        .unwrap_or_else(|| match dirs::home_dir() {
-            Some(home_dir) => home_dir
+        .unwrap_or_else(|| match dirs::config_dir() {
+            Some(config_dir) => config_dir
                 .join(DEFAULT_CONFIG_FILE)
                 .to_string_lossy()
                 .to_string(),

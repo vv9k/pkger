@@ -21,7 +21,7 @@ pub struct Configuration {
 }
 
 impl Configuration {
-    pub fn load<P: AsRef<Path>>(val: P) -> Result<Self> {
-        Ok(serde_yaml::from_slice(&fs::read(val.as_ref())?)?)
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Ok(serde_yaml::from_slice(&fs::read(path.as_ref())?)?)
     }
 }
