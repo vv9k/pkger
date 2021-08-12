@@ -7,6 +7,7 @@ mod fmt;
 mod gen;
 mod job;
 mod opts;
+mod table;
 
 use app::Application;
 use config::Configuration;
