@@ -3,6 +3,7 @@ mod build;
 use crate::config::Configuration;
 use crate::gen;
 use crate::opts::{Command, EditObject, ListObject, NewObject, Opts};
+use crate::table::IntoTable;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
@@ -149,7 +150,7 @@ impl Application {
             }
             Command::List { object } => match object {
                 ListObject::Images => self.list_images(),
-                ListObject::Recipes => self.list_recipes(),
+                ListObject::Recipes { verbose } => self.list_recipes(verbose),
                 ListObject::Packages { images } => self.list_packages(images),
             },
             Command::CleanCache => self.clean_cache().await,
@@ -252,10 +253,36 @@ impl Application {
         Ok(())
     }
 
-    fn list_recipes(&self) -> Result<()> {
-        for name in self.recipes.list()? {
-            println!("{}", name);
+    fn list_recipes(&self, verbose: bool) -> Result<()> {
+        if verbose {
+            let mut table = vec![];
+            for name in self.recipes.list()? {
+                match self.recipes.load(&name) {
+                    Ok(recipe) => table.push(vec![
+                        recipe.metadata.name,
+                        recipe.metadata.version,
+                        recipe.metadata.arch.rpm_name().to_string(),
+                        recipe.metadata.license,
+                        recipe.metadata.description,
+                    ]),
+                    Err(e) => warn!(recipe = %name, reason = %format!("{:?}", e)),
+                }
+            }
+            let table = table.into_table().with_headers(vec![
+                "Name",
+                "Version",
+                "Arch",
+                "License",
+                "Description",
+            ]);
+            let table = table.render();
+            println!("{}", table);
+        } else {
+            for name in self.recipes.list()? {
+                println!("{}", name);
+            }
         }
+
         Ok(())
     }
 

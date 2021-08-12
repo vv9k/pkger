@@ -108,7 +108,11 @@ pub enum EditObject {
 #[derive(Debug, Subcommand)]
 pub enum ListObject {
     Images,
-    Recipes,
+    Recipes {
+        #[clap(short, long)]
+        /// Should the output be more verbose and include fields like version, arch...
+        verbose: bool,
+    },
     Packages {
         #[clap(short, long)]
         images: Option<Vec<String>>,

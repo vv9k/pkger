@@ -51,6 +51,7 @@ impl Default for Table {
 }
 
 impl Table {
+    #[allow(dead_code)]
     pub fn with_separator(mut self, separator: char) -> Self {
         self.separator = separator;
         self
@@ -173,13 +174,14 @@ impl Table {
         s
     }
 
+    #[allow(dead_code)]
     pub fn print(&self) {
         let mut tokens = self.tokenize();
 
         loop {
             match tokens.next() {
                 Some(Token::Text(text)) => print!("{}", text),
-                Some(Token::NewLine) => print!("\n"),
+                Some(Token::NewLine) => println!(),
                 Some(Token::Separator) => print!("{}", self.separator),
                 Some(Token::Padding(n)) => {
                     for _ in 0..n {
@@ -206,8 +208,9 @@ impl<T: Into<Cell>> IntoTable for Vec<Vec<T>> {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use super::IntoTable;
 
     #[test]
     fn renders_empty() {
