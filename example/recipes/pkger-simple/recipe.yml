@@ -18,13 +18,11 @@ metadata:
     all:
       - gcc
       - pkg-config
-    pkger-rpm:
+    pkger-rpm+pkger-pkg:
       - cargo
     pkger-deb:
       - curl
       - libssl-dev
-    pkger-pkg:
-      - cargo
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs

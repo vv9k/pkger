@@ -16,17 +16,10 @@ metadata:
     centos8:
       - openssl-devel
   build_depends:
-    all:
-      - gcc
-      - pkg-config
-    centos8:
-      - cargo
-      - openssl-devel
-    debian10:
-      - curl
-      - libssl-dev
-    arch:
-      - cargo
+    all: [ gcc, pkg-config]
+    centos8+arch: [ cargo ]
+    centos8: [ openssl-devel ]
+    debian10: [ curl, libssl-dev]
 env:
   RUSTUP_URL: https://sh.rustup.rs
 configure:

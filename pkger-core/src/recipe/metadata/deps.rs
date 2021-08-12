@@ -1,6 +1,6 @@
-#![allow(dead_code)]
 use crate::Result;
 
+use anyhow::Context;
 use serde_yaml::{Mapping, Sequence, Value as YamlValue};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
@@ -45,13 +45,17 @@ impl TryFrom<Mapping> for Dependencies {
 
                     deps_set.insert(dep.as_str().unwrap().to_string());
                 }
-                deps.inner_mut().insert(
-                    image
-                        .as_str()
-                        .map(|s| s.to_string())
-                        .ok_or_else(|| anyhow!("expected image name"))?,
-                    deps_set,
-                );
+                let image = image
+                    .as_str()
+                    .map(|s| s.to_string())
+                    .context("expected image name")?;
+                if image.contains('+') {
+                    for image in image.split('+') {
+                        deps.update_or_insert(image.to_string(), &deps_set);
+                    }
+                } else {
+                    deps.update_or_insert(image.to_string(), &deps_set);
+                }
             } else {
                 return Err(anyhow!(
                     "expected array of dependencies, found `{:?}`",
@@ -100,24 +104,23 @@ impl TryFrom<YamlValue> for Dependencies {
 }
 
 impl Dependencies {
+    /// Returns a set of dependencies for the given `image`. This includes common images
+    /// from [COMMON_DEPS_KEY](COMMON_DEPS_KEY).
     pub fn resolve_names(&self, image: &str) -> HashSet<&str> {
         // it's ok to unwrap here, the new function adds an empty hashset on initialization
         let mut deps = HashSet::new();
         if let Some(common_deps) = self.inner.get(COMMON_DEPS_KEY) {
-            common_deps.iter().for_each(|dep| {
-                deps.insert(dep.as_str());
-            });
+            deps.extend(common_deps.iter().map(|s| s.as_str()));
         }
         if let Some(image_deps) = self.inner.get(image) {
-            image_deps.iter().for_each(|dep| {
-                deps.insert(dep.as_str());
-            });
+            deps.extend(image_deps.iter().map(|s| s.as_str()));
         }
 
         deps
     }
 
-    /// Returns `true` if the `image` depends on `dependency`.
+    /// Returns `true` if the `image` depends on the `dependency` or the dependency is in common
+    /// dependencies.
     pub fn depends_on(&self, image: &str, dependency: &str) -> bool {
         if let Some(common_deps) = self.inner.get(COMMON_DEPS_KEY) {
             if common_deps.contains(dependency) {
@@ -138,6 +141,23 @@ impl Dependencies {
     pub fn inner_mut(&mut self) -> &mut DepsMap {
         &mut self.inner
     }
+
+    /// Updates the dependencies of the given `image` by extending them or inserting the new ones
+    /// if the entry doesn't yet exist.
+    pub fn update_or_insert<I, V, D>(&mut self, image: I, deps: D)
+    where
+        I: Into<String>,
+        V: Into<String>,
+        D: IntoIterator<Item = V>,
+    {
+        let image = image.into();
+        if let Some(image_deps) = self.inner.get_mut(&image) {
+            image_deps.extend(deps.into_iter().map(|s| s.into()));
+        } else {
+            self.inner
+                .insert(image, deps.into_iter().map(|s| s.into()).collect());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -152,7 +172,6 @@ mod tests {
             $image:ident => $($dep:literal),+
         );+) => {
             let input: YamlValue = serde_yaml::from_str($inp).unwrap();
-            dbg!(&input);
             let input = input.as_mapping().unwrap().get(&serde_yaml::Value::String("build_depends".to_string())).unwrap().clone();
             let got = Dependencies::try_from(input).unwrap();
 
@@ -191,6 +210,23 @@ build_depends:
 "#,
         want =
             all      => "gcc", "pkg-config", "git"
+        );
+    }
+
+    #[test]
+    fn parses_joined_deps() {
+        test_deps!(
+        input = r#"
+build_depends:
+  centos8+fedora34: [ cargo,  openssl-devel ]
+  debian10+ubuntu20: [ libssl-dev ]
+  debian10: [ curl ]
+"#,
+        want =
+            centos8 => "cargo", "openssl-devel";
+            fedora34 => "cargo", "openssl-devel";
+            debian10 => "curl", "libssl-dev";
+            ubuntu20 => "libssl-dev"
         );
     }
 }

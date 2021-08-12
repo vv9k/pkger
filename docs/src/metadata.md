@@ -102,6 +102,14 @@ supported distribution. Default dependencies like `gzip` or `git` might be insta
     debian10: ["curl", "libssl-dev"]
 ```
 
+To specify same dependencies for multiple images join the images by `+` sign like this:
+```yaml
+    centos8+fedora34: [ cargo, openssl-devel ]
+    ubuntu20+debian10: [ libssl-dev ]
+    # you can later specify dependencies just for this images
+    debian10: [ curl ]
+```
+
 if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
 images:
 
