@@ -6,7 +6,7 @@ mod config;
 mod fmt;
 mod gen;
 mod job;
-mod opts; // generate
+mod opts;
 
 use app::Application;
 use config::Configuration;
@@ -95,10 +95,7 @@ async fn main() -> Result<()> {
         });
     let result = Configuration::load(&config_path);
     if let Err(e) = &result {
-        eprintln!(
-            "Failed to read configuration file from `{}` - {}",
-            config_path, e
-        );
+        eprintln!("`{}` - {:?}", config_path, e);
         process::exit(1);
     }
     let config = result.unwrap();
