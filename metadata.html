@@ -215,6 +215,12 @@ supported distribution. Default dependencies like <code>gzip</code> or <code>git
     centos8: [&quot;cargo&quot;, &quot;openssl-devel&quot;]
     debian10: [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
+<p>To specify same dependencies for multiple images join the images by <code>+</code> sign like this:</p>
+<pre><code class="language-yaml">    centos8+fedora34: [ cargo, openssl-devel ]
+    ubuntu20+debian10: [ libssl-dev ]
+    # you can later specify dependencies just for this images
+    debian10: [ curl ]
+</code></pre>
 <p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
 images:</p>
 <pre><code class="language-yaml">    pkger-rpm: [&quot;cargo&quot;]
