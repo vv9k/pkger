@@ -1,3 +1,69 @@
+#![allow(dead_code)]
+use colored::{Color, Colorize};
+
+pub mod style {
+    #[derive(Debug, Default)]
+    pub struct Style(u8);
+
+    impl From<u8> for Style {
+        fn from(style: u8) -> Self {
+            Self(style)
+        }
+    }
+
+    impl Style {
+        pub fn add_style(mut self, style: u8) -> Self {
+            self.0 |= style;
+            self
+        }
+
+        pub fn is_bold(&self) -> bool {
+            self.0 & BOLD != 0
+        }
+
+        pub fn is_italic(&self) -> bool {
+            self.0 & ITALIC != 0
+        }
+
+        pub fn is_underline(&self) -> bool {
+            self.0 & UNDERLINE != 0
+        }
+
+        pub fn is_reversed(&self) -> bool {
+            self.0 & REVERSED != 0
+        }
+    }
+
+    pub const BOLD: u8 = 0b0000_0001;
+    pub const UNDERLINE: u8 = 0b0000_0010;
+    pub const REVERSED: u8 = 0b0000_0100;
+    pub const ITALIC: u8 = 0b0000_1000;
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn adds_styles() {
+            let style = Style::default().add_style(BOLD).add_style(ITALIC);
+
+            assert!(style.is_bold());
+            assert!(style.is_italic());
+            assert!(!style.is_reversed());
+            assert!(!style.is_underline());
+
+            let style = Style::default().add_style(UNDERLINE).add_style(REVERSED);
+
+            assert!(!style.is_bold());
+            assert!(!style.is_italic());
+            assert!(style.is_reversed());
+            assert!(style.is_underline());
+        }
+    }
+}
+
+use style::Style;
+
 #[derive(Debug)]
 pub enum Alignment {
     Left,
@@ -9,13 +75,17 @@ pub enum Alignment {
 pub struct Cell {
     text: String,
     alignment: Alignment,
+    color: Color,
+    style: u8,
 }
 
 impl Cell {
-    pub fn new<T: Into<String>>(text: T, alignment: Alignment) -> Self {
+    pub fn new<T: Into<String>>(text: T) -> Self {
         Self {
             text: text.into(),
-            alignment,
+            alignment: Alignment::Center,
+            color: Color::BrightWhite,
+            style: 0,
         }
     }
 
@@ -32,17 +102,42 @@ impl Cell {
         self.alignment = Alignment::Right;
         self
     }
+
+    pub fn color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn add_modifier(mut self, modifier: u8) -> Self {
+        self.style |= modifier;
+        self
+    }
+
+    pub fn bold(self) -> Self {
+        self.add_modifier(style::BOLD)
+    }
+
+    pub fn italic(self) -> Self {
+        self.add_modifier(style::ITALIC)
+    }
+    pub fn underline(self) -> Self {
+        self.add_modifier(style::UNDERLINE)
+    }
+
+    pub fn reversed(self) -> Self {
+        self.add_modifier(style::REVERSED)
+    }
 }
 
 impl From<&str> for Cell {
     fn from(s: &str) -> Self {
-        Self::new(s, Alignment::Center)
+        Self::new(s)
     }
 }
 
 impl From<String> for Cell {
     fn from(s: String) -> Self {
-        Self::new(s, Alignment::Center)
+        Self::new(s)
     }
 }
 
@@ -64,7 +159,7 @@ impl IntoCell for String {
 
 #[derive(Debug)]
 enum Token<'text> {
-    Text(&'text str),
+    Text(&'text str, Color, Style),
     Padding(usize),
     Separator,
     NewLine,
@@ -111,10 +206,10 @@ impl Table {
         let mut tokens = vec![];
 
         macro_rules! add_text_with_padding {
-            ($text:ident, $alignment:expr, $padding:expr, $is_last_col:expr) => {
-                match $alignment {
+            ($text:ident, $cell:expr, $padding:expr, $is_last_col:expr) => {
+                match $cell.alignment {
                     Alignment::Left => {
-                        tokens.push(Token::Text($text));
+                        tokens.push(Token::Text($text, $cell.color, Style::from($cell.style)));
                         if !$is_last_col {
                             tokens.push(Token::Padding($padding));
                         }
@@ -122,7 +217,7 @@ impl Table {
                     Alignment::Center => {
                         let new_padding = (($padding as f64) / 2.).floor() as usize;
                         tokens.push(Token::Padding(new_padding));
-                        tokens.push(Token::Text($text));
+                        tokens.push(Token::Text($text, $cell.color, Style::from($cell.style)));
                         if !$is_last_col {
                             tokens.push(Token::Padding(new_padding));
                             if $padding % 2 != 0 {
@@ -132,7 +227,7 @@ impl Table {
                     }
                     Alignment::Right => {
                         tokens.push(Token::Padding($padding));
-                        tokens.push(Token::Text($text));
+                        tokens.push(Token::Text($text, $cell.color, Style::from($cell.style)));
                     }
                 }
             };
@@ -168,7 +263,7 @@ impl Table {
 
                 let padding = cols_max[i].saturating_sub(len);
 
-                add_text_with_padding!(text, &header.alignment, padding, i == headers_last);
+                add_text_with_padding!(text, &header, padding, i == headers_last);
 
                 if i != headers_last {
                     tokens.push(Token::Separator);
@@ -187,7 +282,7 @@ impl Table {
                     let text = cell.text();
                     let padding = col_size.saturating_sub(text.len());
 
-                    add_text_with_padding!(text, &cell.alignment, padding, i == cols_max_len - 1);
+                    add_text_with_padding!(text, &cell, padding, i == cols_max_len - 1);
 
                     if i != last_col {
                         tokens.push(Token::Separator);
@@ -219,13 +314,32 @@ impl Table {
         tokens.into_iter()
     }
 
-    pub fn render(&self) -> String {
+    pub fn render(&self, add_color: bool) -> String {
         let mut s = String::new();
         let mut tokens = self.tokenize();
 
         loop {
             match tokens.next() {
-                Some(Token::Text(text)) => s.push_str(text),
+                Some(Token::Text(text, color, style)) => {
+                    if add_color {
+                        let mut text = text.color(color);
+                        if style.is_bold() {
+                            text = text.bold();
+                        }
+                        if style.is_reversed() {
+                            text = text.reverse();
+                        }
+                        if style.is_italic() {
+                            text = text.italic();
+                        }
+                        if style.is_underline() {
+                            text = text.underline();
+                        }
+                        s.push_str(&text.color(color).to_string());
+                    } else {
+                        s.push_str(text);
+                    }
+                }
                 Some(Token::NewLine) => s.push('\n'),
                 Some(Token::Separator) => s.push(self.separator),
                 Some(Token::Padding(n)) => {
@@ -246,7 +360,7 @@ impl Table {
 
         loop {
             match tokens.next() {
-                Some(Token::Text(text)) => print!("{}", text),
+                Some(Token::Text(text, color, _)) => print!("{}", text.color(color)),
                 Some(Token::NewLine) => println!(),
                 Some(Token::Separator) => print!("{}", self.separator),
                 Some(Token::Padding(n)) => {
@@ -282,21 +396,21 @@ mod tests {
     fn renders_empty() {
         let table = Vec::<Vec<String>>::new().into_table();
 
-        assert_eq!("".to_string(), table.render());
+        assert_eq!("".to_string(), table.render(false));
 
         let table = vec![Vec::<String>::new(), vec![], vec![], vec![]].into_table();
 
-        assert_eq!("\n\n\n\n".to_string(), table.render());
+        assert_eq!("\n\n\n\n".to_string(), table.render(false));
 
         let table = vec![vec!["", ""], vec![], vec![], vec![]].into_table();
 
-        assert_eq!(" \n \n \n \n".to_string(), table.render());
+        assert_eq!(" \n \n \n \n".to_string(), table.render(false));
 
         let table = vec![vec!["", ""], vec![], vec![], vec![]]
             .into_table()
             .with_separator('|');
 
-        assert_eq!("|\n|\n|\n|\n".to_string(), table.render())
+        assert_eq!("|\n|\n|\n|\n".to_string(), table.render(false))
     }
 
     #[test]
@@ -312,7 +426,7 @@ mod tests {
 
         assert_eq!(
             "   first   |second|   third\n  simple   | test |testcaselong\nloooooonger| test |  shorter\nshorterrow |      |            \n".to_string(),
-            table.render()
+            table.render(false)
         )
     }
 
@@ -327,7 +441,7 @@ mod tests {
 
         assert_eq!(
             "simple test   with    no headers\n                                \n  or    a   separator           \n".to_string(),
-            table.render()
+            table.render(false)
         )
     }
 
@@ -351,7 +465,7 @@ mod tests {
 
         assert_eq!(
             "left      | center |     right\n          | center |          \n     right| center |left\n".to_string(),
-            table.render()
+            table.render(false)
         )
     }
 }
