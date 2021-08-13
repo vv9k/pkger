@@ -11,6 +11,7 @@ use pkger_core::recipe;
 use pkger_core::{ErrContext, Error, Result};
 
 use async_rwlock::RwLock;
+use colored::Color;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -245,24 +246,41 @@ impl Application {
             for name in self.recipes.list()? {
                 match self.recipes.load(&name) {
                     Ok(recipe) => table.push(vec![
-                        recipe.metadata.name.cell().left(),
-                        recipe.metadata.version.cell().left(),
-                        recipe.metadata.arch.rpm_name().cell().left(),
-                        recipe.metadata.license.cell().left(),
+                        recipe
+                            .metadata
+                            .name
+                            .cell()
+                            .left()
+                            .italic()
+                            .color(Color::Blue),
+                        recipe
+                            .metadata
+                            .arch
+                            .rpm_name()
+                            .cell()
+                            .left()
+                            .color(Color::White),
+                        recipe
+                            .metadata
+                            .version
+                            .cell()
+                            .left()
+                            .color(Color::BrightYellow),
+                        recipe.metadata.license.cell().left().color(Color::White),
                         recipe.metadata.description.cell().left(),
                     ]),
                     Err(e) => warn!(recipe = %name, reason = %format!("{:?}", e)),
                 }
             }
             let table = table.into_table().with_headers(vec![
-                "Name",
-                "Version",
-                "Arch",
-                "License",
-                "Description",
+                "Name".cell().bold(),
+                "Arch".cell().bold(),
+                "Version".cell().bold(),
+                "License".cell().bold(),
+                "Description".cell().bold(),
             ]);
-            let table = table.render();
-            println!("{}", table);
+
+            table.print();
         } else {
             for name in self.recipes.list()? {
                 println!("{}", name);
