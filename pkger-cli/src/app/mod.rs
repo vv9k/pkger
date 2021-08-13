@@ -3,7 +3,7 @@ mod build;
 use crate::config::Configuration;
 use crate::gen;
 use crate::opts::{Command, EditObject, ListObject, NewObject, Opts};
-use crate::table::IntoTable;
+use crate::table::{IntoCell, IntoTable};
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
@@ -245,11 +245,11 @@ impl Application {
             for name in self.recipes.list()? {
                 match self.recipes.load(&name) {
                     Ok(recipe) => table.push(vec![
-                        recipe.metadata.name,
-                        recipe.metadata.version,
-                        recipe.metadata.arch.rpm_name().to_string(),
-                        recipe.metadata.license,
-                        recipe.metadata.description,
+                        recipe.metadata.name.cell().left(),
+                        recipe.metadata.version.cell().left(),
+                        recipe.metadata.arch.rpm_name().cell().left(),
+                        recipe.metadata.license.cell().left(),
+                        recipe.metadata.description.cell().left(),
                     ]),
                     Err(e) => warn!(recipe = %name, reason = %format!("{:?}", e)),
                 }

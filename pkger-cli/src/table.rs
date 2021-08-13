@@ -111,24 +111,28 @@ impl Table {
         let mut tokens = vec![];
 
         macro_rules! add_text_with_padding {
-            ($text:ident, $alignment:expr, $padding:expr) => {
+            ($text:ident, $alignment:expr, $padding:expr, $is_last_col:expr) => {
                 match $alignment {
                     Alignment::Left => {
-                        tokens.push(Token::Padding($padding));
                         tokens.push(Token::Text($text));
+                        if !$is_last_col {
+                            tokens.push(Token::Padding($padding));
+                        }
                     }
                     Alignment::Center => {
                         let new_padding = (($padding as f64) / 2.).floor() as usize;
                         tokens.push(Token::Padding(new_padding));
                         tokens.push(Token::Text($text));
-                        tokens.push(Token::Padding(new_padding));
-                        if $padding % 2 != 0 {
-                            tokens.push(Token::Padding(1));
+                        if !$is_last_col {
+                            tokens.push(Token::Padding(new_padding));
+                            if $padding % 2 != 0 {
+                                tokens.push(Token::Padding(1));
+                            }
                         }
                     }
                     Alignment::Right => {
-                        tokens.push(Token::Text($text));
                         tokens.push(Token::Padding($padding));
+                        tokens.push(Token::Text($text));
                     }
                 }
             };
@@ -164,7 +168,7 @@ impl Table {
 
                 let padding = cols_max[i].saturating_sub(len);
 
-                add_text_with_padding!(text, &header.alignment, padding);
+                add_text_with_padding!(text, &header.alignment, padding, i == headers_last);
 
                 if i != headers_last {
                     tokens.push(Token::Separator);
@@ -183,7 +187,7 @@ impl Table {
                     let text = cell.text();
                     let padding = col_size.saturating_sub(text.len());
 
-                    add_text_with_padding!(text, &cell.alignment, padding);
+                    add_text_with_padding!(text, &cell.alignment, padding, i == cols_max_len - 1);
 
                     if i != last_col {
                         tokens.push(Token::Separator);
@@ -307,7 +311,7 @@ mod tests {
         .with_separator('|');
 
         assert_eq!(
-            "   first   |second|   third    \n  simple   | test |testcaselong\nloooooonger| test |  shorter   \nshorterrow |      |            \n".to_string(),
+            "   first   |second|   third\n  simple   | test |testcaselong\nloooooonger| test |  shorter\nshorterrow |      |            \n".to_string(),
             table.render()
         )
     }
@@ -346,7 +350,7 @@ mod tests {
         .with_separator('|');
 
         assert_eq!(
-            "      left| center |right     \n          | center |          \nright     | center |      left\n".to_string(),
+            "left      | center |     right\n          | center |          \n     right| center |left\n".to_string(),
             table.render()
         )
     }
