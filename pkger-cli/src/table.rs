@@ -1,27 +1,64 @@
-#[derive(Debug, Default)]
+#[derive(Debug)]
+pub enum Alignment {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug)]
 pub struct Cell {
     text: String,
+    alignment: Alignment,
 }
 
 impl Cell {
-    pub fn new<T: Into<String>>(text: T) -> Self {
-        Self { text: text.into() }
+    pub fn new<T: Into<String>>(text: T, alignment: Alignment) -> Self {
+        Self {
+            text: text.into(),
+            alignment,
+        }
     }
 
     pub fn text(&self) -> &str {
         &self.text
     }
+
+    pub fn left(mut self) -> Self {
+        self.alignment = Alignment::Left;
+        self
+    }
+
+    pub fn right(mut self) -> Self {
+        self.alignment = Alignment::Right;
+        self
+    }
 }
 
 impl From<&str> for Cell {
     fn from(s: &str) -> Self {
-        Self::new(s)
+        Self::new(s, Alignment::Center)
     }
 }
 
 impl From<String> for Cell {
     fn from(s: String) -> Self {
-        Self::new(s)
+        Self::new(s, Alignment::Center)
+    }
+}
+
+pub trait IntoCell {
+    fn cell(self) -> Cell;
+}
+
+impl IntoCell for &str {
+    fn cell(self) -> Cell {
+        Cell::from(self)
+    }
+}
+
+impl IntoCell for String {
+    fn cell(self) -> Cell {
+        Cell::from(self)
     }
 }
 
@@ -72,6 +109,31 @@ impl Table {
 
     fn tokenize(&self) -> impl Iterator<Item = Token> {
         let mut tokens = vec![];
+
+        macro_rules! add_text_with_padding {
+            ($text:ident, $alignment:expr, $padding:expr) => {
+                match $alignment {
+                    Alignment::Left => {
+                        tokens.push(Token::Padding($padding));
+                        tokens.push(Token::Text($text));
+                    }
+                    Alignment::Center => {
+                        let new_padding = (($padding as f64) / 2.).floor() as usize;
+                        tokens.push(Token::Padding(new_padding));
+                        tokens.push(Token::Text($text));
+                        tokens.push(Token::Padding(new_padding));
+                        if $padding % 2 != 0 {
+                            tokens.push(Token::Padding(1));
+                        }
+                    }
+                    Alignment::Right => {
+                        tokens.push(Token::Text($text));
+                        tokens.push(Token::Padding($padding));
+                    }
+                }
+            };
+        }
+
         let n_cols = {
             let mut n_cols = 0;
             for row in &self.rows {
@@ -94,13 +156,15 @@ impl Table {
             for (i, header) in self.headers.iter().enumerate() {
                 let text = header.text();
                 let len = text.len();
-                tokens.push(Token::Text(text));
                 if i > cols_max.len() {
                     cols_max.push(len);
                 } else {
                     cols_max[i] = usize::max(cols_max[i], len)
                 }
-                tokens.push(Token::Padding(cols_max[i] - len));
+
+                let padding = cols_max[i].saturating_sub(len);
+
+                add_text_with_padding!(text, &header.alignment, padding);
 
                 if i != headers_last {
                     tokens.push(Token::Separator);
@@ -117,11 +181,9 @@ impl Table {
                 let last_col = row.len() - 1;
                 for (i, (cell, col_size)) in row.iter().zip(cols_max.iter()).enumerate() {
                     let text = cell.text();
-                    tokens.push(Token::Text(text));
                     let padding = col_size.saturating_sub(text.len());
-                    if padding > 0 {
-                        tokens.push(Token::Padding(padding));
-                    }
+
+                    add_text_with_padding!(text, &cell.alignment, padding);
 
                     if i != last_col {
                         tokens.push(Token::Separator);
@@ -210,7 +272,7 @@ impl<T: Into<Cell>> IntoTable for Vec<Vec<T>> {
 
 #[cfg(test)]
 mod tests {
-    use super::IntoTable;
+    use super::{IntoCell, IntoTable};
 
     #[test]
     fn renders_empty() {
@@ -245,7 +307,7 @@ mod tests {
         .with_separator('|');
 
         assert_eq!(
-            "first      |second|third       \nsimple     |test  |testcaselong\nloooooonger|test  |shorter     \nshorterrow |      |            \n".to_string(),
+            "   first   |second|   third    \n  simple   | test |testcaselong\nloooooonger| test |  shorter   \nshorterrow |      |            \n".to_string(),
             table.render()
         )
     }
@@ -260,7 +322,31 @@ mod tests {
         .into_table();
 
         assert_eq!(
-            "simple test with      no headers\n                                \nor     a    separator           \n".to_string(),
+            "simple test   with    no headers\n                                \n  or    a   separator           \n".to_string(),
+            table.render()
+        )
+    }
+
+    #[test]
+    fn alignment() {
+        let table = vec![
+            vec![
+                "left".cell().left(),
+                "center".cell(),
+                "right".cell().right(),
+            ],
+            vec!["          ".cell(), " center ".cell(), "          ".cell()],
+            vec![
+                "right".cell().right(),
+                "center".cell(),
+                "left".cell().left(),
+            ],
+        ]
+        .into_table()
+        .with_separator('|');
+
+        assert_eq!(
+            "      left| center |right     \n          | center |          \nright     | center |      left\n".to_string(),
             table.render()
         )
     }
