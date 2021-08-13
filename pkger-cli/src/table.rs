@@ -161,7 +161,8 @@ impl IntoCell for String {
 enum Token<'text> {
     Text(&'text str, Color, Style),
     Padding(usize),
-    Separator,
+    ColumnSeparator,
+    RowSeparator(usize),
     NewLine,
 }
 
@@ -169,7 +170,8 @@ enum Token<'text> {
 pub struct Table {
     rows: Vec<Vec<Cell>>,
     headers: Vec<Cell>,
-    separator: char,
+    col_separator: char,
+    row_separator: Option<char>,
 }
 
 impl Default for Table {
@@ -177,15 +179,20 @@ impl Default for Table {
         Self {
             rows: vec![],
             headers: vec![],
-            separator: ' ',
+            col_separator: ' ',
+            row_separator: None,
         }
     }
 }
 
 impl Table {
-    #[allow(dead_code)]
-    pub fn with_separator(mut self, separator: char) -> Self {
-        self.separator = separator;
+    pub fn with_column_separator(mut self, separator: char) -> Self {
+        self.col_separator = separator;
+        self
+    }
+
+    pub fn with_row_separator(mut self, separator: char) -> Self {
+        self.row_separator = Some(separator);
         self
     }
 
@@ -266,10 +273,16 @@ impl Table {
                 add_text_with_padding!(text, &header, padding, i == headers_last);
 
                 if i != headers_last {
-                    tokens.push(Token::Separator);
+                    tokens.push(Token::ColumnSeparator);
                 }
             }
 
+            tokens.push(Token::NewLine);
+        }
+
+        let total_width = cols_max.iter().fold(0usize, |acc, col| acc + col + 1);
+        if self.row_separator.is_some() {
+            tokens.push(Token::RowSeparator(total_width));
             tokens.push(Token::NewLine);
         }
 
@@ -285,17 +298,17 @@ impl Table {
                     add_text_with_padding!(text, &cell, padding, i == cols_max_len - 1);
 
                     if i != last_col {
-                        tokens.push(Token::Separator);
+                        tokens.push(Token::ColumnSeparator);
                     }
                 }
                 if last_col + 1 < cols_max_len {
-                    tokens.push(Token::Separator);
+                    tokens.push(Token::ColumnSeparator);
 
                     for (i, &col_size) in cols_max[last_col + 1..cols_max_len].iter().enumerate() {
                         tokens.push(Token::Padding(col_size));
 
                         if i + last_col + 1 != cols_max_len - 1 {
-                            tokens.push(Token::Separator);
+                            tokens.push(Token::ColumnSeparator);
                         }
                     }
                 }
@@ -304,11 +317,15 @@ impl Table {
                     tokens.push(Token::Padding(col_size));
 
                     if i != cols_max_len - 1 {
-                        tokens.push(Token::Separator);
+                        tokens.push(Token::ColumnSeparator);
                     }
                 }
             }
             tokens.push(Token::NewLine);
+            if self.row_separator.is_some() {
+                tokens.push(Token::RowSeparator(total_width));
+                tokens.push(Token::NewLine);
+            }
         }
 
         tokens.into_iter()
@@ -341,7 +358,12 @@ impl Table {
                     }
                 }
                 Some(Token::NewLine) => s.push('\n'),
-                Some(Token::Separator) => s.push(self.separator),
+                Some(Token::ColumnSeparator) => s.push(self.col_separator),
+                Some(Token::RowSeparator(n)) => {
+                    for _ in 0..n {
+                        s.push(self.row_separator.unwrap_or_default());
+                    }
+                }
                 Some(Token::Padding(n)) => {
                     for _ in 0..n {
                         s.push(' ');
@@ -360,9 +382,30 @@ impl Table {
 
         loop {
             match tokens.next() {
-                Some(Token::Text(text, color, _)) => print!("{}", text.color(color)),
+                Some(Token::Text(text, color, style)) => {
+                    let mut text = text.color(color);
+                    if style.is_bold() {
+                        text = text.bold();
+                    }
+                    if style.is_reversed() {
+                        text = text.reverse();
+                    }
+                    if style.is_italic() {
+                        text = text.italic();
+                    }
+                    if style.is_underline() {
+                        text = text.underline();
+                    }
+                    print!("{}", text)
+                }
                 Some(Token::NewLine) => println!(),
-                Some(Token::Separator) => print!("{}", self.separator),
+                Some(Token::ColumnSeparator) => print!("{}", self.col_separator),
+                Some(Token::RowSeparator(n)) => {
+                    let separator = self.row_separator.unwrap_or_default();
+                    for _ in 0..n {
+                        print!("{}", separator);
+                    }
+                }
                 Some(Token::Padding(n)) => {
                     for _ in 0..n {
                         print!(" ");
@@ -408,7 +451,7 @@ mod tests {
 
         let table = vec![vec!["", ""], vec![], vec![], vec![]]
             .into_table()
-            .with_separator('|');
+            .with_column_separator('|');
 
         assert_eq!("|\n|\n|\n|\n".to_string(), table.render(false))
     }
@@ -422,11 +465,17 @@ mod tests {
         ]
         .into_table()
         .with_headers(vec!["first", "second", "third"])
-        .with_separator('|');
+        .with_column_separator('|');
 
         assert_eq!(
-            "   first   |second|   third\n  simple   | test |testcaselong\nloooooonger| test |  shorter\nshorterrow |      |            \n".to_string(),
-            table.render(false)
+            r#"
+   first   |second|   third
+  simple   | test |testcaselong
+loooooonger| test |  shorter
+shorterrow |      |            
+"#
+            .to_string(),
+            format!("\n{}", table.render(false)),
         )
     }
 
@@ -440,8 +489,13 @@ mod tests {
         .into_table();
 
         assert_eq!(
-            "simple test   with    no headers\n                                \n  or    a   separator           \n".to_string(),
-            table.render(false)
+            r#"
+simple test   with    no headers
+                                
+  or    a   separator           
+"#
+            .to_string(),
+            format!("\n{}", table.render(false)),
         )
     }
 
@@ -461,11 +515,44 @@ mod tests {
             ],
         ]
         .into_table()
-        .with_separator('|');
+        .with_column_separator('|');
 
         assert_eq!(
-            "left      | center |     right\n          | center |          \n     right| center |left\n".to_string(),
-            table.render(false)
+            r#"
+left      | center |     right
+          | center |          
+     right| center |left
+"#,
+            format!("\n{}", table.render(false)),
+        )
+    }
+
+    #[test]
+    fn renders_separators() {
+        let table = vec![
+            vec!["first", "row"],
+            vec!["second"],
+            vec![],
+            vec!["fourth", "row"],
+        ]
+        .into_table()
+        .with_row_separator('~')
+        .with_column_separator('|');
+
+        assert_eq!(
+            r#"
+~~~~~~~~~~~
+first |row
+~~~~~~~~~~~
+second|   
+~~~~~~~~~~~
+      |   
+~~~~~~~~~~~
+fourth|row
+~~~~~~~~~~~
+"#
+            .to_string(),
+            format!("\n{}", table.render(false)),
         )
     }
 }
