@@ -7,7 +7,7 @@ use crate::table::IntoTable;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
-use pkger_core::recipe::{self, BuildTarget, ImageTarget, Recipe};
+use pkger_core::recipe;
 use pkger_core::{ErrContext, Error, Result};
 
 use async_rwlock::RwLock;
@@ -64,20 +64,6 @@ fn load_gpg_key(config: &Configuration) -> Result<Option<GpgKey>> {
     } else {
         Ok(None)
     }
-}
-
-// ################################################################################
-
-#[derive(Debug, PartialEq)]
-pub enum BuildTask {
-    Simple {
-        recipe: Arc<Recipe>,
-        target: BuildTarget,
-    },
-    Custom {
-        recipe: Arc<Recipe>,
-        target: ImageTarget,
-    },
 }
 
 // ################################################################################

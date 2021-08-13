@@ -1,10 +1,10 @@
-use crate::app::{Application, BuildTask};
+use crate::app::Application;
 use crate::job::{JobCtx, JobResult};
 use crate::opts::BuildOpts;
 use pkger_core::build::Context;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::image::Image;
-use pkger_core::recipe::{BuildTarget, ImageTarget};
+use pkger_core::recipe::{BuildTarget, ImageTarget, Recipe};
 use pkger_core::{err, ErrContext, Error, Result};
 
 use futures::stream::FuturesUnordered;
@@ -13,6 +13,18 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::task;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
+
+#[derive(Debug, PartialEq)]
+pub enum BuildTask {
+    Simple {
+        recipe: Arc<Recipe>,
+        target: BuildTarget,
+    },
+    Custom {
+        recipe: Arc<Recipe>,
+        target: ImageTarget,
+    },
+}
 
 impl Application {
     pub fn process_build_opts(&mut self, opts: BuildOpts) -> Result<Vec<BuildTask>> {
