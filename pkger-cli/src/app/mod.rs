@@ -344,16 +344,22 @@ impl Application {
     }
 
     fn list_images(&self) -> Result<()> {
-        fs::read_dir(&self.config.output_dir)?.for_each(|e| match e {
-            Ok(e) => {
-                println!("{}", e.file_name().to_string_lossy());
-            }
-            Err(e) => {
-                warn!(reason = %format!("{:?}", e), "invalid entry");
-            }
-        });
+        if let Some(dir) = &self.config.images_dir {
+            fs::read_dir(&dir)
+                .context("failed to read images directory")?
+                .for_each(|e| match e {
+                    Ok(e) => {
+                        println!("{}", e.file_name().to_string_lossy());
+                    }
+                    Err(e) => {
+                        warn!(reason = %format!("{:?}", e), "invalid entry");
+                    }
+                });
 
-        Ok(())
+            Ok(())
+        } else {
+            return err!("images directory not defined in configuration");
+        }
     }
 
     async fn save_images_state(&self) {
