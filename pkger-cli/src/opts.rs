@@ -107,7 +107,11 @@ pub enum EditObject {
 
 #[derive(Debug, Subcommand)]
 pub enum ListObject {
-    Images,
+    Images {
+        #[clap(short, long)]
+        /// Should the output be more verbose and include additional fields.
+        verbose: bool,
+    },
     Recipes {
         #[clap(short, long)]
         /// Should the output be more verbose and include fields like version, arch...

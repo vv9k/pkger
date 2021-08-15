@@ -1,6 +1,7 @@
 pub mod os;
 pub mod state;
 
+use anyhow::Context;
 pub use os::find;
 pub use state::{ImageState, ImagesState};
 
@@ -66,5 +67,10 @@ impl Image {
             name: path.file_name().unwrap().to_string_lossy().to_string(),
             path,
         })
+    }
+
+    pub fn load_dockerfile(&self) -> Result<String> {
+        fs::read_to_string(self.path.join("Dockerfile"))
+            .context("failed to read a Dockerfile of image")
     }
 }

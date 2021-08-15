@@ -3,9 +3,10 @@ mod build;
 use crate::config::Configuration;
 use crate::gen;
 use crate::opts::{Command, EditObject, ListObject, NewObject, Opts};
-use crate::table::{IntoCell, IntoTable};
+use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
+use pkger_core::image::Image;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
 use pkger_core::recipe;
 use pkger_core::{ErrContext, Error, Result};
@@ -136,7 +137,7 @@ impl Application {
                 Ok(())
             }
             Command::List { object } => match object {
-                ListObject::Images => self.list_images(),
+                ListObject::Images { verbose } => self.list_images(verbose),
                 ListObject::Recipes { verbose } => self.list_recipes(verbose),
                 ListObject::Packages { images } => self.list_packages(images),
             },
@@ -343,18 +344,64 @@ impl Application {
         Ok(())
     }
 
-    fn list_images(&self) -> Result<()> {
+    fn list_images(&self, verbose: bool) -> Result<()> {
+        fn process_image(image: Image, verbose: bool) -> Result<Vec<Cell>> {
+            if verbose {
+                let dockerfile = image.load_dockerfile()?;
+                if let Some((docker_image, tag)) = dockerfile.lines().next().and_then(|line| {
+                    line.to_lowercase().split("from ").skip(1).next().map(|s| {
+                        let mut elems = s.trim().split(':');
+                        (
+                            elems.next().unwrap().to_string(),
+                            elems.next().map(|s| s.to_string()),
+                        )
+                    })
+                }) {
+                    return Ok(vec![
+                        image.name.cell().left().color(Color::Blue),
+                        docker_image.cell().left().color(Color::White),
+                        tag.unwrap_or_else(|| "latest".into())
+                            .cell()
+                            .left()
+                            .color(Color::BrightYellow),
+                    ]);
+                };
+            }
+            Ok(vec![image.name.cell().left()])
+        }
+
+        let mut images = vec![];
+
         if let Some(dir) = &self.config.images_dir {
             fs::read_dir(&dir)
                 .context("failed to read images directory")?
-                .for_each(|e| match e {
-                    Ok(e) => {
-                        println!("{}", e.file_name().to_string_lossy());
-                    }
-                    Err(e) => {
-                        warn!(reason = %format!("{:?}", e), "invalid entry");
+                .for_each(|e| {
+                    match e
+                        .context("failed to read entry")
+                        .and_then(|e| Image::try_from_path(e.path()))
+                        .and_then(|image| process_image(image, verbose))
+                    {
+                        Ok(out) => {
+                            images.push(out);
+                        }
+                        Err(e) => {
+                            warn!(reason = %format!("{:?}", e), "invalid entry");
+                        }
                     }
                 });
+
+            let headers = if verbose {
+                vec![
+                    "Name".cell().bold(),
+                    "Image".cell().bold(),
+                    "Tag".cell().bold(),
+                ]
+            } else {
+                vec!["Name".cell().bold()]
+            };
+
+            let table = images.into_table().with_headers(headers);
+            table.print();
 
             Ok(())
         } else {
