@@ -352,7 +352,7 @@ impl Application {
             if verbose {
                 let dockerfile = image.load_dockerfile()?;
                 if let Some((docker_image, tag)) = dockerfile.lines().next().and_then(|line| {
-                    line.to_lowercase().split("from ").skip(1).next().map(|s| {
+                    line.to_lowercase().split("from ").nth(1).map(|s| {
                         let mut elems = s.trim().split(':');
                         (
                             elems.next().unwrap().to_string(),
