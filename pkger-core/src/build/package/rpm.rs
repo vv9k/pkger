@@ -7,24 +7,27 @@ use crate::{ErrContext, Result};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
+pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
+    format!(
+        "{}-{}.{}{}",
+        &ctx.build.recipe.metadata.name,
+        &ctx.build.recipe.metadata.release(),
+        ctx.build.recipe.metadata.arch.rpm_name(),
+        if extension { ".rpm" } else { "" },
+    )
+}
+
 /// Creates a final RPM package and saves it to `output_dir`
 pub(crate) async fn build(
     ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {
-    let name = [
-        &ctx.build.recipe.metadata.name,
-        "-",
-        &ctx.build.recipe.metadata.version,
-    ]
-    .join("");
-    let release = ctx.build.recipe.metadata.release();
     let arch = ctx.build.recipe.metadata.arch.rpm_name();
-    let buildroot_name = [&name, "-", release, ".", arch].join("");
-    let source_tar = [&name, ".tar.gz"].join("");
+    let package_name = package_name(ctx, false);
+    let source_tar = [&package_name, ".tar.gz"].join("");
 
-    let span = info_span!("RPM", package = %buildroot_name);
+    let span = info_span!("RPM", package = %package_name);
     let cloned_span = span.clone();
     async move {
         info!("building RPM package");
@@ -36,8 +39,8 @@ pub(crate) async fn build(
         let rpms_arch = rpms.join(&arch);
         let srpms = base_path.join("SRPMS");
         let arch_dir = rpms.join(&arch);
-        let rpm_name = format!("{}.rpm", buildroot_name);
-        let tmp_buildroot = PathBuf::from(["/tmp/", &buildroot_name].join(""));
+        let rpm_name = format!("{}.rpm", package_name);
+        let tmp_buildroot = PathBuf::from(["/tmp/", &package_name].join(""));
         let source_tar_path = sources.join(&source_tar);
 
         let dirs = [
@@ -134,7 +137,7 @@ pub(crate) async fn build(
         ctx.container
             .download_files(&arch_dir, output_dir)
             .await
-            .map(|_| output_dir.join(format!("{}.rpm", buildroot_name)))
+            .map(|_| output_dir.join(format!("{}.rpm", package_name)))
             .context("failed to download finished package")
     }
     .instrument(span)

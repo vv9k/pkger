@@ -6,23 +6,24 @@ use crate::{ErrContext, Result};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
+pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
+    format!(
+        "{}-{}-{}-{}{}",
+        &ctx.build.recipe.metadata.name,
+        &ctx.build.recipe.metadata.version,
+        &ctx.build.recipe.metadata.release(),
+        ctx.build.recipe.metadata.arch.pkg_name(),
+        if extension { ".pkg" } else { "" },
+    )
+}
+
 /// Creates a final PKG package and saves it to `output_dir`
 pub(crate) async fn build(
     ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {
-    let name = format!(
-        "{}-{}",
-        &ctx.build.recipe.metadata.name, &ctx.build.recipe.metadata.version,
-    );
-    let arch = ctx.build.recipe.metadata.arch.pkg_name();
-    let package_name = format!(
-        "{}-{}-{}",
-        &name,
-        &ctx.build.recipe.metadata.release(),
-        &arch
-    );
+    let package_name = package_name(ctx, false);
 
     let span = info_span!("PKG", package = %package_name);
     async move {
@@ -32,7 +33,7 @@ pub(crate) async fn build(
         let src_dir = tmp_dir.join("src");
         let bld_dir = tmp_dir.join("bld");
 
-        let source_tar_name = [&name, ".tar.gz"].join("");
+        let source_tar_name = [&package_name, ".tar.gz"].join("");
         let source_tar_path = bld_dir.join(source_tar_name);
 
         let dirs = [tmp_dir.as_path(), bld_dir.as_path(), src_dir.as_path()];

@@ -7,20 +7,23 @@ use crate::{ErrContext, Result};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, info_span, trace, Instrument};
 
+pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
+    format!(
+        "{}-{}.{}{}",
+        &ctx.build.recipe.metadata.name,
+        &ctx.build.recipe.metadata.version,
+        ctx.build.recipe.metadata.arch.deb_name(),
+        if extension { ".deb" } else { "" },
+    )
+}
+
 /// Creates a final DEB packages and saves it to `output_dir`
 pub async fn build(
     ctx: &Context<'_>,
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {
-    let name = [
-        &ctx.build.recipe.metadata.name,
-        "-",
-        &ctx.build.recipe.metadata.version,
-    ]
-    .join("");
-    let arch = ctx.build.recipe.metadata.arch.deb_name();
-    let package_name = [&name, ".", arch].join("");
+    let package_name = package_name(ctx, false);
 
     let span = info_span!("DEB", package = %package_name);
     let _span = span.clone();
