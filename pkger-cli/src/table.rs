@@ -352,7 +352,7 @@ impl Table {
                         if style.is_underline() {
                             text = text.underline();
                         }
-                        s.push_str(&text.color(color).to_string());
+                        s.push_str(text.color(color).as_ref());
                     } else {
                         s.push_str(text);
                     }
