@@ -2,7 +2,7 @@
 use colored::{Color, Colorize};
 
 pub mod style {
-    #[derive(Debug, Default)]
+    #[derive(Copy, Clone, Debug, Default)]
     pub struct Style(u8);
 
     impl From<u8> for Style {
@@ -76,7 +76,7 @@ pub struct Cell {
     text: String,
     alignment: Alignment,
     color: Color,
-    style: u8,
+    style: Style,
 }
 
 impl Cell {
@@ -85,7 +85,7 @@ impl Cell {
             text: text.into(),
             alignment: Alignment::Center,
             color: Color::BrightWhite,
-            style: 0,
+            style: Style::default(),
         }
     }
 
@@ -108,24 +108,24 @@ impl Cell {
         self
     }
 
-    pub fn add_modifier(mut self, modifier: u8) -> Self {
-        self.style |= modifier;
+    pub fn add_style(self, style: u8) -> Self {
+        self.style.add_style(style);
         self
     }
 
     pub fn bold(self) -> Self {
-        self.add_modifier(style::BOLD)
+        self.add_style(style::BOLD)
     }
 
     pub fn italic(self) -> Self {
-        self.add_modifier(style::ITALIC)
+        self.add_style(style::ITALIC)
     }
     pub fn underline(self) -> Self {
-        self.add_modifier(style::UNDERLINE)
+        self.add_style(style::UNDERLINE)
     }
 
     pub fn reversed(self) -> Self {
-        self.add_modifier(style::REVERSED)
+        self.add_style(style::REVERSED)
     }
 }
 
@@ -216,7 +216,7 @@ impl Table {
             ($text:ident, $cell:expr, $padding:expr, $is_last_col:expr) => {
                 match $cell.alignment {
                     Alignment::Left => {
-                        tokens.push(Token::Text($text, $cell.color, Style::from($cell.style)));
+                        tokens.push(Token::Text($text, $cell.color, $cell.style));
                         if !$is_last_col {
                             tokens.push(Token::Padding($padding));
                         }
@@ -224,7 +224,7 @@ impl Table {
                     Alignment::Center => {
                         let new_padding = (($padding as f64) / 2.).floor() as usize;
                         tokens.push(Token::Padding(new_padding));
-                        tokens.push(Token::Text($text, $cell.color, Style::from($cell.style)));
+                        tokens.push(Token::Text($text, $cell.color, $cell.style));
                         if !$is_last_col {
                             tokens.push(Token::Padding(new_padding));
                             if $padding % 2 != 0 {
