@@ -136,11 +136,14 @@ impl Application {
                 self.process_tasks(tasks, opts.quiet).await?;
                 Ok(())
             }
-            Command::List { object } => match object {
-                ListObject::Images { verbose } => self.list_images(verbose),
-                ListObject::Recipes { verbose } => self.list_recipes(verbose),
-                ListObject::Packages { images } => self.list_packages(images),
-            },
+            Command::List { object, raw } => {
+                colored::control::set_override(!raw);
+                match object {
+                    ListObject::Images { verbose } => self.list_images(verbose),
+                    ListObject::Recipes { verbose } => self.list_recipes(verbose),
+                    ListObject::Packages { images } => self.list_packages(images),
+                }
+            }
             Command::CleanCache => self.clean_cache().await,
             Command::Init { .. } => unreachable!(),
             Command::Edit { object } => self.edit(object),

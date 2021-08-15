@@ -47,6 +47,9 @@ pub enum Command {
         #[clap(subcommand)]
         /// An object to list like `image`, `recipe` or `package`.
         object: ListObject,
+        #[clap(short, long)]
+        /// Disable colored output.
+        raw: bool,
     },
     /// Deletes the cache files with image state.
     CleanCache,
