@@ -295,6 +295,7 @@ impl Application {
     }
 
     fn list_packages(&self, images_filter: Option<Vec<String>>) -> Result<()> {
+        let mut table = vec![];
         let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
             Ok(e) => Some(e.path()),
             Err(e) => {
@@ -324,13 +325,20 @@ impl Application {
                 .file_name()
                 .unwrap_or_else(|| image.as_os_str())
                 .to_string_lossy();
-            println!("{}:", image_name);
+            table.push(vec![format!("{}:", image_name)
+                .cell()
+                .color(Color::Blue)
+                .right()]);
+
             match fs::read_dir(&image) {
                 Ok(packages) => {
                     for package in packages {
                         match package {
                             Ok(package) => {
-                                println!("\t{}", package.file_name().to_string_lossy());
+                                table.push(vec![
+                                    "".cell(),
+                                    package.file_name().to_string_lossy().as_ref().cell().left(),
+                                ]);
                             }
                             Err(e) => {
                                 error!(reason = %format!("{:?}", e), image = %image_name, "failed to list a package");
@@ -343,6 +351,8 @@ impl Application {
                 }
             }
         }
+
+        table.into_table().print();
 
         Ok(())
     }
