@@ -9,8 +9,9 @@ use tracing::{debug, info, info_span, trace, Instrument};
 
 pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
-        "{}-{}.{}{}",
+        "{}-{}-{}.{}{}",
         &ctx.build.recipe.metadata.name,
+        &ctx.build.recipe.metadata.version,
         &ctx.build.recipe.metadata.release(),
         ctx.build.recipe.metadata.arch.rpm_name(),
         if extension { ".rpm" } else { "" },
@@ -23,7 +24,8 @@ pub(crate) async fn build(
     image_state: &ImageState,
     output_dir: &Path,
 ) -> Result<PathBuf> {
-    let arch = ctx.build.recipe.metadata.arch.rpm_name();
+    let recipe = &ctx.build.recipe;
+    let arch = recipe.metadata.arch.rpm_name();
     let package_name = package_name(ctx, false);
     let source_tar = [&package_name, ".tar.gz"].join("");
 
@@ -100,13 +102,12 @@ pub(crate) async fn build(
         trace!(source_files = ?files);
 
         let spec = cloned_span.in_scope(|| {
-            ctx.build
-                .recipe
+            recipe
                 .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
                 .render()
         });
 
-        let spec_file = [&ctx.build.recipe.metadata.name, ".spec"].join("");
+        let spec_file = [&recipe.metadata.name, ".spec"].join("");
         debug!(spec_file = %spec_file, spec = %spec);
 
         ctx.container
@@ -123,14 +124,34 @@ pub(crate) async fn build(
             ctx,
             &ExecOpts::default()
                 .cmd(&format!(
-                    "setarch {0} rpmbuild -bb --target {0} {1}",
-                    ctx.build.recipe.metadata.arch.rpm_name(),
+                    "setarch {0} rpmbuild -ba --target {0} {1}",
+                    recipe.metadata.arch.rpm_name(),
                     specs.join(spec_file).display()
                 ))
                 .build(),
         )
         .await
         .context("failed to build rpm package")?;
+
+        checked_exec(
+            ctx,
+            &ExecOpts::default()
+                .cmd(&format!(
+                    "cp {} {}",
+                    srpms
+                        .join(format!(
+                            "{}-{}-{}.src.rpm",
+                            &recipe.metadata.name,
+                            &recipe.metadata.version,
+                            recipe.metadata.release()
+                        ))
+                        .display(),
+                    arch_dir.display()
+                ))
+                .build(),
+        )
+        .await
+        .context("failed to copy source rpm to final directory")?;
 
         sign_package(ctx, &arch_dir.join(rpm_name)).await?;
 

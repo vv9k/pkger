@@ -8,6 +8,7 @@
   like this: `image1+image2+image3: [ package1, package2 ]`
 - Add `--raw` flag to `list` subcommand to disable colored output.
 - Add `--verbose` flag to `list` subcommand to display additional fields.
+- When building a `rpm` package a `src.rpm` will be downloaded as well.
 
 
 # 0.5.0
