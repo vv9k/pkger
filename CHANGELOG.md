@@ -6,9 +6,9 @@
   and images as well as the files inside.
 - Add ability to specify the same set of dependencies for multiple images at once by joining the names with the `+` sign
   like this: `image1+image2+image3: [ package1, package2 ]`
-- Add `--verbose` flag to `list recipes` to display additional fields like version, arch, license and description.
-- Add `--verbose` flag to `list images`.
 - Add `--raw` flag to `list` subcommand to disable colored output.
+- Add `--verbose` flag to `list` subcommand to display additional fields.
+
 
 # 0.5.0
 - If at least one task fails to build **pkger** will now return with exit code 1 [#66](https://github.com/vv9k/pkger/pull/66)

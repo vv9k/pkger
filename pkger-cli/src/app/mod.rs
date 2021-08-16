@@ -12,7 +12,9 @@ use pkger_core::recipe;
 use pkger_core::{ErrContext, Error, Result};
 
 use async_rwlock::RwLock;
+use chrono::{offset::TimeZone, SecondsFormat, Utc};
 use colored::Color;
+use pkger_core::build::package::PackageMetadata;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,6 +22,7 @@ use std::process;
 use std::process::ExitStatus;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time;
 use tempdir::TempDir;
 use tracing::{error, info, info_span, trace, warn};
 
@@ -66,6 +69,22 @@ fn load_gpg_key(config: &Configuration) -> Result<Option<GpgKey>> {
     } else {
         Ok(None)
     }
+}
+
+fn system_time_to_date_time(t: time::SystemTime) -> chrono::DateTime<Utc> {
+    let (sec, nsec) = match t.duration_since(time::UNIX_EPOCH) {
+        Ok(dur) => (dur.as_secs() as i64, dur.subsec_nanos()),
+        Err(e) => {
+            let dur = e.duration();
+            let (sec, nsec) = (dur.as_secs() as i64, dur.subsec_nanos());
+            if nsec == 0 {
+                (-sec, 0)
+            } else {
+                (-sec - 1, 1_000_000_000 - nsec)
+            }
+        }
+    };
+    Utc.timestamp(sec, nsec)
 }
 
 // ################################################################################
@@ -136,12 +155,16 @@ impl Application {
                 self.process_tasks(tasks, opts.quiet).await?;
                 Ok(())
             }
-            Command::List { object, raw } => {
+            Command::List {
+                object,
+                raw,
+                verbose,
+            } => {
                 colored::control::set_override(!raw);
                 match object {
-                    ListObject::Images { verbose } => self.list_images(verbose),
-                    ListObject::Recipes { verbose } => self.list_recipes(verbose),
-                    ListObject::Packages { images } => self.list_packages(images),
+                    ListObject::Images => self.list_images(verbose),
+                    ListObject::Recipes => self.list_recipes(verbose),
+                    ListObject::Packages { images } => self.list_packages(images, verbose),
                 }
             }
             Command::CleanCache => self.clean_cache().await,
@@ -256,7 +279,7 @@ impl Application {
                             .cell()
                             .left()
                             .italic()
-                            .color(Color::Blue),
+                            .color(Color::BrightBlue),
                         recipe
                             .metadata
                             .arch
@@ -294,7 +317,7 @@ impl Application {
         Ok(())
     }
 
-    fn list_packages(&self, images_filter: Option<Vec<String>>) -> Result<()> {
+    fn list_packages(&self, images_filter: Option<Vec<String>>, verbose: bool) -> Result<()> {
         let mut table = vec![];
         let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
             Ok(e) => Some(e.path()),
@@ -333,12 +356,51 @@ impl Application {
             match fs::read_dir(&image) {
                 Ok(packages) => {
                     for package in packages {
-                        match package {
-                            Ok(package) => {
-                                table.push(vec![
-                                    "".cell(),
-                                    package.file_name().to_string_lossy().as_ref().cell().left(),
-                                ]);
+                        match package.context("invalid dir entry").and_then(|entry| {
+                            PackageMetadata::try_from_dir_entry(&entry)
+                                .map(|v| (v, entry.path()))
+                                .context("failed to parse package metadata")
+                        }) {
+                            Ok((package, path)) => {
+                                if verbose {
+                                    let version = if let Some(release) = package.release() {
+                                        format!("{}-{}", package.version(), release)
+                                    } else {
+                                        package.version().to_string()
+                                    };
+                                    let timestamp = package
+                                        .created()
+                                        .map(|c| {
+                                            system_time_to_date_time(c)
+                                                .to_rfc3339_opts(SecondsFormat::Secs, true)
+                                        })
+                                        .unwrap_or_default();
+
+                                    table.push(vec![
+                                        "".cell(),
+                                        package.name().cell().left().color(Color::BrightBlue),
+                                        package
+                                            .arch()
+                                            .as_ref()
+                                            .map(|arch| arch.rpm_name().to_string())
+                                            .unwrap_or_default()
+                                            .cell()
+                                            .left()
+                                            .color(Color::White),
+                                        version.cell().color(Color::BrightYellow),
+                                        timestamp.cell().left().color(Color::White),
+                                    ]);
+                                } else {
+                                    table.push(vec![
+                                        "".cell(),
+                                        path.file_name()
+                                            .map(|s| s.to_string_lossy().to_string())
+                                            .unwrap_or_default()
+                                            .cell()
+                                            .left()
+                                            .color(Color::BrightBlue),
+                                    ]);
+                                }
                             }
                             Err(e) => {
                                 error!(reason = %format!("{:?}", e), image = %image_name, "failed to list a package");
@@ -352,7 +414,13 @@ impl Application {
             }
         }
 
-        table.into_table().print();
+        let headers = if verbose {
+            vec!["Image", "Name", "Version", "Arch", "Created"]
+        } else {
+            vec!["Image", "Name"]
+        };
+
+        table.into_table().with_headers(headers).print();
 
         Ok(())
     }
