@@ -350,6 +350,7 @@ impl Application {
                 .to_string_lossy();
             table.push(vec![format!("{}:", image_name)
                 .cell()
+                .bold()
                 .color(Color::Blue)
                 .right()]);
 
@@ -415,12 +416,19 @@ impl Application {
         }
 
         let headers = if verbose {
-            vec!["Image", "Name", "Type", "Arch", "Version", "Created"]
+            vec![
+                "Image".cell().bold(),
+                "Name".cell().bold(),
+                "Type".cell().bold(),
+                "Arch".cell().bold(),
+                "Version".cell().bold(),
+                "Created".cell().bold(),
+            ]
         } else {
-            vec!["Image", "Name"]
+            vec!["Image".cell().bold(), "Name".cell().bold()]
         };
 
-        table.into_table().with_headers(headers).print();
+        table.into_table().with_header_cells(headers).print();
 
         Ok(())
     }
