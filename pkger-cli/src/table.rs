@@ -2,7 +2,7 @@
 use colored::{Color, Colorize};
 
 pub mod style {
-    #[derive(Copy, Clone, Debug, Default)]
+    #[derive(Copy, Clone, Debug, Default, PartialEq)]
     pub struct Style(u8);
 
     impl From<u8> for Style {
@@ -64,7 +64,7 @@ pub mod style {
 
 use style::Style;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Alignment {
     Left,
     Center,
@@ -103,13 +103,18 @@ impl Cell {
         self
     }
 
+    pub fn center(mut self) -> Self {
+        self.alignment = Alignment::Center;
+        self
+    }
+
     pub fn color(mut self, color: Color) -> Self {
         self.color = color;
         self
     }
 
-    pub fn add_style(self, style: u8) -> Self {
-        self.style.add_style(style);
+    pub fn add_style(mut self, style: u8) -> Self {
+        self.style = self.style.add_style(style);
         self
     }
 
@@ -202,6 +207,14 @@ impl Table {
         I: IntoIterator<Item = H>,
     {
         self.headers = headers.into_iter().map(H::into).collect();
+        self
+    }
+
+    pub fn with_header_cells<H>(mut self, headers: H) -> Self
+    where
+        H: IntoIterator<Item = Cell>,
+    {
+        self.headers = headers.into_iter().collect();
         self
     }
 
@@ -434,6 +447,9 @@ impl<T: Into<Cell>> IntoTable for Vec<Vec<T>> {
 #[cfg(test)]
 mod tests {
     use super::{IntoCell, IntoTable};
+    use crate::table::style::Style;
+    use crate::table::Alignment;
+    use colored::Color;
 
     #[test]
     fn renders_empty() {
@@ -554,5 +570,48 @@ fourth|row
             .to_string(),
             format!("\n{}", table.render(false)),
         )
+    }
+
+    #[test]
+    fn simple_cell() {
+        let cell = "".cell();
+        assert_eq!(cell.alignment, Alignment::Center);
+        assert_eq!(cell.text, "");
+        assert_eq!(cell.color, Color::BrightWhite);
+        assert_eq!(cell.style, Style::default());
+    }
+
+    #[test]
+    fn cell_alignment() {
+        let cell = "some text".cell().left();
+        assert_eq!(cell.text, "some text");
+        assert_eq!(cell.alignment, Alignment::Left);
+        let cell = cell.right();
+        assert_eq!(cell.alignment, Alignment::Right);
+        let cell = cell.center();
+        assert_eq!(cell.alignment, Alignment::Center);
+    }
+
+    #[test]
+    fn cell_style() {
+        let cell = "some text".cell();
+
+        assert!(!cell.style.is_bold());
+        assert!(!cell.style.is_italic());
+        assert!(!cell.style.is_underline());
+        assert!(!cell.style.is_reversed());
+
+        let cell = cell
+            .color(Color::Blue)
+            .bold()
+            .italic()
+            .reversed()
+            .underline();
+
+        assert_eq!(cell.color, Color::Blue);
+        assert!(cell.style.is_bold());
+        assert!(cell.style.is_italic());
+        assert!(cell.style.is_underline());
+        assert!(cell.style.is_reversed());
     }
 }
