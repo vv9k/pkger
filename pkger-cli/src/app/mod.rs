@@ -116,7 +116,7 @@ impl Application {
         };
 
         let images_state = Arc::new(RwLock::new(
-            match ImagesState::try_from_path(&state_path).context("failed to load images state") {
+            match ImagesState::load(&state_path).context("failed to load images state") {
                 Ok(state) => state,
                 Err(e) => {
                     let e = format!("{:?}", e);

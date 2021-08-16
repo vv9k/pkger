@@ -128,8 +128,8 @@ impl ImagesState {
 
     /// Tries to initialize images state from the given path, if the path doesn't exist creates
     /// a new ImagesState.
-    pub fn try_from_path<P: AsRef<Path>>(state_file: P) -> Result<Self> {
-        let state_file = state_file.as_ref();
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let state_file = path.as_ref();
         if !state_file.exists() {
             debug!("state file doesn't exist");
             return Ok(ImagesState::new(state_file));
