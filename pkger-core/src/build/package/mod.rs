@@ -1,8 +1,11 @@
 pub mod deb;
 pub mod gzip;
+mod metadata;
 pub mod pkg;
 pub mod rpm;
 mod sign;
+
+pub use metadata::PackageMetadata;
 
 use crate::build::container::Context;
 use crate::image::ImageState;
