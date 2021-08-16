@@ -283,7 +283,7 @@ impl Application {
                         recipe
                             .metadata
                             .arch
-                            .rpm_name()
+                            .as_ref()
                             .cell()
                             .left()
                             .color(Color::White),
@@ -382,10 +382,9 @@ impl Application {
                                         package
                                             .arch()
                                             .as_ref()
-                                            .map(|arch| arch.rpm_name().to_string())
+                                            .map(|arch| arch.as_ref())
                                             .unwrap_or_default()
                                             .cell()
-                                            .left()
                                             .color(Color::White),
                                         version.cell().color(Color::BrightYellow),
                                         timestamp.cell().left().color(Color::White),
@@ -415,7 +414,7 @@ impl Application {
         }
 
         let headers = if verbose {
-            vec!["Image", "Name", "Version", "Arch", "Created"]
+            vec!["Image", "Name", "Arch", "Version", "Created"]
         } else {
             vec!["Image", "Name"]
         };
