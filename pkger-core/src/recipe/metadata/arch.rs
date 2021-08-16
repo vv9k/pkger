@@ -1,3 +1,6 @@
+use std::fmt;
+use std::fmt::Formatter;
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum BuildArch {
@@ -23,6 +26,28 @@ impl From<&str> for BuildArch {
             "aarch64" | "arm64" => Self::Arm64,
             arch => Self::Other(arch.to_string()),
         }
+    }
+}
+
+impl AsRef<str> for BuildArch {
+    fn as_ref(&self) -> &str {
+        use BuildArch::*;
+        match self {
+            All => "all",
+            x86_64 => "x86_64",
+            x86 => "x86",
+            Arm => "arm",
+            Armv6h => "armv6h",
+            Armv7h => "armv7h",
+            Arm64 => "aarch64",
+            Other(arch) => arch.as_str(),
+        }
+    }
+}
+
+impl fmt::Display for BuildArch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
     }
 }
 
