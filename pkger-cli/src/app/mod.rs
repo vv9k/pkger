@@ -379,6 +379,7 @@ impl Application {
                                     table.push(vec![
                                         "".cell(),
                                         package.name().cell().left().color(Color::BrightBlue),
+                                        package.package_type().as_ref().cell(),
                                         package
                                             .arch()
                                             .as_ref()
@@ -414,7 +415,7 @@ impl Application {
         }
 
         let headers = if verbose {
-            vec!["Image", "Name", "Arch", "Version", "Created"]
+            vec!["Image", "Name", "Type", "Arch", "Version", "Created"]
         } else {
             vec!["Image", "Name"]
         };
