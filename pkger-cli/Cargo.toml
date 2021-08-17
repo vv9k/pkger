@@ -21,6 +21,9 @@ colored = "2"
 ctrlc = "3"
 rpassword = "5"
 
+regex = "1"
+lazy_static = "1"
+
 dirs = "3"
 tempdir = "0.3"
 

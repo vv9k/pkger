@@ -1,9 +1,20 @@
 use pkger_core::recipe::{BuildArch, BuildTarget};
 use pkger_core::{ErrContext, Result};
 
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::convert::TryFrom;
 use std::fs::DirEntry;
 use std::time::SystemTime;
+
+lazy_static! {
+    static ref DEB_RE: Regex = Regex::new(r"([\w.-]+?)-(\d+[.]\d+[.]\d+)[.]([\w_-]+)").unwrap();
+    static ref RPM_RE: Regex =
+        Regex::new(r"([\w_.-]+?)-(\d+[.]\d+[.]\d+)-(\d+)[.]([\w_-]+)").unwrap();
+    static ref PKG_RE: Regex =
+        Regex::new(r"([\w_.+@-]+?)-(\d+[.]\d+[.]\d+)-(\d+)-([\w_-]+)").unwrap();
+    static ref GZIP_RE: Regex = Regex::new(r"([\S]+?)-(\d+[.]\d+[.]\d+)").unwrap();
+}
 
 #[derive(Debug, PartialEq)]
 pub struct PackageMetadata {
@@ -55,123 +66,59 @@ impl PackageMetadata {
             package_type,
             e.metadata().and_then(|md| md.created()).ok(),
         )
+        .context("invalid package name, the name did not match any scheme")
     }
 
     fn try_from_str(
         s: &str,
         package_type: BuildTarget,
         created: Option<SystemTime>,
-    ) -> Result<Self> {
+    ) -> Option<Self> {
         match package_type {
-            BuildTarget::Deb => {
-                let mut elems = s.split('.').rev().peekable();
-                let arch = elems.next().and_then(|s| BuildArch::try_from(s).ok());
-                let patch = elems.next().context("expected patch number")?;
-                let minor = elems.next().context("expected minor number")?;
-                let (name, major) = elems
-                    .next()
-                    .map(|s| {
-                        let mut elems = s.split('-').peekable();
-                        let mut name = vec![];
-                        while let Some(chunk) = elems.next() {
-                            if elems.peek().is_some() {
-                                name.push(chunk);
-                            } else {
-                                return (name.join("-"), chunk);
-                            }
-                        }
-
-                        ("".to_string(), "")
-                    })
-                    .context("expected major number")?;
-                let mut name_elems: Vec<_> = elems.collect();
-                name_elems.push(name.as_str());
-                let name = name_elems.join(".");
-
-                Ok(PackageMetadata {
-                    name,
-                    version: format!("{}.{}.{}", major, minor, patch),
+            BuildTarget::Deb => DEB_RE
+                .captures_iter(s)
+                .next()
+                .map(|captures| PackageMetadata {
+                    name: captures[1].to_string(),
+                    version: captures[2].to_string(),
                     release: None,
-                    arch,
+                    arch: BuildArch::try_from(&captures[3]).ok(),
                     package_type,
                     created,
-                })
-            }
-            BuildTarget::Rpm => {
-                let mut elems = s.split('.').rev().peekable();
-                let arch = elems.next().and_then(|s| BuildArch::try_from(s).ok());
-                let temp = elems
-                    .next()
-                    .map(|s| {
-                        let mut _elems = s.split('-');
-                        (
-                            _elems.next().context("expected patch number"),
-                            _elems.next().context("expected release number"),
-                        )
-                    })
-                    .context("expected patch-release")?;
-                let (patch, release) = (temp.0?, temp.1?);
-
-                let minor = elems.next().context("expected minor number")?;
-                let (name, major) = elems
-                    .next()
-                    .map(|s| {
-                        let mut elems = s.split('-').peekable();
-                        let mut name = vec![];
-                        while let Some(chunk) = elems.next() {
-                            if elems.peek().is_some() {
-                                name.push(chunk);
-                            } else {
-                                return (name.join("-"), chunk);
-                            }
-                        }
-
-                        ("".to_string(), "")
-                    })
-                    .context("expected major number")?;
-                let mut name_elems: Vec<_> = elems.collect();
-                name_elems.push(name.as_str());
-                let name = name_elems.join(".");
-
-                Ok(PackageMetadata {
-                    name,
-                    version: format!("{}.{}.{}", major, minor, patch),
-                    release: Some(release.to_string()),
-                    arch,
+                }),
+            BuildTarget::Rpm => RPM_RE
+                .captures_iter(s)
+                .next()
+                .map(|captures| PackageMetadata {
+                    name: captures[1].to_string(),
+                    version: captures[2].to_string(),
+                    release: Some(captures[3].to_string()),
+                    arch: BuildArch::try_from(&captures[4]).ok(),
                     package_type,
                     created,
-                })
-            }
-            BuildTarget::Pkg => {
-                let mut elems = s.split('-').rev().peekable();
-                let arch = elems.next().and_then(|s| BuildArch::try_from(s).ok());
-                let release = elems.next().context("expected release number")?.to_string();
-                let version = elems.next().context("expected version")?.to_string();
-                let name = elems.rev().collect::<Vec<_>>().join("-");
-
-                Ok(PackageMetadata {
-                    name,
-                    version,
-                    release: Some(release),
-                    arch,
+                }),
+            BuildTarget::Pkg => PKG_RE
+                .captures_iter(s)
+                .next()
+                .map(|captures| PackageMetadata {
+                    name: captures[1].to_string(),
+                    version: captures[2].to_string(),
+                    release: Some(captures[3].to_string()),
+                    arch: BuildArch::try_from(&captures[4]).ok(),
                     package_type,
                     created,
-                })
-            }
-            BuildTarget::Gzip => {
-                let mut elems = s.split('-').rev().peekable();
-                let version = elems.next().context("expected version")?.to_string();
-                let name = elems.rev().collect::<Vec<_>>().join("-");
-
-                Ok(PackageMetadata {
-                    name,
-                    version,
+                }),
+            BuildTarget::Gzip => GZIP_RE
+                .captures_iter(s)
+                .next()
+                .map(|captures| PackageMetadata {
+                    name: captures[1].to_string(),
+                    version: captures[2].to_string(),
                     release: None,
                     arch: None,
                     package_type,
                     created,
-                })
-            }
+                }),
         }
     }
 }
