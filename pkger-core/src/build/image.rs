@@ -131,7 +131,7 @@ pub async fn cache_image(
             let dockerfile = format!(
 r#"FROM {}
 RUN {} {}
-RUN {} {} {} >/dev/null"#,
+RUN {} {} {}"#,
                 tag,
                 pkg_mngr_name, pkg_mngr.update_repos_args().join(" "),
                 pkg_mngr_name, pkg_mngr.install_args().join(" "), deps_joined.join(" ")
