@@ -1,18 +1,15 @@
-pub mod deb;
-pub mod gzip;
-mod metadata;
-pub mod pkg;
-pub mod rpm;
-mod sign;
-
-pub use metadata::PackageMetadata;
+use std::path::{Path, PathBuf};
 
 use crate::build::container::Context;
 use crate::image::ImageState;
 use crate::recipe::BuildTarget;
 use crate::Result;
 
-use std::path::{Path, PathBuf};
+pub mod deb;
+pub mod gzip;
+pub mod pkg;
+pub mod rpm;
+mod sign;
 
 pub async fn create_package(
     ctx: &Context<'_>,

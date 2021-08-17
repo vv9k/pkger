@@ -1,5 +1,5 @@
-use crate::recipe::{BuildArch, BuildTarget};
-use crate::{ErrContext, Result};
+use pkger_core::recipe::{BuildArch, BuildTarget};
+use pkger_core::{ErrContext, Result};
 
 use std::convert::TryFrom;
 use std::fs::DirEntry;
@@ -178,8 +178,8 @@ impl PackageMetadata {
 
 #[cfg(test)]
 mod tests {
-    use crate::build::package::metadata::PackageMetadata;
-    use crate::recipe::{BuildArch, BuildTarget};
+    use super::PackageMetadata;
+    use pkger_core::recipe::{BuildArch, BuildTarget};
     use std::time::SystemTime;
 
     #[test]

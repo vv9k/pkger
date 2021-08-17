@@ -1,23 +1,24 @@
 #[macro_use]
 extern crate pkger_core;
 
+use std::fs;
+use std::process;
+
+use tracing::error;
+
+use app::Application;
+use config::Configuration;
+use opts::Opts;
+use pkger_core::{ErrContext, Result};
+
 mod app;
 mod config;
 mod fmt;
 mod gen;
 mod job;
+mod metadata;
 mod opts;
 mod table;
-
-use app::Application;
-use config::Configuration;
-use opts::Opts;
-
-use pkger_core::{ErrContext, Result};
-
-use std::fs;
-use std::process;
-use tracing::error;
 
 static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 

@@ -2,6 +2,7 @@ mod build;
 
 use crate::config::Configuration;
 use crate::gen;
+use crate::metadata::PackageMetadata;
 use crate::opts::{Command, EditObject, ListObject, NewObject, Opts};
 use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::docker::DockerConnectionPool;
@@ -14,7 +15,6 @@ use pkger_core::{ErrContext, Error, Result};
 use async_rwlock::RwLock;
 use chrono::{offset::TimeZone, SecondsFormat, Utc};
 use colored::Color;
-use pkger_core::build::package::PackageMetadata;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
