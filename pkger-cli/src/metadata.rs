@@ -4,7 +4,7 @@ use pkger_core::{ErrContext, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::convert::TryFrom;
-use std::fs::DirEntry;
+use std::fs::{DirEntry, Metadata};
 use std::time::SystemTime;
 
 lazy_static! {
@@ -16,6 +16,18 @@ lazy_static! {
     static ref GZIP_RE: Regex = Regex::new(r"([\S]+?)-(\d+[.]\d+[.]\d+)").unwrap();
 }
 
+#[cfg(unix)]
+fn size(md: &Metadata) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    md.size()
+}
+
+#[cfg(windows)]
+fn size(md: &Metadata) -> u64 {
+    use std::os::windows::fs::MetadataExt;
+    md.file_size()
+}
+
 #[derive(Debug, PartialEq)]
 pub struct PackageMetadata {
     name: String,
@@ -24,6 +36,7 @@ pub struct PackageMetadata {
     arch: Option<BuildArch>,
     package_type: BuildTarget,
     created: Option<SystemTime>,
+    size: Option<u64>, // in bytes
 }
 
 impl PackageMetadata {
@@ -51,6 +64,10 @@ impl PackageMetadata {
         self.created
     }
 
+    pub fn size(&self) -> Option<u64> {
+        self.size
+    }
+
     pub fn try_from_dir_entry(e: &DirEntry) -> Result<Self> {
         let path = e.path();
         let extension = path.extension().context("expected file extension")?;
@@ -61,18 +78,21 @@ impl PackageMetadata {
             .to_string_lossy();
         let path = path.as_ref();
 
-        Self::try_from_str(
-            path,
-            package_type,
-            e.metadata().and_then(|md| md.created()).ok(),
-        )
-        .context("invalid package name, the name did not match any scheme")
+        let (created, size) = e
+            .metadata()
+            .map(|md| (md.created().ok(), Some(size(&md))))
+            .ok()
+            .unwrap_or((None, None));
+
+        Self::try_from_str(path, package_type, created, size)
+            .context("invalid package name, the name did not match any scheme")
     }
 
     fn try_from_str(
         s: &str,
         package_type: BuildTarget,
         created: Option<SystemTime>,
+        size: Option<u64>,
     ) -> Option<Self> {
         match package_type {
             BuildTarget::Deb => DEB_RE
@@ -85,6 +105,7 @@ impl PackageMetadata {
                     arch: BuildArch::try_from(&captures[3]).ok(),
                     package_type,
                     created,
+                    size,
                 }),
             BuildTarget::Rpm => RPM_RE
                 .captures_iter(s)
@@ -96,6 +117,7 @@ impl PackageMetadata {
                     arch: BuildArch::try_from(&captures[4]).ok(),
                     package_type,
                     created,
+                    size,
                 }),
             BuildTarget::Pkg => PKG_RE
                 .captures_iter(s)
@@ -107,6 +129,7 @@ impl PackageMetadata {
                     arch: BuildArch::try_from(&captures[4]).ok(),
                     package_type,
                     created,
+                    size,
                 }),
             BuildTarget::Gzip => GZIP_RE
                 .captures_iter(s)
@@ -118,6 +141,7 @@ impl PackageMetadata {
                     arch: None,
                     package_type,
                     created,
+                    size,
                 }),
         }
     }
@@ -141,8 +165,9 @@ mod tests {
                 arch: Some(BuildArch::x86_64),
                 package_type: BuildTarget::Deb,
                 created: None,
+                size: None,
             },
-            PackageMetadata::try_from_str(path, BuildTarget::Deb, None).unwrap(),
+            PackageMetadata::try_from_str(path, BuildTarget::Deb, None, None).unwrap(),
         );
     }
 
@@ -160,8 +185,9 @@ mod tests {
                 arch: Some(BuildArch::x86_64),
                 package_type: BuildTarget::Rpm,
                 created: Some(time),
+                size: None,
             },
-            PackageMetadata::try_from_str(path, BuildTarget::Rpm, Some(time)).unwrap(),
+            PackageMetadata::try_from_str(path, BuildTarget::Rpm, Some(time), None).unwrap(),
         );
     }
 
@@ -177,8 +203,9 @@ mod tests {
                 arch: None,
                 package_type: BuildTarget::Gzip,
                 created: None,
+                size: None,
             },
-            PackageMetadata::try_from_str(path, BuildTarget::Gzip, None).unwrap(),
+            PackageMetadata::try_from_str(path, BuildTarget::Gzip, None, None).unwrap(),
         );
     }
 
@@ -194,8 +221,9 @@ mod tests {
                 arch: Some(BuildArch::x86_64),
                 package_type: BuildTarget::Pkg,
                 created: None,
+                size: None,
             },
-            PackageMetadata::try_from_str(path, BuildTarget::Pkg, None).unwrap(),
+            PackageMetadata::try_from_str(path, BuildTarget::Pkg, None, None).unwrap(),
         );
     }
 }
