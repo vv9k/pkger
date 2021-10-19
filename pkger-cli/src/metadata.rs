@@ -64,6 +64,7 @@ impl PackageMetadata {
         self.created
     }
 
+    #[allow(dead_code)]
     pub fn size(&self) -> Option<u64> {
         self.size
     }
