@@ -3,7 +3,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clap)]
 #[clap(
     name = "pkger",
-    version = "0.5.0",
+    version = "0.6.0",
     author = "Wojciech Kępka <wojciech@wkepka.dev>",
     about = "Creates RPM, DEB and other packages using Docker"
 )]
