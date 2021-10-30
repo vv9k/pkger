@@ -1,6 +1,6 @@
-use clap::{Clap, Subcommand};
+use clap::Parser;
 use std::path::PathBuf;
-#[derive(Debug, Clap)]
+#[derive(Debug, Parser)]
 #[clap(
     name = "pkger",
     version = "0.6.0",
@@ -34,11 +34,11 @@ pub struct Opts {
 
 impl Opts {
     pub fn from_args() -> Self {
-        Clap::parse()
+        Opts::parse()
     }
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Runs a build creating specified packages on target platforms.
     Build(BuildOpts),
@@ -72,7 +72,7 @@ pub enum Command {
     Init(InitOpts),
 }
 
-#[derive(Debug, Clap)]
+#[derive(Debug, Parser)]
 pub struct InitOpts {
     #[clap(short, long)]
     /// Override the default location to which the configuration file will be saved.
@@ -104,14 +104,14 @@ pub struct InitOpts {
     pub gpg_name: Option<String>,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Parser)]
 pub enum EditObject {
     Recipe { name: String },
     Image { name: String },
     Config,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Parser)]
 pub enum ListObject {
     Images,
     Recipes,
@@ -121,7 +121,7 @@ pub enum ListObject {
     },
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Parser)]
 pub enum NewObject {
     Recipe(Box<GenRecipeOpts>),
     Image {
@@ -130,7 +130,7 @@ pub enum NewObject {
     },
 }
 
-#[derive(Debug, Clap)]
+#[derive(Debug, Parser)]
 pub struct BuildOpts {
     /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
     pub recipes: Vec<String>,
@@ -162,7 +162,7 @@ pub struct BuildOpts {
     pub no_sign: bool,
 }
 
-#[derive(Debug, Clap)]
+#[derive(Debug, Parser)]
 pub struct GenRecipeOpts {
     /// Name of the recipe to generate
     pub name: String,
