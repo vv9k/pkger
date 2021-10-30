@@ -9,7 +9,7 @@ keywords = ["unix", "linux", "deb", "rpm", "docker"]
 categories = ["command-line-utilities"]
 license = "MIT"
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 pkger-core = { path = "../pkger-core" }
