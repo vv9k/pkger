@@ -130,6 +130,7 @@ pub async fn cache_image(
         #[rustfmt::skip]
             let dockerfile = format!(
 r#"FROM {}
+ENV DEBIAN_FRONTEND noninteractive
 RUN {} {}
 RUN {} {} {}"#,
                 tag,
