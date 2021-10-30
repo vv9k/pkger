@@ -2,6 +2,7 @@ use crate::build::container::{checked_exec, create_dirs, Context};
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
+use crate::recipe::BuildArch;
 use crate::{ErrContext, Result};
 
 use std::path::{Path, PathBuf};
@@ -120,18 +121,22 @@ pub(crate) async fn build(
             .context("failed to upload spec file to container")?;
 
         trace!("rpmbuild");
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    "setarch {0} rpmbuild -ba --target {0} {1}",
-                    recipe.metadata.arch.rpm_name(),
-                    specs.join(spec_file).display()
-                ))
-                .build(),
-        )
-        .await
-        .context("failed to build rpm package")?;
+        let cmd = if matches!(recipe.metadata.arch, BuildArch::All) {
+            format!(
+                "rpmbuild -ba --target {0} {1}",
+                recipe.metadata.arch.rpm_name(),
+                specs.join(spec_file).display()
+            )
+        } else {
+            format!(
+                "setarch {0} rpmbuild -ba --target {0} {1}",
+                recipe.metadata.arch.rpm_name(),
+                specs.join(spec_file).display()
+            )
+        };
+        checked_exec(ctx, &ExecOpts::default().cmd(&cmd).build())
+            .await
+            .context("failed to build rpm package")?;
 
         checked_exec(
             ctx,

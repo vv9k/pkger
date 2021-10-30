@@ -1,5 +1,6 @@
 #
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build
+- Don't use `setarch` when arch is all/noarch
 
 # 0.6.0
 - Use default OS config directory instead of home directory to read the configuration file by default.
