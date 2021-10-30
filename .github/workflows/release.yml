@@ -19,7 +19,6 @@ jobs:
         uses: hecrj/setup-rust-action@v1
         with:
           components: rustfmt
-          rust-version: stable
       - uses: actions/checkout@v1
       - run: cargo fmt --all -- --check
 
@@ -58,8 +57,6 @@ jobs:
     steps:
       - name: Setup Rust
         uses: hecrj/setup-rust-action@v1
-        with:
-          rust-version: ${{ matrix.rust }}
       - name: Checkout
         uses: actions/checkout@v1
       - name: Test
