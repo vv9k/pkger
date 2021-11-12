@@ -15,8 +15,12 @@ use tracing::{error, info, info_span, trace, Instrument};
 static CONTAINER_ID_LEN: usize = 12;
 static DEFAULT_SHELL: &str = "/bin/sh";
 
-pub fn convert_id(id: &str) -> &str {
-    &id[..CONTAINER_ID_LEN]
+fn truncate(id: &str) -> &str {
+    if id.len() > CONTAINER_ID_LEN {
+        &id[..CONTAINER_ID_LEN]
+    } else {
+        id
+    }
 }
 
 #[derive(Debug, Default)]
@@ -55,7 +59,6 @@ impl<'opts> Default for ExecOpts<'opts> {
     }
 }
 
-#[allow(dead_code)]
 impl<'opts> ExecOpts<'opts> {
     pub fn new() -> Self {
         Self {
@@ -151,7 +154,7 @@ impl<'job> DockerContainer<'job> {
     }
 
     pub fn id(&self) -> &str {
-        convert_id(self.container.id())
+        truncate(self.container.id())
     }
 
     pub async fn spawn(&mut self, opts: &ContainerCreateOpts) -> Result<()> {

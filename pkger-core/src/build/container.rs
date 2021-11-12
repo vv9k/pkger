@@ -17,7 +17,6 @@ pub struct Context<'job> {
 }
 
 impl<'job> Context<'job> {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(build: &'job build::Context, opts: ContainerCreateOpts) -> Context<'job> {
         Context {
             container: DockerContainer::new(&build.docker),

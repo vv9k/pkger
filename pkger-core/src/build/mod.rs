@@ -3,6 +3,7 @@ pub mod container;
 pub mod deps;
 pub mod image;
 pub mod package;
+pub mod patches;
 pub mod remote;
 pub mod scripts;
 
@@ -10,7 +11,7 @@ use crate::container::ExecOpts;
 use crate::docker::Docker;
 use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
-use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
+use crate::recipe::{ImageTarget, Recipe, RecipeTarget};
 use crate::ssh::SshConfig;
 use crate::{ErrContext, Result};
 
@@ -20,7 +21,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
-use tracing::{debug, info, info_span, trace, warn, Instrument};
+use tracing::{info, info_span, trace, warn, Instrument};
 
 #[derive(Debug)]
 /// Groups all data and functionality necessary to create an artifact
@@ -39,69 +40,6 @@ pub struct Context {
     gpg_key: Option<GpgKey>,
     ssh: Option<SshConfig>,
     quiet: bool,
-}
-
-pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
-    let span = info_span!("build", recipe = %ctx.recipe.metadata.name, image = %ctx.target.image(), target = %ctx.target.build_target().as_ref());
-    async move {
-        info!(id = %ctx.id, "running job" );
-        let image_state = image::build(ctx).await.context("failed to build image")?;
-
-        let out_dir = ctx.create_out_dir(&image_state).await?;
-
-        let mut container_ctx = container::spawn(ctx, &image_state).await?;
-
-        let image_state = if image_state.tag != image::CACHED {
-            let mut deps = deps::default(
-                ctx.target.build_target(),
-                &ctx.recipe,
-                ctx.gpg_key.is_some(),
-            );
-            deps.extend(deps::recipe(&container_ctx, &image_state));
-            let new_state =
-                image::cache_image(&container_ctx, &ctx.docker, &image_state, &deps).await?;
-            info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
-
-            trace!("saving image state");
-            let mut state = ctx.image_state.write().await;
-            (*state).update(ctx.target.clone(), new_state.clone());
-
-            container_ctx.container.remove().await?;
-            container_ctx = container::spawn(ctx, &new_state).await?;
-
-            new_state
-        } else {
-            image_state
-        };
-
-        let dirs = vec![
-            &ctx.container_out_dir,
-            &ctx.container_bld_dir,
-            &ctx.container_tmp_dir,
-        ];
-
-        container::create_dirs(&container_ctx, &dirs[..]).await?;
-
-        remote::fetch_source(&container_ctx).await?;
-
-        if let Some(patches) = &ctx.recipe.metadata.patches {
-            let patches = collect_patches(&container_ctx, patches).await?;
-            apply_patches(&container_ctx, patches).await?;
-        }
-
-        scripts::run(&container_ctx).await?;
-
-        exclude_paths(&container_ctx).await?;
-
-        let package =
-            package::create_package(&container_ctx, &image_state, out_dir.as_path()).await?;
-
-        container_ctx.container.remove().await?;
-
-        Ok(package)
-    }
-    .instrument(span)
-    .await
 }
 
 impl Context {
@@ -181,6 +119,68 @@ impl Context {
     }
 }
 
+pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
+    let span = info_span!("build", recipe = %ctx.recipe.metadata.name, image = %ctx.target.image(), target = %ctx.target.build_target().as_ref());
+    async move {
+        info!(id = %ctx.id, "running job" );
+        let image_state = image::build(ctx).await.context("failed to build image")?;
+
+        let out_dir = ctx.create_out_dir(&image_state).await?;
+
+        let mut container_ctx = container::spawn(ctx, &image_state).await?;
+
+        let image_state = if image_state.tag != image::CACHED {
+            let mut deps = deps::default(
+                ctx.target.build_target(),
+                &ctx.recipe,
+                ctx.gpg_key.is_some(),
+            );
+            deps.extend(deps::recipe(&container_ctx, &image_state));
+            let new_state =
+                image::create_cache(&container_ctx, &ctx.docker, &image_state, &deps).await?;
+            info!(id = %new_state.id, image = %new_state.image, "successfully cached image");
+
+            trace!("saving image state");
+            let mut state = ctx.image_state.write().await;
+            (*state).update(ctx.target.clone(), new_state.clone());
+
+            container_ctx.container.remove().await?;
+            container_ctx = container::spawn(ctx, &new_state).await?;
+
+            new_state
+        } else {
+            image_state
+        };
+
+        let dirs = vec![
+            &ctx.container_out_dir,
+            &ctx.container_bld_dir,
+            &ctx.container_tmp_dir,
+        ];
+
+        container::create_dirs(&container_ctx, &dirs[..]).await?;
+
+        remote::fetch_source(&container_ctx).await?;
+
+        if let Some(patches) = &ctx.recipe.metadata.patches {
+            let patches = patches::collect(&container_ctx, patches).await?;
+            patches::apply(&container_ctx, patches).await?;
+        }
+
+        scripts::run(&container_ctx).await?;
+
+        exclude_paths(&container_ctx).await?;
+
+        let package = package::build(&container_ctx, &image_state, out_dir.as_path()).await?;
+
+        container_ctx.container.remove().await?;
+
+        Ok(package)
+    }
+    .instrument(span)
+    .await
+}
+
 pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
     let span = info_span!("exclude-paths");
     async move {
@@ -211,101 +211,6 @@ pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
         }
 
         Ok(())
-    }
-    .instrument(span)
-    .await
-}
-
-pub async fn apply_patches(
-    ctx: &container::Context<'_>,
-    patches: Vec<(Patch, PathBuf)>,
-) -> Result<()> {
-    let span = info_span!("apply-patches");
-    async move {
-        trace!(patches = ?patches);
-        for (patch, location) in patches {
-            debug!(patch = ?patch, "applying");
-            if let Err(e) = container::checked_exec(
-                ctx,
-                &ExecOpts::default()
-                    .cmd(&format!(
-                        "patch -p{} < {}",
-                        patch.strip_level(),
-                        location.display()
-                    ))
-                    .working_dir(&ctx.build.container_bld_dir)
-                    .build(),
-            )
-            .await
-            {
-                warn!(patch = ?patch, reason = %format!("{:?}", e), "applying failed");
-            }
-        }
-
-        Ok(())
-    }
-    .instrument(span)
-    .await
-}
-
-pub async fn collect_patches(
-    ctx: &container::Context<'_>,
-    patches: &Patches,
-) -> Result<Vec<(Patch, PathBuf)>> {
-    let span = info_span!("collect-patches");
-    async move {
-        let mut out = Vec::new();
-        let patch_dir = ctx.build.container_tmp_dir.join("patches");
-        container::create_dirs(ctx, &[patch_dir.as_path()]).await?;
-
-        let mut to_copy = Vec::new();
-
-        for patch in patches.resolve_names(ctx.build.target.image()) {
-            let src = patch.patch();
-            if src.starts_with("http") {
-                trace!(source = %src, "found http source");
-                remote::fetch_http_source(ctx, src, &patch_dir).await?;
-                out.push((
-                    patch.clone(),
-                    patch_dir.join(src.split('/').last().unwrap_or_default()),
-                ));
-                continue;
-            }
-
-            let patch_p = PathBuf::from(src);
-            if patch_p.is_absolute() {
-                trace!(path = %patch_p.display(), "found absolute path");
-                out.push((
-                    patch.clone(),
-                    patch_dir.join(patch_p.file_name().unwrap_or_default()),
-                ));
-                to_copy.push(patch_p);
-                continue;
-            }
-
-            let patch_recipe_p = ctx.build.recipe.recipe_dir.join(src);
-            trace!(patch = %patch_recipe_p.display(), "using patch from recipe_dir");
-            out.push((patch.clone(), patch_dir.join(src)));
-            to_copy.push(patch_recipe_p);
-        }
-
-        let to_copy = to_copy.iter().map(PathBuf::as_path).collect::<Vec<_>>();
-
-        let patches_archive = ctx.build.container_tmp_dir.join("patches.tar");
-        remote::fetch_fs_source(ctx, &to_copy, &patches_archive).await?;
-
-        container::checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(&format!(
-                    "tar xf {} -C {}",
-                    patches_archive.display(),
-                    patch_dir.display()
-                ))
-                .build(),
-        )
-        .await
-        .map(|_| out)
     }
     .instrument(span)
     .await

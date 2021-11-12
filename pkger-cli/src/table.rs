@@ -389,7 +389,6 @@ impl Table {
         s
     }
 
-    #[allow(dead_code)]
     pub fn print(&self) {
         let mut tokens = self.tokenize();
 

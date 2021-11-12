@@ -14,11 +14,6 @@ impl<'text> Parser<'text> {
         self.parse_token()
     }
 
-    #[allow(dead_code)]
-    pub fn restart(&mut self) {
-        self.pos = 0;
-    }
-
     fn nth(&self, n: usize) -> Option<char> {
         if self.pos < self.text.len() {
             // This is much faster than self.text.chars().nth()
@@ -141,15 +136,6 @@ mod tests {
     fn simple_case() {
         let text = "this is my super ${ cool } text.";
         let mut parser = Parser::new(text);
-        assert_eq!(parser.next_token(), Token::Text("this is my super "));
-        assert_eq!(
-            parser.next_token(),
-            Token::Variable(Variable::new("${ cool }", "cool"))
-        );
-        assert_eq!(parser.next_token(), Token::Text(" text."));
-        assert_eq!(parser.next_token(), Token::EOF);
-        assert_eq!(parser.next_token(), Token::EOF);
-        parser.restart();
         assert_eq!(parser.next_token(), Token::Text("this is my super "));
         assert_eq!(
             parser.next_token(),

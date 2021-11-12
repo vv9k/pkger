@@ -42,7 +42,6 @@ impl RecipeTarget {
         &self.image_target.build_target
     }
 
-    #[allow(dead_code)]
     pub fn recipe(&self) -> &str {
         &self.name
     }
@@ -447,7 +446,6 @@ macro_rules! impl_step_rep {
         }
 
         impl $ty {
-            #[allow(dead_code)]
             pub fn steps_as_script(&self) -> String {
                 let mut script = String::new();
                 self.steps.iter().for_each(|step| {

@@ -124,16 +124,6 @@ pub(crate) async fn build(
         checked_exec(
             ctx,
             &ExecOpts::default()
-                .cmd("cat APKBUILD && ls -l")
-                .working_dir(bld_dir.as_path())
-                .user(BUILD_USER)
-                .build(),
-        )
-        .await?;
-
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
                 .cmd("abuild checksum")
                 .working_dir(bld_dir.as_path())
                 .user(BUILD_USER)

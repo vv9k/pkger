@@ -23,7 +23,6 @@ impl From<Option<Mapping>> for Env {
     }
 }
 
-#[allow(dead_code)]
 impl Env {
     pub fn new() -> Self {
         Self::default()
@@ -41,7 +40,6 @@ impl Env {
         self.0.is_empty()
     }
 
-    #[allow(dead_code)]
     pub fn remove<K>(&mut self, key: K) -> Option<String>
     where
         K: AsRef<str>,

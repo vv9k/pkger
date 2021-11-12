@@ -106,7 +106,7 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
     .await
 }
 
-pub async fn cache_image(
+pub async fn create_cache(
     ctx: &container::Context<'_>,
     docker: &Docker,
     state: &ImageState,
