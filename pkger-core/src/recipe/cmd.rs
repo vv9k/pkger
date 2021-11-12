@@ -19,6 +19,7 @@ pub struct Command {
     pub deb: Option<bool>,
     pub pkg: Option<bool>,
     pub gzip: Option<bool>,
+    pub apk: Option<bool>,
 }
 
 impl From<&str> for Command {
@@ -30,6 +31,7 @@ impl From<&str> for Command {
             deb: None,
             pkg: None,
             gzip: None,
+            apk: None,
         }
     }
 }
@@ -47,6 +49,7 @@ impl Command {
             BuildTarget::Deb => self.deb,
             BuildTarget::Pkg => self.pkg,
             BuildTarget::Gzip => self.gzip,
+            BuildTarget::Apk => self.apk,
         }
         .unwrap_or_default()
     }
@@ -62,17 +65,21 @@ mod tests {
         assert!(cmd.should_run_on(&BuildTarget::Rpm));
         assert!(cmd.should_run_on(&BuildTarget::Pkg));
         assert!(cmd.should_run_on(&BuildTarget::Gzip));
+        assert!(cmd.should_run_on(&BuildTarget::Apk));
         cmd.rpm = Some(true);
         assert!(cmd.should_run_on(&BuildTarget::Rpm));
         assert!(!cmd.should_run_on(&BuildTarget::Gzip));
         assert!(!cmd.should_run_on(&BuildTarget::Pkg));
         assert!(!cmd.should_run_on(&BuildTarget::Deb));
+        assert!(!cmd.should_run_on(&BuildTarget::Apk));
         cmd.deb = Some(true);
         cmd.pkg = Some(true);
         cmd.gzip = Some(true);
+        cmd.apk = Some(true);
         assert!(cmd.should_run_on(&BuildTarget::Rpm));
         assert!(cmd.should_run_on(&BuildTarget::Gzip));
         assert!(cmd.should_run_on(&BuildTarget::Pkg));
         assert!(cmd.should_run_on(&BuildTarget::Deb));
+        assert!(cmd.should_run_on(&BuildTarget::Apk));
     }
 }

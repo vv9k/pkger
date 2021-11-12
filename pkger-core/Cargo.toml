@@ -9,6 +9,7 @@ license = "MIT"
 deb-control = { path = "../libs/debcontrol" }
 rpmspec = { path = "../libs/rpmspec" }
 pkgbuild = { path = "../libs/pkgbuild" }
+apkbuild = { path = "../libs/apkbuild" }
 
 docker-api = "0.5"
 

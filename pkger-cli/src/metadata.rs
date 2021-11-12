@@ -14,6 +14,7 @@ lazy_static! {
     static ref PKG_RE: Regex =
         Regex::new(r"([\w_.+@-]+?)-(\d+[.]\d+[.]\d+)-(\d+)-([\w_-]+)").unwrap();
     static ref GZIP_RE: Regex = Regex::new(r"([\S]+?)-(\d+[.]\d+[.]\d+)").unwrap();
+    static ref APK_RE: Regex = Regex::new(r"([\w_.+@-]+?)-(\d+[.]\d+[.]\d+)-r(\d+)").unwrap();
 }
 
 #[cfg(unix)]
@@ -139,6 +140,18 @@ impl PackageMetadata {
                     name: captures[1].to_string(),
                     version: captures[2].to_string(),
                     release: None,
+                    arch: None,
+                    package_type,
+                    created,
+                    size,
+                }),
+            BuildTarget::Apk => APK_RE
+                .captures_iter(s)
+                .next()
+                .map(|captures| PackageMetadata {
+                    name: captures[1].to_string(),
+                    version: captures[2].to_string(),
+                    release: Some(captures[3].to_string()),
                     arch: None,
                     package_type,
                     created,
