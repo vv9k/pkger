@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-mod lexer;
+mod parser;
 
 #[derive(Debug, PartialEq)]
 pub struct Variable<'text> {
@@ -38,11 +38,11 @@ where
     T: AsRef<str>,
     V: AsRef<str>,
 {
-    let mut lexer = lexer::Lexer::new(text.as_ref());
+    let mut parser = parser::Parser::new(text.as_ref());
     let mut rendered = String::new();
 
     loop {
-        match lexer.next_token() {
+        match parser.next_token() {
             Token::Text(txt) => rendered.push_str(txt),
             Token::Variable(var) => {
                 if let Some(value) = vars.get(var.name()) {
