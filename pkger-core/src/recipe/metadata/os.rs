@@ -37,14 +37,13 @@ impl Os {
     }
 
     pub fn package_manager(&self) -> PackageManager {
+        let version: u8 = self.version().parse().unwrap_or_default();
         match self.distribution {
             Distro::Arch => PackageManager::Pacman,
             Distro::Debian | Distro::Ubuntu => PackageManager::Apt,
-            Distro::RedHat | Distro::CentOS | Distro::Fedora
-                if self.version == Some("8".to_string()) =>
-            {
-                PackageManager::Dnf
-            }
+            Distro::Rocky | Distro::RedHat | Distro::CentOS if version >= 8 => PackageManager::Dnf,
+            Distro::Fedora if version >= 22 => PackageManager::Dnf,
+            Distro::Rocky => PackageManager::Dnf,
             Distro::RedHat | Distro::CentOS | Distro::Fedora => PackageManager::Yum,
         }
     }
@@ -61,6 +60,7 @@ pub enum Distro {
     Fedora,
     RedHat,
     Ubuntu,
+    Rocky,
 }
 
 impl AsRef<str> for Distro {
@@ -73,6 +73,7 @@ impl AsRef<str> for Distro {
             Fedora => "fedora",
             RedHat => "redhat",
             Ubuntu => "ubuntu",
+            Rocky => "rocky",
         }
     }
 }
@@ -81,7 +82,7 @@ impl TryFrom<&str> for Distro {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self> {
         use Distro::*;
-        const DISTROS: [(&str, Distro); 7] = [
+        const DISTROS: [(&str, Distro); 8] = [
             ("arch", Arch),
             ("centos", CentOS),
             ("debian", Debian),
@@ -89,6 +90,7 @@ impl TryFrom<&str> for Distro {
             ("redhat", RedHat),
             ("red hat", RedHat),
             ("ubuntu", Ubuntu),
+            ("rocky", Rocky),
         ];
         let out = s.to_lowercase();
         for (name, distro) in DISTROS.iter() {

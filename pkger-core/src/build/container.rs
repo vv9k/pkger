@@ -111,7 +111,8 @@ pub async fn create_dirs<P: AsRef<Path>>(ctx: &Context<'_>, dirs: &[P]) -> Resul
             dirs.iter()
                 .map(P::as_ref)
                 .fold(String::new(), |mut dirs_joined, path| {
-                    dirs_joined.push_str(&format!(" {}", path.display()));
+                    dirs_joined.push(' ');
+                    dirs_joined.push_str(&path.to_string_lossy());
                     dirs_joined
                 });
         let dirs_joined = dirs_joined.trim();

@@ -26,7 +26,7 @@ impl Image {
 
     fn simple(target: BuildTarget) -> (&'static str, &'static str) {
         match target {
-            BuildTarget::Rpm => ("centos:latest", "pkger-rpm"),
+            BuildTarget::Rpm => ("rockylinux/rockylinux:latest", "pkger-rpm"),
             BuildTarget::Deb => ("ubuntu:latest", "pkger-deb"),
             BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
             BuildTarget::Gzip => ("ubuntu:latest", "pkger-gzip"),
