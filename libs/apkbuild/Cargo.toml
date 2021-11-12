@@ -1,0 +1,14 @@
+[package]
+name = "apkbuild"
+description = "Crate for APKBUILD generation"
+version = "0.1.0"
+authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+pkgspec = { path = "../pkgspec" }
+paste = "1"
+
+[dev-dependencies]
+pretty_assertions = "0.3"

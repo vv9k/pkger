@@ -39,6 +39,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
 
 [[package]]
+name = "apkbuild"
+version = "0.1.0"
+dependencies = [
+ "paste",
+ "pkgspec",
+ "pretty_assertions",
+]
+
+[[package]]
 name = "async-mutex"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1042,6 +1051,7 @@ name = "pkger-core"
 version = "0.6.0"
 dependencies = [
  "anyhow",
+ "apkbuild",
  "async-rwlock",
  "deb-control",
  "docker-api",
