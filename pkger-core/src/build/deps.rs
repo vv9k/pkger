@@ -39,6 +39,11 @@ pub fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashS
         BuildTarget::Pkg => {
             deps.insert("base-devel");
         }
+        BuildTarget::Apk => {
+            deps.insert("alpine-sdk");
+            deps.insert("sudo");
+            deps.insert("bash");
+        }
     }
     if recipe.metadata.git.is_some() {
         deps.insert("git");

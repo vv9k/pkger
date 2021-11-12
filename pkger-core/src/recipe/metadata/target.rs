@@ -10,6 +10,7 @@ pub enum BuildTarget {
     Deb,
     Gzip,
     Pkg,
+    Apk,
 }
 
 impl Default for BuildTarget {
@@ -27,6 +28,7 @@ impl TryFrom<&str> for BuildTarget {
             "deb" => Ok(Self::Deb),
             "gzip" => Ok(Self::Gzip),
             "pkg" => Ok(Self::Pkg),
+            "apk" => Ok(Self::Apk),
             target => Err(anyhow!("unknown build target `{}`", target)),
         }
     }
@@ -39,6 +41,7 @@ impl AsRef<str> for BuildTarget {
             BuildTarget::Deb => "deb",
             BuildTarget::Gzip => "gzip",
             BuildTarget::Pkg => "pkg",
+            BuildTarget::Apk => "apk",
         }
     }
 }

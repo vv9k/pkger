@@ -30,6 +30,7 @@ impl Image {
             BuildTarget::Deb => ("ubuntu:latest", "pkger-deb"),
             BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
             BuildTarget::Gzip => ("ubuntu:latest", "pkger-gzip"),
+            BuildTarget::Apk => ("alpine:latest", "pkger-apk"),
         }
     }
 

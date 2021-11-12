@@ -13,6 +13,7 @@ pub use metadata::{
 use crate::{err, Error, Result};
 
 use anyhow::Context;
+use apkbuild::ApkBuild;
 use deb_control::{binary::BinaryDebControl, DebControlBuilder};
 use pkgbuild::PkgBuild;
 use rpmspec::RpmSpec;
@@ -350,6 +351,35 @@ impl Recipe {
         }
         if let Some(provides) = &self.metadata.provides {
             builder = builder.add_provides_entries(provides.resolve_names(image));
+        }
+
+        builder = builder.pkgrel(self.metadata.release());
+
+        builder.build()
+    }
+
+    pub fn as_apkbuild(&self, image: &str, sources: &[String], builddir: &Path) -> ApkBuild {
+        let package_func =
+            sources
+                .iter()
+                .fold("    mkdir -p $pkgdir\n".to_string(), |mut s, src| {
+                    s.push_str(&format!("    tar xvf {} -C $pkgdir\n", src));
+                    s
+                });
+
+        let mut builder = ApkBuild::builder()
+            .pkgname(&self.metadata.name)
+            .pkgver(&self.metadata.version)
+            .pkgdesc(&self.metadata.description)
+            .add_license_entries(vec![&self.metadata.license])
+            .add_arch_entries(vec![self.metadata.arch.pkg_name().to_string()])
+            .add_source_entries(sources)
+            .package_func(package_func)
+            .builddir(builddir.to_string_lossy());
+
+        builder = builder.url(self.metadata.url.as_deref().unwrap_or(" "));
+        if let Some(depends) = &self.metadata.depends {
+            builder = builder.add_depends_entries(depends.resolve_names(image));
         }
 
         builder = builder.pkgrel(self.metadata.release());

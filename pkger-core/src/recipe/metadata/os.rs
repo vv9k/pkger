@@ -45,6 +45,7 @@ impl Os {
             Distro::Fedora if version >= 22 => PackageManager::Dnf,
             Distro::Rocky => PackageManager::Dnf,
             Distro::RedHat | Distro::CentOS | Distro::Fedora => PackageManager::Yum,
+            Distro::Alpine => PackageManager::Apk,
         }
     }
 }
@@ -61,6 +62,7 @@ pub enum Distro {
     RedHat,
     Ubuntu,
     Rocky,
+    Alpine,
 }
 
 impl AsRef<str> for Distro {
@@ -74,6 +76,7 @@ impl AsRef<str> for Distro {
             RedHat => "redhat",
             Ubuntu => "ubuntu",
             Rocky => "rocky",
+            Alpine => "alpine",
         }
     }
 }
@@ -82,7 +85,7 @@ impl TryFrom<&str> for Distro {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self> {
         use Distro::*;
-        const DISTROS: [(&str, Distro); 8] = [
+        const DISTROS: &[(&str, Distro)] = &[
             ("arch", Arch),
             ("centos", CentOS),
             ("debian", Debian),
@@ -91,6 +94,7 @@ impl TryFrom<&str> for Distro {
             ("red hat", RedHat),
             ("ubuntu", Ubuntu),
             ("rocky", Rocky),
+            ("alpine", Alpine),
         ];
         let out = s.to_lowercase();
         for (name, distro) in DISTROS.iter() {
@@ -111,6 +115,7 @@ pub enum PackageManager {
     Dnf,
     Pacman,
     Yum,
+    Apk,
 }
 
 impl AsRef<str> for PackageManager {
@@ -120,6 +125,7 @@ impl AsRef<str> for PackageManager {
             Self::Dnf => "dnf",
             Self::Pacman => "pacman",
             Self::Yum => "yum",
+            Self::Apk => "apk",
         }
     }
 }
@@ -132,6 +138,7 @@ impl PackageManager {
             Self::Dnf => vec!["install", "-y"],
             Self::Pacman => vec!["-S", "--noconfirm"],
             Self::Yum => vec!["install", "-y"],
+            Self::Apk => vec!["add"],
         }
     }
 
@@ -140,6 +147,7 @@ impl PackageManager {
             Self::Apt => vec!["update", "-y"],
             Self::Dnf | Self::Yum => vec!["clean", "metadata"],
             Self::Pacman => vec!["-Sy", "--noconfirm"],
+            Self::Apk => vec!["update"],
         }
     }
 
@@ -148,6 +156,7 @@ impl PackageManager {
             Self::Apt => vec!["dist-upgrade", "-y"],
             Self::Dnf | Self::Yum => vec!["update", "-y"],
             Self::Pacman => vec!["-Syu", "--noconfirm"],
+            Self::Apk => vec!["upgrade"],
         }
     }
 }

@@ -5,6 +5,7 @@ use crate::image::ImageState;
 use crate::recipe::BuildTarget;
 use crate::Result;
 
+pub mod apk;
 pub mod deb;
 pub mod gzip;
 pub mod pkg;
@@ -21,5 +22,6 @@ pub async fn create_package(
         BuildTarget::Gzip => gzip::build(ctx, output_dir).await,
         BuildTarget::Deb => deb::build(ctx, image_state, output_dir).await,
         BuildTarget::Pkg => pkg::build(ctx, image_state, output_dir).await,
+        BuildTarget::Apk => apk::build(ctx, image_state, output_dir).await,
     }
 }

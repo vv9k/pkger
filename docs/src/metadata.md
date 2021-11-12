@@ -114,9 +114,8 @@ if running a simple build and there is a need to specify dependencies for the ta
 images:
 
 ```yaml
-    pkger-rpm: ["cargo"]
+    pkger-rpm+pkger-apk+pkger-pkg: ["cargo"]
     pkger-deb: ["curl"]
-    pkger-pkg: ["cargo"]
     pkger-gzip: []
 ```
 

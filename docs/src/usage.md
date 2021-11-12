@@ -1,6 +1,6 @@
 # Build a package
 
-Currently available targets are: **RPM**, **DEB**, **PKG**, **GZIP**.  
+Currently available targets are: **rpm**, **deb**, **pkg**, **apk**, **gzip**.
 
 ### Simple build
 
