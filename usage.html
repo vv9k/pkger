@@ -138,15 +138,29 @@
 <p>Currently available targets are: <strong>RPM</strong>, <strong>DEB</strong>, <strong>PKG</strong>, <strong>GZIP</strong>.</p>
 <h3 id="simple-build"><a class="header" href="#simple-build">Simple build</a></h3>
 <p>To build a simple package using <strong>pkger</strong> use:</p>
-<ul>
-<li><code>pkger build --simple [TARGETS] -- [RECIPES]</code></li>
-</ul>
+<pre><code class="language-shell">pkger build --simple [TARGETS] -- [RECIPES]
+</code></pre>
 <h3 id="custom-images-build"><a class="header" href="#custom-images-build">Custom images build</a></h3>
 <p>To use <a href="./images.html">custom images</a> drop the <code>--simple</code> parameter and just use:</p>
-<ul>
-<li><code>pkger build [RECIPES]</code></li>
-</ul>
+<pre><code class="language-shell">pkger build [RECIPES]
+</code></pre>
 <p>For this to have any effect the recipes have to have image targets defined (more on that <a href="./metadata.html#optional-fields">here</a>)</p>
+<h3 id="examples"><a class="header" href="#examples">Examples</a></h3>
+<h4 id="build-a-recipe-for-all-supported-images"><a class="header" href="#build-a-recipe-for-all-supported-images">Build a recipe for all supported images:</a></h4>
+<pre><code class="language-shell">pkger build recipe
+</code></pre>
+<h4 id="build-all-recipes-for-all-supported-images"><a class="header" href="#build-all-recipes-for-all-supported-images">Build all recipes for all supported images</a></h4>
+<pre><code class="language-shell">pkger build --all
+</code></pre>
+<h4 id="build-multiple-recipes-on-specified-custom-images"><a class="header" href="#build-multiple-recipes-on-specified-custom-images">Build multiple recipes on specified custom images:</a></h4>
+<pre><code class="language-shell">pkger build -i custom-image1 custom-image2 -- recipe1 recipe2
+</code></pre>
+<h4 id="build-simple-rpm-deb-pkg-packages"><a class="header" href="#build-simple-rpm-deb-pkg-packages">Build simple RPM, DEB, PKG... packages:</a></h4>
+<pre><code class="language-shell">pkger build -s rpm deb pkg gzip -- recipe1
+</code></pre>
+<h4 id="build-only-rpm-package"><a class="header" href="#build-only-rpm-package">Build only RPM package:</a></h4>
+<pre><code class="language-shell">pkger build -s rpm -- recipe1
+</code></pre>
 <h3 id="output"><a class="header" href="#output">Output</a></h3>
 <p>After successfully building a package <strong>pkger</strong> will put the output artifact to <code>output_dir</code> specified in
 <a href="./configuration.html">configuration</a> joined by the image name that was used to build the package.
