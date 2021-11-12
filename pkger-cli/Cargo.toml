@@ -15,6 +15,7 @@ edition = "2021"
 pkger-core = { path = "../pkger-core" }
 
 clap = "3.0.0-beta.5"
+clap_generate = "3.0.0-beta.5"
 
 chrono = "0.4"
 colored = "2"

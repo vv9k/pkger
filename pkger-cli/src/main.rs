@@ -9,9 +9,10 @@ use tracing::error;
 use app::Application;
 use config::Configuration;
 use opts::Opts;
-use pkger_core::{ErrContext, Result};
+use pkger_core::{ErrContext, Error, Result};
 
 mod app;
+mod completions;
 mod config;
 mod fmt;
 mod gen;

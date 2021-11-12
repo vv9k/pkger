@@ -1,5 +1,6 @@
 mod build;
 
+use crate::completions;
 use crate::config::Configuration;
 use crate::gen;
 use crate::metadata::PackageMetadata;
@@ -189,6 +190,10 @@ impl Application {
             Command::Init { .. } => unreachable!(),
             Command::Edit { object } => self.edit(object),
             Command::New { object } => self.create(object),
+            Command::PrintCompletions(opts) => {
+                completions::print(&opts);
+                Ok(())
+            }
         }
     }
 

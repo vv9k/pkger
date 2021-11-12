@@ -1,8 +1,12 @@
+use crate::completions::Shell;
 use clap::Parser;
 use std::path::PathBuf;
+
+pub const APP_NAME: &str = "pkger";
+
 #[derive(Debug, Parser)]
 #[clap(
-    name = "pkger",
+    name = APP_NAME,
     version = "0.6.0",
     author = "Wojciech Kępka <wojciech@wkepka.dev>",
     about = "Creates RPM, DEB and other packages using Docker"
@@ -70,6 +74,8 @@ pub enum Command {
     },
     /// Initializes required directories and a configuration file at specified or default locations.
     Init(InitOpts),
+    /// Prints completions for the specified shell
+    PrintCompletions(CompletionsOpts),
 }
 
 #[derive(Debug, Parser)]
@@ -287,4 +293,11 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     /// Optional dependencies needed for full functionality of the package. Only applies to PKG
     pub optdepends: Option<Vec<String>>,
+}
+
+#[derive(Debug, Parser)]
+pub struct CompletionsOpts {
+    /// A shell for which to print completions. Available shells are: bash, elvish, fish,
+    /// powershell, zsh
+    pub shell: Shell,
 }

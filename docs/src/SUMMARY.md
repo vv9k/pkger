@@ -16,4 +16,5 @@
 - [Formatting output](./output.md)
 - [Create new recipes and images](./new.md)
 - [Edit recipes, images and config](./edit.md)
+- [Shell completions](./completions.md)
 
