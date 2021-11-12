@@ -67,7 +67,6 @@ excluded by `exclude` field in [metadata](./metadata.md#optional-fields). So in 
 installed will be available as `/usr/bin/pkger` with permissions preserved.
 
 ```yaml
-[install]
 install:
   steps:
     - cmd: >-
