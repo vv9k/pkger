@@ -162,6 +162,11 @@ impl Recipe {
             recipe_dir,
         })
     }
+
+    #[inline]
+    pub fn images(&self) -> &[String] {
+        &self.metadata.images
+    }
 }
 
 impl Recipe {
@@ -380,6 +385,9 @@ impl Recipe {
         builder = builder.url(self.metadata.url.as_deref().unwrap_or(" "));
         if let Some(depends) = &self.metadata.depends {
             builder = builder.add_depends_entries(depends.resolve_names(image));
+        }
+        if let Some(provides) = &self.metadata.provides {
+            builder = builder.add_provides_entries(provides.resolve_names(image));
         }
 
         builder = builder.pkgrel(self.metadata.release());

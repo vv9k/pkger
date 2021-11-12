@@ -82,8 +82,8 @@ impl Application {
                             recipe: recipe.clone(),
                         });
                     }
-                } else if let Some(images) = &recipe.metadata.images {
-                    for target_image in images {
+                } else if !recipe.images().is_empty() {
+                    for target_image in recipe.images() {
                         add_task_if_target_found!(target_image, recipe, self, tasks);
                     }
                 } else {
@@ -108,10 +108,10 @@ impl Application {
                     for image in opt_images {
                         add_task_if_target_found!(image, recipe, self, tasks);
                     }
-                } else if let Some(images) = &recipe.metadata.images {
+                } else if !recipe.images().is_empty() {
                     for image in opt_images {
                         // first we check if the recipe contains the image
-                        if images.iter().any(|target| target == image) {
+                        if recipe.images().iter().any(|target| target == image) {
                             // then we fetch the target from configuration images
                             add_task_if_target_found!(image, recipe, self, tasks);
                         } else {
@@ -132,12 +132,8 @@ impl Application {
                             recipe: recipe.clone(),
                         });
                     }
-                } else if let Some(images) = &recipe.metadata.images {
-                    if images.is_empty() {
-                        warn!(recipe = %recipe.metadata.name, "recipe has no image targets, skipping");
-                        continue;
-                    }
-                    for target_image in images {
+                } else if !recipe.images().is_empty() {
+                    for target_image in recipe.images() {
                         add_task_if_target_found!(target_image, recipe, self, tasks);
                     }
                 } else {

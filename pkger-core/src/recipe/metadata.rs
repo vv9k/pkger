@@ -30,6 +30,10 @@ macro_rules! if_let_some_ty {
     };
 }
 
+fn null() -> YamlValue {
+    YamlValue::Null
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct MetadataRep {
     // Required
@@ -41,8 +45,9 @@ pub struct MetadataRep {
     #[serde(default)]
     /// If specified all images will apply to this metadata and `images` will be ignored.
     pub all_images: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub images: Option<Vec<String>>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     // Common optional
@@ -55,9 +60,10 @@ pub struct MetadataRep {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// http/https or file system source pointing to a tar.gz or tar.xz package
     pub source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
     /// Git repository as source
-    pub git: Option<YamlValue>,
+    pub git: YamlValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Whether to install default dependencies before build
     pub skip_default_deps: Option<bool>,
@@ -74,19 +80,24 @@ pub struct MetadataRep {
     /// Used to force the package to be seen as newer than any previous version with a lower epoch
     pub epoch: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub build_depends: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub depends: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub conflicts: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub provides: Option<YamlValue>,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub build_depends: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub depends: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub conflicts: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub provides: YamlValue,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
     /// Patches to be applied to the source code. Can be specified only for certain images same
     /// as dependencies.
-    pub patches: Option<YamlValue>,
+    pub patches: YamlValue,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     // Only DEB
@@ -99,6 +110,10 @@ pub struct MetadataRep {
     #[serde(skip_serializing_if = "Option::is_none")]
     // Only PKG
     pub pkg: Option<PkgRep>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // Only APK
+    pub apk: Option<ApkRep>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -106,15 +121,15 @@ pub struct PkgRep {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The name of the .install script to be included in the package
     pub install: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// A list of files that can contain user-made changes and should be preserved during upgrade
-    /// or removal of a package
-    pub backup: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub replaces: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// Optional dependencies needed for full functionality of the package
-    pub optdepends: Option<Vec<String>>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub backup: Vec<String>,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub replaces: YamlValue,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub optdepends: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -123,10 +138,10 @@ pub struct PkgInfo {
     pub install: Option<String>,
     /// A list of files that can contain user-made changes and should be preserved during upgrade
     /// or removal of a package
-    pub backup: Option<Vec<String>>,
+    pub backup: Vec<String>,
     pub replaces: Option<Dependencies>,
     /// Optional dependencies needed for full functionality of the package
-    pub optdepends: Option<Vec<String>>,
+    pub optdepends: Vec<String>,
 }
 
 impl TryFrom<PkgRep> for PkgInfo {
@@ -136,7 +151,7 @@ impl TryFrom<PkgRep> for PkgInfo {
         Ok(Self {
             install: rep.install,
             backup: rep.backup,
-            replaces: if_let_some_ty!(rep.replaces, Dependencies),
+            replaces: Dependencies::try_from(rep.replaces).ok(),
             optdepends: rep.optdepends,
         })
     }
@@ -151,18 +166,24 @@ pub struct DebRep {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub essential: Option<bool>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pre_depends: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub recommends: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub suggests: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub breaks: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub replaces: Option<YamlValue>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub enhances: Option<YamlValue>,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub pre_depends: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub recommends: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub suggests: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub breaks: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub replaces: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub enhances: YamlValue,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -188,20 +209,21 @@ impl TryFrom<DebRep> for DebInfo {
             built_using: rep.built_using,
             essential: rep.essential,
 
-            pre_depends: if_let_some_ty!(rep.pre_depends, Dependencies),
-            recommends: if_let_some_ty!(rep.recommends, Dependencies),
-            suggests: if_let_some_ty!(rep.suggests, Dependencies),
-            breaks: if_let_some_ty!(rep.breaks, Dependencies),
-            replaces: if_let_some_ty!(rep.replaces, Dependencies),
-            enhances: if_let_some_ty!(rep.enhances, Dependencies),
+            pre_depends: Dependencies::try_from(rep.pre_depends).ok(),
+            recommends: Dependencies::try_from(rep.recommends).ok(),
+            suggests: Dependencies::try_from(rep.suggests).ok(),
+            breaks: Dependencies::try_from(rep.breaks).ok(),
+            replaces: Dependencies::try_from(rep.replaces).ok(),
+            enhances: Dependencies::try_from(rep.enhances).ok(),
         })
     }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RpmRep {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub obsoletes: Option<YamlValue>,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub obsoletes: YamlValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vendor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -227,7 +249,7 @@ impl TryFrom<RpmRep> for RpmInfo {
 
     fn try_from(rep: RpmRep) -> Result<Self> {
         Ok(Self {
-            obsoletes: if_let_some_ty!(rep.obsoletes, Dependencies),
+            obsoletes: Dependencies::try_from(rep.obsoletes).ok(),
             vendor: rep.vendor,
             icon: rep.icon,
             summary: rep.summary,
@@ -265,7 +287,7 @@ pub struct Metadata {
     pub arch: BuildArch,
 
     pub all_images: bool,
-    pub images: Option<Vec<String>>,
+    pub images: Vec<String>,
     pub maintainer: Option<String>,
     /// The URL of the web site for this package
     pub url: Option<String>,
@@ -298,6 +320,8 @@ pub struct Metadata {
     pub rpm: Option<RpmInfo>,
 
     pub pkg: Option<PkgInfo>,
+
+    pub apk: Option<ApkInfo>,
 }
 
 impl Metadata {
@@ -330,23 +354,57 @@ impl TryFrom<MetadataRep> for Metadata {
             maintainer: rep.maintainer,
             url: rep.url,
             source: rep.source,
-            git: if_let_some_ty!(rep.git, GitSource),
+            git: GitSource::try_from(rep.git).ok(),
             skip_default_deps: rep.skip_default_deps,
             exclude: rep.exclude,
             group: rep.group,
             release: rep.release,
             epoch: rep.epoch,
 
-            build_depends: if_let_some_ty!(rep.build_depends, Dependencies),
-            depends: if_let_some_ty!(rep.depends, Dependencies),
-            conflicts: if_let_some_ty!(rep.conflicts, Dependencies),
-            provides: if_let_some_ty!(rep.provides, Dependencies),
+            build_depends: Dependencies::try_from(rep.build_depends).ok(),
+            depends: Dependencies::try_from(rep.depends).ok(),
+            conflicts: Dependencies::try_from(rep.conflicts).ok(),
+            provides: Dependencies::try_from(rep.provides).ok(),
 
-            patches: if_let_some_ty!(rep.patches, Patches),
+            patches: Patches::try_from(rep.patches).ok(),
 
             deb: if_let_some_ty!(rep.deb, DebInfo),
             rpm: if_let_some_ty!(rep.rpm, RpmInfo),
             pkg: if_let_some_ty!(rep.pkg, PkgInfo),
+            apk: if_let_some_ty!(rep.apk, ApkInfo),
+        })
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct ApkRep {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// List of install scripts like pre-install and post-install
+    pub install: Vec<String>,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub replaces: YamlValue,
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
+    pub checkdepends: YamlValue,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ApkInfo {
+    pub install: Vec<String>,
+    pub replaces: Option<Dependencies>,
+    pub checkdepends: Option<Dependencies>,
+}
+
+impl TryFrom<ApkRep> for ApkInfo {
+    type Error = Error;
+
+    fn try_from(rep: ApkRep) -> Result<Self> {
+        Ok(Self {
+            install: rep.install,
+            replaces: Dependencies::try_from(rep.replaces).ok(),
+            checkdepends: Dependencies::try_from(rep.checkdepends).ok(),
         })
     }
 }

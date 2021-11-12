@@ -34,6 +34,8 @@ pub struct ApkBuild {
     /// A list of patches to apply to the package
     patches: Vec<String>,
 
+    /// A list of "virtual provisions" that this package provides
+    provides: Vec<String>,
     /// A list of packages this package depends on to run
     depends: Vec<String>,
     /// A list of packages this package depends on to build
@@ -115,6 +117,7 @@ impl ApkBuild {
         push_field!(url);
         push_array!(arch);
         push_array!(license);
+        push_array!(provides);
         push_array!(depends);
         push_array!(makedepends);
         push_if_some!(install);

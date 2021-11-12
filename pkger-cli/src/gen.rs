@@ -15,9 +15,9 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
         if let Some(branch) = opts.git_branch {
             git_src.insert(YamlValue::from("branch"), YamlValue::from(branch));
         }
-        Some(YamlValue::Mapping(git_src))
+        YamlValue::Mapping(git_src)
     } else {
-        None
+        YamlValue::Null
     };
 
     let mut env = Mapping::new();
@@ -42,9 +42,9 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
         ($it:expr) => {{
             let vec = $it.into_iter().map(YamlValue::from).collect::<Vec<_>>();
             if vec.is_empty() {
-                None
+                YamlValue::Null
             } else {
-                Some(YamlValue::Sequence(vec))
+                YamlValue::Sequence(vec)
             }
         }};
     }
@@ -77,9 +77,9 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
 
     let pkg = PkgRep {
         install: opts.install_script,
-        backup: opts.backup_files,
+        backup: opts.backup_files.unwrap_or_default(),
         replaces: vec_as_deps!(opts.replaces),
-        optdepends: opts.optdepends,
+        optdepends: opts.optdepends.unwrap_or_default(),
     };
 
     let metadata = MetadataRep {
@@ -88,7 +88,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
         description: opts.description.unwrap_or_else(|| "missing".to_string()),
         license: opts.license.unwrap_or_else(|| "missing".to_string()),
         all_images: false,
-        images: None,
+        images: vec![],
 
         maintainer: opts.maintainer,
         url: opts.url,
@@ -110,6 +110,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
         deb: Some(deb),
         rpm: Some(rpm),
         pkg: Some(pkg),
+        apk: None,
     };
 
     RecipeRep {

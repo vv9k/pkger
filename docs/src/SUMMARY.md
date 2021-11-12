@@ -7,6 +7,7 @@
     - [RPM](./rpm.md)
     - [DEB](./deb.md)
     - [PKG](./pkg.md)
+    - [APK](./apk.md)
   - [Scripts](./scripts.md)
   - [Env](./env.md)
 - [Images](./images.md)
