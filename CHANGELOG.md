@@ -3,6 +3,7 @@
 - Don't use `setarch` when arch is all/noarch
 - Make Ctrl-C cancellation instantaneous, no more waiting for the jobs to finish
 - Use Rocky Linux for simple RPM builds
+- Add alpine APK target [#75](https://github.com/vv9k/pkger/pull/75)
 
 # 0.6.0
 - Use default OS config directory instead of home directory to read the configuration file by default.
