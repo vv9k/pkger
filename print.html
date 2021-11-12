@@ -442,8 +442,7 @@ was specified.</p>
 ends up in <a href="./env.html#pkger-variables"><code>$PKGER_OUT_DIR</code></a> will be available in the final package unless explicitly
 excluded by <code>exclude</code> field in <a href="./metadata.html#optional-fields">metadata</a>. So in the example below, the file that is
 installed will be available as <code>/usr/bin/pkger</code> with permissions preserved.</p>
-<pre><code class="language-yaml">[install]
-install:
+<pre><code class="language-yaml">install:
   steps:
     - cmd: &gt;-
         install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/pkger
