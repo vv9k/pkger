@@ -320,9 +320,8 @@ supported distribution. Default dependencies like <code>gzip</code> or <code>git
 </code></pre>
 <p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
 images:</p>
-<pre><code class="language-yaml">    pkger-rpm: [&quot;cargo&quot;]
+<pre><code class="language-yaml">    pkger-rpm+pkger-apk+pkger-pkg: [&quot;cargo&quot;]
     pkger-deb: [&quot;curl&quot;]
-    pkger-pkg: [&quot;cargo&quot;]
     pkger-gzip: []
 </code></pre>
 <h3 id="patches"><a class="header" href="#patches">Patches</a></h3>
@@ -484,7 +483,7 @@ containing a <code>Dockerfile</code> as an image. The name of the directory will
 <p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
 dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-a-package"><a class="header" href="#build-a-package">Build a package</a></h1>
-<p>Currently available targets are: <strong>RPM</strong>, <strong>DEB</strong>, <strong>PKG</strong>, <strong>GZIP</strong>.</p>
+<p>Currently available targets are: <strong>rpm</strong>, <strong>deb</strong>, <strong>pkg</strong>, <strong>apk</strong>, <strong>gzip</strong>.</p>
 <h3 id="simple-build"><a class="header" href="#simple-build">Simple build</a></h3>
 <p>To build a simple package using <strong>pkger</strong> use:</p>
 <pre><code class="language-shell">pkger build --simple [TARGETS] -- [RECIPES]

@@ -214,9 +214,8 @@ supported distribution. Default dependencies like <code>gzip</code> or <code>git
 </code></pre>
 <p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
 images:</p>
-<pre><code class="language-yaml">    pkger-rpm: [&quot;cargo&quot;]
+<pre><code class="language-yaml">    pkger-rpm+pkger-apk+pkger-pkg: [&quot;cargo&quot;]
     pkger-deb: [&quot;curl&quot;]
-    pkger-pkg: [&quot;cargo&quot;]
     pkger-gzip: []
 </code></pre>
 <h3 id="patches"><a class="header" href="#patches">Patches</a></h3>
