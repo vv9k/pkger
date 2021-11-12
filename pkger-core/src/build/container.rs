@@ -20,7 +20,7 @@ impl<'job> Context<'job> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(build: &'job build::Context, opts: ContainerCreateOpts) -> Context<'job> {
         Context {
-            container: DockerContainer::new(&build.docker, Some(build.is_running.clone())),
+            container: DockerContainer::new(&build.docker),
             opts,
             build,
             vars: Env::new(),

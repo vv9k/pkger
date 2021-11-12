@@ -9,7 +9,6 @@ use pkger_core::{err, ErrContext, Error, Result};
 
 use futures::stream::FuturesUnordered;
 use std::convert::TryFrom;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::task;
 use tracing::{debug, error, info, info_span, trace, warn, Instrument};
@@ -174,6 +173,8 @@ impl Application {
         let span = info_span!("process-jobs");
         async move {
             let jobs = FuturesUnordered::new();
+            let start = std::time::SystemTime::now();
+
             for task in tasks {
                 let (recipe, image, target, is_simple) = match task {
                     BuildTask::Custom { recipe, target } => {
@@ -186,38 +187,44 @@ impl Application {
                         (recipe, image, ImageTarget::new(name, target, None::<&str>), true)
                     }
                 };
-                jobs.push(task::spawn(
-                    JobCtx::Build(Context::new(
-                        recipe,
-                        image,
-                        self.docker.connect(),
-                        target,
-                        self.config.output_dir.as_path(),
-                        self.images_state.clone(),
-                        self.is_running.clone(),
-                        is_simple,
-                        self.gpg_key.clone(),
-                        self.config.ssh.clone(),
-                        quiet
-                    ))
-                        .run(),
-                ));
+                let ctx = Context::new(
+                    recipe,
+                    image,
+                    self.docker.connect(),
+                    target,
+                    self.config.output_dir.as_path(),
+                    self.images_state.clone(),
+                    is_simple,
+                    self.gpg_key.clone(),
+                    self.config.ssh.clone(),
+                    quiet
+                );
+                let id = ctx.id().to_string();
+
+                jobs.push((id, task::spawn(JobCtx::Build(ctx).run())));
             }
 
             let mut results = vec![];
 
-            for job in jobs {
-                if !self.is_running.load(Ordering::Relaxed) {
-                    warn!("got ctrl-c, killing job");
-                    job.abort();
-                    continue
+            for (id,  mut job) in jobs {
+                tokio::select! {
+                    res = &mut job => {
+                        if let Err(e) = res {
+                            error!(reason = %e, "failed to join the handle for a job");
+                            continue;
+                        }
+                        results.push(res.unwrap());
+                    }
+                    _ = self.is_running() => {
+                        results.push(
+                            JobResult::Failure {
+                                id,
+                                duration: start.elapsed().unwrap_or_default(),
+                                reason: "job cancelled by ctrl-c signal".to_string()
+                            }
+                        );
+                    }
                 }
-                let handle = job.await;
-                if let Err(e) = handle {
-                    error!(reason = %e, "failed to join the handle for a job");
-                    continue;
-                }
-                results.push(handle.unwrap());
             }
 
             let mut task_failed = false;

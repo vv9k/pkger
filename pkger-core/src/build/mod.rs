@@ -12,24 +12,15 @@ use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::recipe::{ImageTarget, Patch, Patches, Recipe, RecipeTarget};
 use crate::ssh::SshConfig;
-use crate::{err, ErrContext, Error, Result};
+use crate::{ErrContext, Result};
 
 use async_rwlock::RwLock;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tracing::{debug, info, info_span, trace, warn, Instrument};
-
-macro_rules! cleanup {
-    ($ctx:ident) => {
-        if !$ctx.container.is_running().await? {
-            return err!("job interrupted by ctrl-c signal");
-        }
-    };
-}
 
 #[derive(Debug)]
 /// Groups all data and functionality necessary to create an artifact
@@ -44,7 +35,6 @@ pub struct Context {
     out_dir: PathBuf,
     target: RecipeTarget,
     image_state: Arc<RwLock<ImagesState>>,
-    is_running: Arc<AtomicBool>,
     simple: bool,
     gpg_key: Option<GpgKey>,
     ssh: Option<SshConfig>,
@@ -60,8 +50,6 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
         let out_dir = ctx.create_out_dir(&image_state).await?;
 
         let mut container_ctx = container::spawn(ctx, &image_state).await?;
-
-        cleanup!(container_ctx);
 
         let image_state = if image_state.tag != image::CACHED {
             let mut deps = deps::default(
@@ -86,8 +74,6 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
             image_state
         };
 
-        cleanup!(container_ctx);
-
         let dirs = vec![
             &ctx.container_out_dir,
             &ctx.container_bld_dir,
@@ -96,29 +82,16 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
 
         container::create_dirs(&container_ctx, &dirs[..]).await?;
 
-        cleanup!(container_ctx);
-
         remote::fetch_source(&container_ctx).await?;
-
-        cleanup!(container_ctx);
 
         if let Some(patches) = &ctx.recipe.metadata.patches {
             let patches = collect_patches(&container_ctx, patches).await?;
-
-            cleanup!(container_ctx);
-
             apply_patches(&container_ctx, patches).await?;
         }
 
-        cleanup!(container_ctx);
-
         scripts::run(&container_ctx).await?;
 
-        cleanup!(container_ctx);
-
         exclude_paths(&container_ctx).await?;
-
-        cleanup!(container_ctx);
 
         let package =
             package::create_package(&container_ctx, &image_state, out_dir.as_path()).await?;
@@ -140,7 +113,6 @@ impl Context {
         target: ImageTarget,
         out_dir: &Path,
         image_state: Arc<RwLock<ImagesState>>,
-        is_running: Arc<AtomicBool>,
         simple: bool,
         gpg_key: Option<GpgKey>,
         ssh: Option<SshConfig>,
@@ -178,7 +150,6 @@ impl Context {
             out_dir: out_dir.to_path_buf(),
             target,
             image_state,
-            is_running,
             simple,
             gpg_key,
             ssh,

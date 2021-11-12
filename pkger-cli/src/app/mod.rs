@@ -89,6 +89,24 @@ fn system_time_to_date_time(t: time::SystemTime) -> chrono::DateTime<Utc> {
 
 // ################################################################################
 
+/// A future representing the state of the application. When this future resolves it means
+/// the application should not be running any more.
+struct IsRunning(Arc<AtomicBool>);
+impl std::future::Future for IsRunning {
+    type Output = ();
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        ctx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        if !self.0.load(Ordering::Relaxed) {
+            std::task::Poll::Ready(())
+        } else {
+            ctx.waker().wake_by_ref();
+            std::task::Poll::Pending
+        }
+    }
+}
+
 pub struct Application {
     config: Arc<Configuration>,
     recipes: Arc<recipe::Loader>,
@@ -172,6 +190,10 @@ impl Application {
             Command::Edit { object } => self.edit(object),
             Command::New { object } => self.create(object),
         }
+    }
+
+    fn is_running(&self) -> IsRunning {
+        IsRunning(self.is_running.clone())
     }
 
     fn create(&self, object: NewObject) -> Result<()> {

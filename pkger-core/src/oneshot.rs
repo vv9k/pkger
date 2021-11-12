@@ -19,7 +19,7 @@ pub struct OneShotCtx<'job> {
 pub async fn run(ctx: &OneShotCtx<'_>) -> Result<Output<u8>> {
     let span = info_span!("oneshot-ctx", id = %ctx.id);
     async move {
-        let mut container = DockerContainer::new(ctx.docker, None);
+        let mut container = DockerContainer::new(ctx.docker);
         container.spawn(ctx.opts).await?;
 
         container.logs(ctx.stdout, ctx.stderr).await

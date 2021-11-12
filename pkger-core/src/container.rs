@@ -9,8 +9,6 @@ use docker_api::{
 use futures::{StreamExt, TryStreamExt};
 use std::path::Path;
 use std::str;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tracing::{error, info, info_span, trace, Instrument};
 
 /// Length of significant characters of a container ID.
@@ -136,20 +134,13 @@ impl<'opts> ExecOpts<'opts> {
 
 /// Wrapper type that allows easier manipulation of Docker containers
 pub struct DockerContainer<'job> {
-    /// Whether the main process is still running or got an exit signal
-    is_running: Arc<AtomicBool>,
     container: Container<'job>,
     docker: &'job Docker,
 }
 
 impl<'job> DockerContainer<'job> {
-    pub fn new(docker: &'job Docker, is_running: Option<Arc<AtomicBool>>) -> DockerContainer<'job> {
+    pub fn new(docker: &'job Docker) -> DockerContainer<'job> {
         Self {
-            is_running: if let Some(is_running) = is_running {
-                is_running
-            } else {
-                Arc::new(AtomicBool::new(true))
-            },
             container: docker.containers().get(""),
             docker,
         }
@@ -201,21 +192,6 @@ impl<'job> DockerContainer<'job> {
         .await
     }
 
-    pub async fn is_running(&self) -> Result<bool> {
-        let span = info_span!("is-running", id = %self.id());
-        async move {
-            if !self.is_running.load(Ordering::SeqCst) {
-                trace!("not running");
-
-                return self.remove().await.map(|_| false);
-            }
-
-            Ok(true)
-        }
-        .instrument(span)
-        .await
-    }
-
     pub async fn exec<'cmd>(
         &self,
         opts: &ExecContainerOpts,
@@ -229,7 +205,6 @@ impl<'job> DockerContainer<'job> {
             let mut output = Output::default();
 
             while let Some(result) = stream.next().await {
-                self.check_ctrlc().await?;
                 match result? {
                     TtyChunk::StdOut(chunk) => {
                         let chunk = str::from_utf8(&chunk)?;
@@ -314,19 +289,6 @@ impl<'job> DockerContainer<'job> {
             let mut archive = tar::Archive::new(&files[..]);
 
             cloned_span.in_scope(|| unpack_tarball(&mut archive, dest))
-        }
-        .instrument(span)
-        .await
-    }
-
-    async fn check_ctrlc(&self) -> Result<()> {
-        let span = info_span!("check-ctrlc");
-        async move {
-            if !self.is_running().await? {
-                Err(anyhow!("container execution interrupted by ctrl-c signal"))
-            } else {
-                Ok(())
-            }
         }
         .instrument(span)
         .await
