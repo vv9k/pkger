@@ -3,7 +3,7 @@ name = "deb-control"
 description = "Crate for DEB/control file generation"
 version = "0.3.1"
 authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 
 [dependencies]

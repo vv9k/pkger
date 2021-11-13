@@ -3,7 +3,7 @@ name = "apkbuild"
 description = "Crate for APKBUILD generation"
 version = "0.1.0"
 authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 
 [dependencies]

@@ -3,7 +3,7 @@ name = "pkgspec"
 description = "Crate with derives for auto generation of methods for spec files like DEB and RPM"
 version = "0.2.0"
 authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 
 [lib]

@@ -3,7 +3,7 @@ name = "rpmspec"
 description = "Crate for RPM spec generation"
 version = "0.3.0"
 authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 
 [dependencies]
