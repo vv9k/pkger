@@ -12,18 +12,18 @@ pub async fn apply(ctx: &container::Context<'_>, patches: Vec<(Patch, PathBuf)>)
         trace!(patches = ?patches);
         for (patch, location) in patches {
             debug!(patch = ?patch, "applying");
-            if let Err(e) = container::checked_exec(
-                ctx,
-                &ExecOpts::default()
-                    .cmd(&format!(
-                        "patch -p{} < {}",
-                        patch.strip_level(),
-                        location.display()
-                    ))
-                    .working_dir(&ctx.build.container_bld_dir)
-                    .build(),
-            )
-            .await
+            if let Err(e) = ctx
+                .checked_exec(
+                    &ExecOpts::default()
+                        .cmd(&format!(
+                            "patch -p{} < {}",
+                            patch.strip_level(),
+                            location.display()
+                        ))
+                        .working_dir(&ctx.build.container_bld_dir)
+                        .build(),
+                )
+                .await
             {
                 warn!(patch = ?patch, reason = %format!("{:?}", e), "applying failed");
             }
@@ -43,7 +43,7 @@ pub async fn collect(
     async move {
         let mut out = Vec::new();
         let patch_dir = ctx.build.container_tmp_dir.join("patches");
-        container::create_dirs(ctx, &[patch_dir.as_path()]).await?;
+        ctx.create_dirs(&[patch_dir.as_path()]).await?;
 
         let mut to_copy = Vec::new();
 
@@ -81,8 +81,7 @@ pub async fn collect(
         let patches_archive = ctx.build.container_tmp_dir.join("patches.tar");
         remote::fetch_fs_source(ctx, &to_copy, &patches_archive).await?;
 
-        container::checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!(
                     "tar xf {} -C {}",

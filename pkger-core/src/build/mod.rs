@@ -158,7 +158,7 @@ pub async fn run(ctx: &mut Context) -> Result<PathBuf> {
             &ctx.container_tmp_dir,
         ];
 
-        container::create_dirs(&container_ctx, &dirs[..]).await?;
+        container_ctx.create_dirs(&dirs[..]).await?;
 
         remote::fetch_source(&container_ctx).await?;
 
@@ -200,8 +200,7 @@ pub async fn exclude_paths(ctx: &container::Context<'_>) -> Result<()> {
                 .collect::<Vec<_>>();
             info!(exclude_dirs = ?exclude_paths);
 
-            container::checked_exec(
-                ctx,
+            ctx.checked_exec(
                 &ExecOpts::default()
                     .cmd(&format!("rm -rvf {}", exclude_paths.join(" ")))
                     .working_dir(&ctx.build.container_out_dir)

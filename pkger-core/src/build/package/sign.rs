@@ -1,4 +1,4 @@
-use crate::build::container::{checked_exec, Context};
+use crate::build::container::Context;
 use crate::container::ExecOpts;
 use crate::{ErrContext, Result};
 
@@ -37,16 +37,11 @@ pub(crate) async fn upload_gpg_key(
 /// Imports the gpg key located at `path` to the database in the container.
 pub(crate) async fn import_gpg_key(ctx: &Context<'_>, gpg_key: &GpgKey, path: &Path) -> Result<()> {
     let span = info_span!("import-key", path = %path.display());
-    checked_exec(
-        ctx,
-        &ExecOpts::default()
-            .cmd(&format!(
-                r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,
-                gpg_key.pass(),
-                path.display(),
-            ))
-            .build(),
-    )
+    ctx.checked_exec(&exec!(&format!(
+        r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,
+        gpg_key.pass(),
+        path.display(),
+    )))
     .instrument(span)
     .await
     .map(|_| ())

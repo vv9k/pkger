@@ -1,5 +1,5 @@
 use crate::archive::create_tarball;
-use crate::build::container::{checked_exec, Context};
+use crate::build::container::Context;
 use crate::container::ExecOpts;
 use crate::recipe::GitSource;
 use crate::template;
@@ -13,8 +13,7 @@ pub async fn fetch_git_source(ctx: &Context<'_>, repo: &GitSource) -> Result<()>
     let span = info_span!("clone-git");
     async move {
                 info!(repo = %repo.url(), branch = %repo.branch(), out_dir = %ctx.build.container_bld_dir.display(), "cloning git source repository to build directory");
-                checked_exec(
-                    ctx,
+                ctx.checked_exec(
                     &ExecOpts::default().cmd(
                     &format!(
                     "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
@@ -33,8 +32,7 @@ pub async fn fetch_http_source(ctx: &Context<'_>, source: &str, dest: &Path) -> 
     let span = info_span!("download-http");
     async move {
         info!(url = %source, destination = %dest.display(), "fetching");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("curl -LO {}", source))
                 .working_dir(dest)
@@ -83,8 +81,7 @@ pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
                 let src_path = PathBuf::from(source);
                 fetch_fs_source(ctx, &[src_path.as_path()], &ctx.build.container_tmp_dir).await?;
             }
-            checked_exec(
-                ctx,
+            ctx.checked_exec(
                 &ExecOpts::default()
                     .cmd(&format!(
                         r#"

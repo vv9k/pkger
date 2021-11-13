@@ -1,4 +1,4 @@
-use crate::build::container::{checked_exec, create_dirs, Context};
+use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
@@ -54,13 +54,12 @@ pub(crate) async fn build(
             srpms.as_path(),
         ];
 
-        create_dirs(ctx, &dirs[..])
+        ctx.create_dirs(&dirs[..])
             .await
             .context("failed to create directories")?;
 
         trace!("copy source files to temporary location");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!(
                     "cp -rv {} {}",
@@ -73,8 +72,7 @@ pub(crate) async fn build(
         .context("failed to copy source files to temp directory")?;
 
         trace!("prepare archived source files");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("tar -zcvf {} .", source_tar_path.display(),))
                 .working_dir(tmp_buildroot.as_path())
@@ -83,23 +81,23 @@ pub(crate) async fn build(
         .await?;
 
         trace!("find source file paths");
-        let files = checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(r#"find . -type f -o -type l -name "*""#)
-                .working_dir(&ctx.build.container_out_dir)
-                .build(),
-        )
-        .await
-        .map(|out| {
-            out.stdout
-                .join("")
-                .split('\n')
-                .filter(|s| !s.is_empty())
-                .map(|s| s.trim_start_matches('.').to_string())
-                .collect::<Vec<_>>()
-        })
-        .context("failed to find source files")?;
+        let files = ctx
+            .checked_exec(
+                &ExecOpts::default()
+                    .cmd(r#"find . -type f -o -type l -name "*""#)
+                    .working_dir(&ctx.build.container_out_dir)
+                    .build(),
+            )
+            .await
+            .map(|out| {
+                out.stdout
+                    .join("")
+                    .split('\n')
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.trim_start_matches('.').to_string())
+                    .collect::<Vec<_>>()
+            })
+            .context("failed to find source files")?;
         trace!(source_files = ?files);
 
         let spec = cloned_span.in_scope(|| {
@@ -134,12 +132,11 @@ pub(crate) async fn build(
                 specs.join(spec_file).display()
             )
         };
-        checked_exec(ctx, &ExecOpts::default().cmd(&cmd).build())
+        ctx.checked_exec(&ExecOpts::default().cmd(&cmd).build())
             .await
             .context("failed to build rpm package")?;
 
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!(
                     "cp {} {}",
@@ -208,8 +205,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
 
 
         trace!("export public key");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!(
                     r#"gpg --pinentry-mode=loopback --passphrase {} --export -a '{}' > public.key"#,
@@ -223,8 +219,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
         ?;
 
         trace!("import key to rpm database");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd("rpm --import public.key")
                 .working_dir(&ctx.build.container_tmp_dir)
@@ -233,8 +228,7 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
         .await.context("failed importing key to rpm database")?;
 
         trace!("add signature");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("rpm --addsign {}", package.display()))
                 .build(),

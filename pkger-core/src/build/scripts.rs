@@ -1,4 +1,4 @@
-use crate::build::container::{checked_exec, Context};
+use crate::build::container::Context;
 use crate::container::ExecOpts;
 use crate::template;
 use crate::{Error, Result};
@@ -47,7 +47,7 @@ macro_rules! run_script {
                 }
 
                 debug!(command = %cmd.cmd, "running");
-                checked_exec(&$ctx, &opts.clone().cmd(&cmd.cmd).build())
+                $ctx.checked_exec(&opts.clone().cmd(&cmd.cmd).build())
                     .await?;
             }
 

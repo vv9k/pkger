@@ -1,4 +1,4 @@
-use crate::build::container::{checked_exec, create_dirs, Context};
+use crate::build::container::Context;
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::{ErrContext, Result};
@@ -38,13 +38,12 @@ pub(crate) async fn build(
 
         let dirs = [tmp_dir.as_path(), bld_dir.as_path(), src_dir.as_path()];
 
-        create_dirs(ctx, &dirs[..])
+        ctx.create_dirs(&dirs[..])
             .await
             .context("failed to create dirs")?;
 
         trace!("copy source files to temporary location");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("cp -rv . {}", src_dir.display()))
                 .working_dir(&ctx.build.container_out_dir)
@@ -54,8 +53,7 @@ pub(crate) async fn build(
         .context("failed to copy source files to temp directory")?;
 
         trace!("prepare archived source files");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
                 .working_dir(src_dir.as_path())
@@ -64,14 +62,14 @@ pub(crate) async fn build(
         .await?;
 
         trace!("calculate source MD5 checksum");
-        let sum = checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(&format!("md5sum {}", source_tar_path.display()))
-                .build(),
-        )
-        .await
-        .map(|out| out.stdout.join(""))?;
+        let sum = ctx
+            .checked_exec(
+                &ExecOpts::default()
+                    .cmd(&format!("md5sum {}", source_tar_path.display()))
+                    .build(),
+            )
+            .await
+            .map(|out| out.stdout.join(""))?;
         let sum = sum
             .split_ascii_whitespace()
             .next()
@@ -99,48 +97,29 @@ pub(crate) async fn build(
             .context("failed to upload PKGBUILD to container")?;
 
         trace!("create build user");
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(&format!("useradd -m {}", BUILD_USER))
-                .build(),
-        )
+        ctx.script_exec([
+            (
+                &exec!(&format!("useradd -m {}", BUILD_USER)),
+                Some("failed to create build user"),
+            ),
+            (
+                &exec!(&format!("passwd -d {}", BUILD_USER)),
+                Some("failed to create build user"),
+            ),
+            (
+                &exec!(&format!("chown -Rv {0}:{0} .", BUILD_USER), &bld_dir),
+                Some("failed to change ownership of build directory"),
+            ),
+            (
+                &exec!("chmod 644 PKGBUILD", &bld_dir),
+                Some("failed to change mode of PKGBUILD"),
+            ),
+            (
+                &exec!("makepkg", &bld_dir, BUILD_USER),
+                Some("failed to makepkg"),
+            ),
+        ])
         .await?;
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(&format!("passwd -d {}", BUILD_USER))
-                .build(),
-        )
-        .await?;
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd(&format!("chown -Rv {0}:{0} .", BUILD_USER))
-                .working_dir(bld_dir.as_path())
-                .build(),
-        )
-        .await?;
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd("chmod 644 PKGBUILD")
-                .working_dir(bld_dir.as_path())
-                .build(),
-        )
-        .await?;
-
-        trace!("makepkg");
-        checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd("makepkg")
-                .working_dir(bld_dir.as_path())
-                .user(BUILD_USER)
-                .build(),
-        )
-        .await
-        .context("failed to build PKG package")?;
 
         let pkg = format!("{}.pkg.tar.zst", package_name);
         let pkg_path = bld_dir.join(&pkg);

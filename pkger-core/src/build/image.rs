@@ -49,7 +49,7 @@ pub async fn build(ctx: &mut Context) -> Result<ImageState> {
                 trace!("unchanged");
 
                 if state.exists(&ctx.docker).await {
-                    trace!("state exists in docker");
+                    trace!("image state exists in docker, reusing");
                     return Ok(state);
                 } else {
                     warn!("found cached state but image doesn't exist in docker")

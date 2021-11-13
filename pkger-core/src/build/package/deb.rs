@@ -1,4 +1,4 @@
-use crate::build::container::{checked_exec, create_dirs, Context};
+use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
@@ -36,21 +36,21 @@ pub async fn build(
         let deb_dir = base_dir.join("DEBIAN");
         let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
 
-        create_dirs(ctx, &dirs[..])
+        ctx.create_dirs(&dirs[..])
             .await
             .context("failed to create dirs")?;
 
-        let size_out = checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd("du -s .")
-                .working_dir(&ctx.build.container_out_dir)
-                .build(),
-        )
-        .await
-        .context("failed to check size of package files")?
-        .stdout
-        .join("");
+        let size_out = ctx
+            .checked_exec(
+                &ExecOpts::default()
+                    .cmd("du -s .")
+                    .working_dir(&ctx.build.container_out_dir)
+                    .build(),
+            )
+            .await
+            .context("failed to check size of package files")?
+            .stdout
+            .join("");
         let size = size_out.split_ascii_whitespace().next();
 
         let control = _span.in_scope(|| {
@@ -71,8 +71,7 @@ pub async fn build(
             .context("failed to upload control file to container")?;
 
         trace!("copy source files to build dir");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("cp -rv . {}", base_dir.display()))
                 .working_dir(&ctx.build.container_out_dir)
@@ -87,8 +86,7 @@ pub async fn build(
             "--build --root-owner-group"
         };
 
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!(
                     "dpkg-deb {} {}",
@@ -133,30 +131,29 @@ pub(crate) async fn sign_package(ctx: &Context<'_>, package: &Path) -> Result<()
             .context("failed to import gpg key")?;
 
         trace!("get key id");
-        let key_id = checked_exec(
-            ctx,
-            &ExecOpts::default()
-                .cmd("gpg --list-keys --with-colons")
-                .build(),
-        )
-        .await
-        .map(|out| {
-            let stdout = out.stdout.join("");
-            for line in stdout.split('\n') {
-                if !line.contains(gpg_key.name()) {
-                    continue;
-                }
+        let key_id = ctx
+            .checked_exec(
+                &ExecOpts::default()
+                    .cmd("gpg --list-keys --with-colons")
+                    .build(),
+            )
+            .await
+            .map(|out| {
+                let stdout = out.stdout.join("");
+                for line in stdout.split('\n') {
+                    if !line.contains(gpg_key.name()) {
+                        continue;
+                    }
 
-                return line.split(':').nth(7).map(ToString::to_string);
-            }
-            None
-        })
-        .context("failed to get gpg key id")?
-        .unwrap_or_default();
+                    return line.split(':').nth(7).map(ToString::to_string);
+                }
+                None
+            })
+            .context("failed to get gpg key id")?
+            .unwrap_or_default();
 
         trace!("add signature");
-        checked_exec(
-            ctx,
+        ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!(
                     r#"dpkg-sig -k {} -g "--pinentry-mode=loopback --passphrase {}" --sign {} {}"#,
