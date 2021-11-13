@@ -376,7 +376,7 @@ impl Recipe {
             .pkgver(&self.metadata.version)
             .pkgdesc(&self.metadata.description)
             .add_license_entries(vec![&self.metadata.license])
-            .add_arch_entries(vec![self.metadata.arch.pkg_name().to_string()])
+            .add_arch_entries(vec![self.metadata.arch.apk_name().to_string()])
             .add_source_entries(sources)
             .package_func(package_func)
             .builddir(builddir.to_string_lossy());

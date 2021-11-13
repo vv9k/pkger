@@ -93,4 +93,18 @@ impl BuildArch {
             Other(arch) => arch,
         }
     }
+
+    pub fn apk_name(&self) -> &str {
+        use BuildArch::*;
+        match &self {
+            All => "all",
+            x86_64 => "x86_64",
+            x86 => "x86",
+            Arm => "armhf",
+            Armv6h => "armhf",
+            Armv7h => "armv7",
+            Arm64 => "aarch64",
+            Other(arch) => arch,
+        }
+    }
 }

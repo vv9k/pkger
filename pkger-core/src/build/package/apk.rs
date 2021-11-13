@@ -174,7 +174,7 @@ pub(crate) async fn build(
         let mut apk_path = home_dir.clone();
         apk_path.push("packages");
         apk_path.push(&package_name);
-        apk_path.push(ctx.build.recipe.metadata.arch.as_ref());
+        apk_path.push(ctx.build.recipe.metadata.arch.apk_name());
         apk_path.push(&apk);
 
         ctx.container
