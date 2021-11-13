@@ -402,6 +402,10 @@ from remote source.</p>
 
     # A list of dependencies for the check phase
     checkdepends: []
+
+    # If not provided a new generated key will be used to
+    # sign the package
+    private_key: &quot;/location/of/apk_signing_key&quot;
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="scripts"><a class="header" href="#scripts">Scripts</a></h1>
 <p><strong>pkger</strong> has 3 defined build phases - <em>configure</em>, <em>build</em> and <em>install</em> of which only <em>build</em> is required to create a
