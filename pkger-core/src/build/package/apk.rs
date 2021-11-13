@@ -25,10 +25,11 @@ pub(crate) async fn build(
     let package_name = package_name(ctx, false);
 
     let span = info_span!("APK", package = %package_name);
+    let fs_span = span.clone();
     async move {
         info!("building APK package");
 
-        let tmp_dir = PathBuf::from(format!("/tmp/{}", package_name));
+        let tmp_dir: PathBuf = ["/tmp", &package_name].into_iter().collect();
         let src_dir = tmp_dir.join("src");
         let bld_dir = tmp_dir.join("bld");
 
@@ -81,6 +82,9 @@ pub(crate) async fn build(
 
         trace!("create build user");
 
+        let home_dir: PathBuf = ["/home", BUILD_USER].into_iter().collect();
+        let abuild_dir = home_dir.join(".abuild");
+
         ctx.script_exec([
             (
                 &exec!(&format!("adduser -D {}", BUILD_USER)),
@@ -90,15 +94,71 @@ pub(crate) async fn build(
                 &exec!(&format!("passwd -d {}", BUILD_USER)),
                 Some("failed to set password of build user"),
             ),
+            (&exec!(&format!("mkdir {}", abuild_dir.display())), None),
+        ])
+        .await?;
+
+        const SIGNING_KEY: &str = "apk-signing-key";
+        let key_path = abuild_dir.join(SIGNING_KEY);
+        let uploaded_key = if let Some(key_location) = ctx
+            .build
+            .recipe
+            .metadata
+            .apk
+            .as_ref()
+            .and_then(|apk| apk.private_key.as_deref())
+        {
+            if let Ok(key) = fs_span.in_scope(|| std::fs::read(&key_location)) {
+                info!("uploading signing key");
+                trace!(key_location = %key_location.display());
+                ctx.container
+                    .upload_files([(SIGNING_KEY, key.as_slice())], &abuild_dir, false)
+                    .await
+                    .context("failed to upload signing key")?;
+                ctx.checked_exec(&exec!(&format!("chmod 600 {}", key_path.display())))
+                    .await
+                    .context("failed to change mode of signing key")?;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        ctx.script_exec([
             (
-                &exec!(&format!("chown -Rv {0}:{0} .", BUILD_USER), &bld_dir),
+                &exec!(&format!(
+                    "chown -Rv {0}:{0} {1} {2}",
+                    BUILD_USER,
+                    bld_dir.display(),
+                    abuild_dir.display()
+                )),
                 Some("failed to change ownership of the build directory"),
             ),
             (
                 &exec!("chmod 644 APKBUILD", &bld_dir),
                 Some("failed to change mode of APKBUILD"),
             ),
-            (&exec!("abuild-keygen -an", &bld_dir, BUILD_USER), None),
+        ])
+        .await?;
+
+        if !uploaded_key {
+            ctx.checked_exec(&exec!("abuild-keygen -an", &bld_dir, BUILD_USER))
+                .await?;
+        } else {
+            ctx.checked_exec(&exec!(
+                &format!(
+                    "echo PACKAGER_PRIVKEY=\"{}\" >> abuild.conf",
+                    key_path.display()
+                ),
+                &abuild_dir,
+                BUILD_USER
+            ))
+            .await?;
+        }
+
+        ctx.script_exec([
             (
                 &exec!("abuild checksum", &bld_dir, BUILD_USER),
                 Some("failed to calculate checksum"),
@@ -111,10 +171,11 @@ pub(crate) async fn build(
         .await?;
 
         let apk = format!("{}.apk", package_name);
-        let apk_path = PathBuf::from(format!(
-            "/home/{}/packages/{}/{}/{}",
-            BUILD_USER, package_name, ctx.build.recipe.metadata.arch, apk
-        ));
+        let mut apk_path = home_dir.clone();
+        apk_path.push("packages");
+        apk_path.push(&package_name);
+        apk_path.push(ctx.build.recipe.metadata.arch.as_ref());
+        apk_path.push(&apk);
 
         ctx.container
             .download_files(&apk_path, output_dir)

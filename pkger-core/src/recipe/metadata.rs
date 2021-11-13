@@ -388,6 +388,9 @@ pub struct ApkRep {
     #[serde(default = "null")]
     #[serde(skip_serializing_if = "YamlValue::is_null")]
     pub checkdepends: YamlValue,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_key: Option<std::path::PathBuf>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -395,6 +398,7 @@ pub struct ApkInfo {
     pub install: Vec<String>,
     pub replaces: Option<Dependencies>,
     pub checkdepends: Option<Dependencies>,
+    pub private_key: Option<std::path::PathBuf>,
 }
 
 impl TryFrom<ApkRep> for ApkInfo {
@@ -405,6 +409,7 @@ impl TryFrom<ApkRep> for ApkInfo {
             install: rep.install,
             replaces: Dependencies::try_from(rep.replaces).ok(),
             checkdepends: Dependencies::try_from(rep.checkdepends).ok(),
+            private_key: rep.private_key,
         })
     }
 }

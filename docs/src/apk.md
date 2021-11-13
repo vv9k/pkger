@@ -11,4 +11,8 @@ Optional fields that will be used when building a APK package.
 
     # A list of dependencies for the check phase
     checkdepends: []
+
+    # If not provided a new generated key will be used to
+    # sign the package
+    private_key: "/location/of/apk_signing_key"
 ```

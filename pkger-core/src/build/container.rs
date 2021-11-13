@@ -161,7 +161,7 @@ impl<'job> Context<'job> {
             let dirs_joined = dirs_joined.trim();
             trace!(directories = %dirs_joined);
 
-            self.checked_exec(&exec!(&format!("mkdir -pw {}", dirs_joined)))
+            self.checked_exec(&exec!(&format!("mkdir -p {}", dirs_joined)))
                 .await
                 .map(|_| ())
         }
