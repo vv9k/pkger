@@ -3,7 +3,7 @@ metadata:
   description: pkger
   arch: x86_64
   license: MIT
-  version: 0.1.0
+  version: 0.6.0
   maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
   url: "https://github.com/vv9k/pkger"
   git: "https://github.com/vv9k/pkger.git"
@@ -18,26 +18,30 @@ metadata:
     all:
       - gcc
       - pkg-config
-    pkger-rpm+pkger-pkg:
+    pkger-pkg:
       - cargo
     pkger-deb:
       - curl
       - libssl-dev
+    pkger-rpm:
+      - curl
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh https://sh.rustup.rs
       deb: true
+      rpm: true
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
       deb: true
+      rpm: true
 build:
   steps:
     - cmd: cargo build --color=never
-      rpm: true
       pkg: true
     - cmd: $HOME/.cargo/bin/cargo build --color=never
       deb: true
+      rpm: true
 install:
   steps:
-    - cmd: dir -p usr/bin
+    - cmd: mkdir -p usr/bin
     - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
 
