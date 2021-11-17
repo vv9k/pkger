@@ -27,9 +27,9 @@ impl Image {
     fn simple(target: BuildTarget) -> (&'static str, &'static str) {
         match target {
             BuildTarget::Rpm => ("rockylinux/rockylinux:latest", "pkger-rpm"),
-            BuildTarget::Deb => ("ubuntu:latest", "pkger-deb"),
+            BuildTarget::Deb => ("debian:latest", "pkger-deb"),
             BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
-            BuildTarget::Gzip => ("ubuntu:latest", "pkger-gzip"),
+            BuildTarget::Gzip => ("debian:latest", "pkger-gzip"),
             BuildTarget::Apk => ("alpine:latest", "pkger-apk"),
         }
     }

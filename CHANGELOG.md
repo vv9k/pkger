@@ -6,6 +6,7 @@
 - Add alpine APK target [#75](https://github.com/vv9k/pkger/pull/75)
 - Add `print-completions` subcommand that prints shell completions to stdout. Supported shells are: bash, zsh, fish, powershell, elvish
 - Add option to upload private signing key for APK build
+- Use Debian for simple DEB builds
 
 # 0.6.0
 - Use default OS config directory instead of home directory to read the configuration file by default.
