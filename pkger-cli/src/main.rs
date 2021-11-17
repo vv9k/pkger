@@ -61,6 +61,7 @@ async fn main() -> Result<()> {
             ssh: None,
             images: vec![],
             path: config_path,
+            custom_simple_images: None,
         };
 
         if cfg.path.exists() {

@@ -178,7 +178,7 @@ impl Application {
                         (recipe, image, target, false)
                     }
                     BuildTask::Simple { recipe, target } => {
-                        let image = Image::try_get_or_create(&self.app_dir.path().join("images"), target)?;
+                        let image = Image::try_get_or_new_simple(&self.app_dir.path().join("images"), target, self.config.custom_simple_images.as_ref().and_then(|c| c.name_for_target(target)))?;
                         let name = image.name.clone();
                         (recipe, image, ImageTarget::new(name, target, None::<&str>), true)
                     }

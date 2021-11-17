@@ -9,6 +9,20 @@ To build a simple package using **pkger** use:
 pkger build --simple [TARGETS] -- [RECIPES]
 ```
 
+When using a simple build following linux distributions will be used for build images:
+ - rpm: `rockylinux/rockylinux:latest`
+ - deb: `debian:latest`
+ - pkg: `archlinux`
+ - apk: `alpine:latest`
+ - gzip: `debian:latest`
+
+To override the default images set `custom_simple_images` like this:
+```yaml
+custom_simple_images:
+  deb: ubuntu:18
+  rpm: fedora:latest
+```
+
 ### Custom images build
 
 To use [custom images](./images.md) drop the `--simple` parameter and just use:

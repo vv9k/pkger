@@ -34,8 +34,13 @@ impl Image {
         }
     }
 
-    pub fn create(images_dir: &Path, target: BuildTarget) -> Result<Image> {
+    pub fn create_simple(
+        images_dir: &Path,
+        target: BuildTarget,
+        custom_image: Option<&str>,
+    ) -> Result<Image> {
         let (image, name) = Self::simple(target);
+        let image = custom_image.unwrap_or(&image);
 
         let image_dir = images_dir.join(name);
         fs::create_dir_all(&image_dir)?;
@@ -46,7 +51,11 @@ impl Image {
         Image::try_from_path(image_dir)
     }
 
-    pub fn try_get_or_create(images_dir: &Path, target: BuildTarget) -> Result<Image> {
+    pub fn try_get_or_new_simple(
+        images_dir: &Path,
+        target: BuildTarget,
+        custom_image: Option<&str>,
+    ) -> Result<Image> {
         let (_, name) = Self::simple(target);
 
         let image_dir = images_dir.join(name);
@@ -54,7 +63,7 @@ impl Image {
             return Image::try_from_path(image_dir);
         }
 
-        Self::create(images_dir, target)
+        Self::create_simple(images_dir, target, custom_image)
     }
 
     /// Loads an `FsImage` from the given `path`

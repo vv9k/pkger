@@ -1,5 +1,5 @@
 use crate::Result;
-use pkger_core::recipe::{deserialize_images, ImageTarget};
+use pkger_core::recipe::{deserialize_images, BuildTarget, ImageTarget};
 use pkger_core::ssh::SshConfig;
 use pkger_core::ErrContext;
 
@@ -22,6 +22,7 @@ pub struct Configuration {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     pub path: PathBuf,
+    pub custom_simple_images: Option<CustomImagesDefinition>,
 }
 
 impl Configuration {
@@ -42,5 +43,26 @@ impl Configuration {
         )
         .context("failed to save configuration file")
         .map(|_| ())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CustomImagesDefinition {
+    pub rpm: Option<String>,
+    pub deb: Option<String>,
+    pub pkg: Option<String>,
+    pub apk: Option<String>,
+    pub gzip: Option<String>,
+}
+
+impl CustomImagesDefinition {
+    pub fn name_for_target(&self, target: BuildTarget) -> Option<&str> {
+        match target {
+            BuildTarget::Apk => self.apk.as_deref(),
+            BuildTarget::Deb => self.deb.as_deref(),
+            BuildTarget::Pkg => self.pkg.as_deref(),
+            BuildTarget::Rpm => self.rpm.as_deref(),
+            BuildTarget::Gzip => self.gzip.as_deref(),
+        }
     }
 }

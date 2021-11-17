@@ -7,6 +7,7 @@
 - Add `print-completions` subcommand that prints shell completions to stdout. Supported shells are: bash, zsh, fish, powershell, elvish
 - Add option to upload private signing key for APK build
 - Use Debian for simple DEB builds
+- Add configuration option to change default docker images used for simple builds
 
 # 0.6.0
 - Use default OS config directory instead of home directory to read the configuration file by default.

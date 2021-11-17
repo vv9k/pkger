@@ -2,6 +2,10 @@ images_dir: "example/images"
 recipes_dir: "example/recipes"
 output_dir: "example/output"
 
+# override default images used by pkger
+custom_simple_images:
+  deb: ubuntu:latest
+
 images:
   - name: arch
     target: pkg
