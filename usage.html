@@ -140,6 +140,19 @@
 <p>To build a simple package using <strong>pkger</strong> use:</p>
 <pre><code class="language-shell">pkger build --simple [TARGETS] -- [RECIPES]
 </code></pre>
+<p>When using a simple build following linux distributions will be used for build images:</p>
+<ul>
+<li>rpm: <code>rockylinux/rockylinux:latest</code></li>
+<li>deb: <code>debian:latest</code></li>
+<li>pkg: <code>archlinux</code></li>
+<li>apk: <code>alpine:latest</code></li>
+<li>gzip: <code>debian:latest</code></li>
+</ul>
+<p>To override the default images set <code>custom_simple_images</code> like this:</p>
+<pre><code class="language-yaml">custom_simple_images:
+  deb: ubuntu:18
+  rpm: fedora:latest
+</code></pre>
 <h3 id="custom-images-build"><a class="header" href="#custom-images-build">Custom images build</a></h3>
 <p>To use <a href="./images.html">custom images</a> drop the <code>--simple</code> parameter and just use:</p>
 <pre><code class="language-shell">pkger build [RECIPES]
