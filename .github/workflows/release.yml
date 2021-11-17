@@ -91,6 +91,9 @@ jobs:
         run: echo ::set-output name=PKGER_ARCHIVE::pkger-${{steps.set_version.outputs.PKGER_VERSION}}-${{ matrix.target}}
       - run: cargo build --release
         name: Release build
+      - run: ./target/release/pkger -c example/conf.yml build -s rpm deb -- pkger-simple
+        if: matrix.os == 'ubuntu-latest'
+        name: Build deb and rpm packages
       - name: Install help2man mac
         if: matrix.os == 'macos-latest'
         run: brew install help2man
@@ -129,5 +132,25 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.xz
           asset_name: ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.xz
+          tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
+          overwrite: true
+      - name: Upload deb
+        if: matrix.os == 'ubuntu-latest'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_name: wojciechkepka/pkger
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: example/output/pkger-deb/pkger-${{steps.set_version.outputs.PKGER_VERSION}}.amd64.deb
+          asset_name: pkger-${{steps.set_version.outputs.PKGER_VERSION}}.amd64.deb
+          tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
+          overwrite: true
+      - name: Upload rpm
+        if: matrix.os == 'ubuntu-latest'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_name: wojciechkepka/pkger
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: example/output/pkger-rpm/pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.x86_64.rpm
+          asset_name: pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.x86_64.rpm
           tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
           overwrite: true
