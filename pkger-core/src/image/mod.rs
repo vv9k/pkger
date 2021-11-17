@@ -40,7 +40,7 @@ impl Image {
         custom_image: Option<&str>,
     ) -> Result<Image> {
         let (image, name) = Self::simple(target);
-        let image = custom_image.unwrap_or(&image);
+        let image = custom_image.unwrap_or(image);
 
         let image_dir = images_dir.join(name);
         fs::create_dir_all(&image_dir)?;
