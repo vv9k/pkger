@@ -56,7 +56,7 @@ pub async fn build(
         let control = _span.in_scope(|| {
             ctx.build
                 .recipe
-                .as_deb_control(&image_state.image, size.as_deref())
+                .as_deb_control(&image_state.image, size)
                 .render()
         });
         debug!(control = %control);

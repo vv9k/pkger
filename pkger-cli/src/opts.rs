@@ -7,7 +7,7 @@ pub const APP_NAME: &str = "pkger";
 #[derive(Debug, Parser)]
 #[clap(
     name = APP_NAME,
-    version = "0.6.0",
+    version = "0.7.0",
     author = "Wojciech Kępka <wojciech@wkepka.dev>",
     about = "Creates RPM, DEB and other packages using Docker"
 )]
