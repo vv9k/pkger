@@ -1,15 +1,19 @@
 use crate::build::container::Context;
-use crate::image::ImageState;
+use crate::image::{Image, ImageState};
 use crate::recipe::{BuildTarget, Recipe};
 
 use std::collections::HashSet;
 
 pub fn recipe<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
     if let Some(deps) = &ctx.build.recipe.metadata.build_depends {
-        deps.resolve_names(&state.image)
-    } else {
-        HashSet::new()
+        let mut _deps = deps.resolve_names(&state.image);
+        let simple = Image::simple(*ctx.build.target.build_target()).1;
+        if &state.image != simple {
+            _deps.extend(deps.resolve_names(simple));
+            return _deps;
+        }
     }
+    HashSet::new()
 }
 
 pub fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashSet<&'static str> {

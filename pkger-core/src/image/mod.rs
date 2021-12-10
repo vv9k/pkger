@@ -24,7 +24,7 @@ impl Image {
         Self { name, path }
     }
 
-    fn simple(target: BuildTarget) -> (&'static str, &'static str) {
+    pub fn simple(target: BuildTarget) -> (&'static str, &'static str) {
         match target {
             BuildTarget::Rpm => ("rockylinux/rockylinux:latest", "pkger-rpm"),
             BuildTarget::Deb => ("debian:latest", "pkger-deb"),
