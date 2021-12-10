@@ -119,6 +119,8 @@ images:
     pkger-gzip: []
 ```
 
+A custom image, for example `centos8`, will also use dependecies defined for `pkger-rpm`. The same will apply for all rpm based images (or images that have their target specified to RPM in the [configuration](./configuration.md))
+
 
 ### Patches
 
