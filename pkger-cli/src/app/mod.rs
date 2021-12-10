@@ -4,7 +4,7 @@ use crate::completions;
 use crate::config::Configuration;
 use crate::gen;
 use crate::metadata::PackageMetadata;
-use crate::opts::{Command, EditObject, ListObject, NewObject, Opts};
+use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts};
 use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
@@ -190,6 +190,7 @@ impl Application {
             Command::Init { .. } => unreachable!(),
             Command::Edit { object } => self.edit(object),
             Command::New { object } => self.create(object),
+            Command::Copy { object } => self.copy(object),
             Command::PrintCompletions(opts) => {
                 completions::print(&opts);
                 Ok(())
@@ -277,6 +278,75 @@ impl Application {
                 Ok(())
             }
         }
+    }
+
+    fn copy(&self, object: CopyObject) -> Result<()> {
+        fn copy_dir(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+            let dst = dst.as_ref();
+            fs::create_dir_all(&dst).context("creating destination directory failed")?;
+            for entry in fs::read_dir(src).context("reading source directory failed")? {
+                match entry {
+                    Ok(entry) => {
+                        if let Err(e) = handle_entry(dst, entry) {
+                            error!("failed to copy entry entry: {:?}", e);
+                        }
+                    }
+                    Err(e) => {
+                        error!("invalid entry: {:?}", e);
+                    }
+                }
+            }
+            Ok(())
+        }
+
+        fn handle_entry(dst: &Path, entry: fs::DirEntry) -> Result<()> {
+            let ty = entry.file_type().context("getting entry type failed")?;
+            if ty.is_dir() {
+                copy_dir(entry.path(), dst.join(entry.file_name()))
+                    .context("copying directory failed")
+            } else {
+                fs::copy(entry.path(), dst.join(entry.file_name()))
+                    .context("copying file failed")
+                    .map(|_| ())
+            }
+        }
+        let span = info_span!("copy");
+
+        span.in_scope(|| match object {
+            CopyObject::Image { source, dest } => {
+                if let Some(images_dir) = &self.config.images_dir {
+                    let base_path = images_dir.join(&source);
+                    let dest_path = images_dir.join(&dest);
+                    if !base_path.exists() {
+                        return err!("source image `{}` doesn't exists", source);
+                    }
+                    if dest_path.exists() {
+                        return err!("image `{}` already exists", dest);
+                    }
+                    info!("{} ~> {}", base_path.display(), dest_path.display());
+                    copy_dir(base_path, dest_path)
+                        .context("failed to copy source image directory")?;
+                    info!("done.");
+                    Ok(())
+                } else {
+                    err!("no custom images directory defined in configuration")
+                }
+            }
+            CopyObject::Recipe { source, dest } => {
+                let base_path = self.config.recipes_dir.join(&source);
+                let dest_path = self.config.recipes_dir.join(&dest);
+                if !base_path.exists() {
+                    return err!("source recipe `{}` doesn't exists", source);
+                }
+                if dest_path.exists() {
+                    return err!("recipe `{}` already exists", dest);
+                }
+                info!("{} ~> {}", base_path.display(), dest_path.display());
+                copy_dir(base_path, dest_path).context("failed to copy source recipe directory")?;
+                info!("done.");
+                Ok(())
+            }
+        })
     }
 
     async fn clean_cache(&mut self) -> Result<()> {
