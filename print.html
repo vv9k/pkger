@@ -324,6 +324,7 @@ images:</p>
     pkger-deb: [&quot;curl&quot;]
     pkger-gzip: []
 </code></pre>
+<p>A custom image, for example <code>centos8</code>, will also use dependecies defined for <code>pkger-rpm</code>. The same will apply for all rpm based images (or images that have their target specified to RPM in the <a href="./configuration.html">configuration</a>)</p>
 <h3 id="patches"><a class="header" href="#patches">Patches</a></h3>
 <p>To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file
 name in which case <strong>pkger</strong> will look for the patch in the recipe directory, if the path is absolute it will be read
