@@ -72,6 +72,12 @@ pub enum Command {
         /// An object to create like `image` or `recipe`.
         object: NewObject,
     },
+    /// Copy an image or a recipe
+    Copy {
+        #[clap(subcommand)]
+        /// An object to copy like `image` or `recipe`.
+        object: CopyObject,
+    },
     /// Initializes required directories and a configuration file at specified or default locations.
     Init(InitOpts),
     /// Prints completions for the specified shell
@@ -124,6 +130,24 @@ pub enum ListObject {
     Packages {
         #[clap(short, long)]
         images: Option<Vec<String>>,
+    },
+}
+
+#[derive(Debug, Parser)]
+pub enum CopyObject {
+    /// Copy a recipe
+    Recipe {
+        /// Source recipe to copy
+        source: String,
+        /// What to call the output recipe
+        dest: String,
+    },
+    /// Copy an image
+    Image {
+        /// Source image to copy
+        source: String,
+        /// What to call the output image
+        dest: String,
     },
 }
 

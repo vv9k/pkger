@@ -8,7 +8,7 @@ pub fn recipe<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx st
     if let Some(deps) = &ctx.build.recipe.metadata.build_depends {
         let mut _deps = deps.resolve_names(&state.image);
         let simple = Image::simple(*ctx.build.target.build_target()).1;
-        if &state.image != simple {
+        if state.image != simple {
             _deps.extend(deps.resolve_names(simple));
             return _deps;
         }
