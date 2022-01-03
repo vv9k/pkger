@@ -102,6 +102,7 @@ impl std::future::Future for IsRunning {
         if !self.0.load(Ordering::Relaxed) {
             std::task::Poll::Ready(())
         } else {
+            std::thread::sleep(std::time::Duration::from_millis(50));
             ctx.waker().wake_by_ref();
             std::task::Poll::Pending
         }
