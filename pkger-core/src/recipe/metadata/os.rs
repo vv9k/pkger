@@ -158,4 +158,13 @@ impl PackageManager {
             Self::Apk => vec!["upgrade"],
         }
     }
+
+    pub fn clean_cache(&self) -> Vec<&'static str> {
+        match self {
+            Self::Apt => vec!["clean"],
+            Self::Dnf | Self::Yum => vec!["clean", "metadata"],
+            Self::Pacman => vec!["-Sc"],
+            Self::Apk => vec!["cache", "clean"],
+        }
+    }
 }
