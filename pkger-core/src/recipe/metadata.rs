@@ -184,6 +184,9 @@ pub struct DebRep {
     #[serde(default = "null")]
     #[serde(skip_serializing_if = "YamlValue::is_null")]
     pub enhances: YamlValue,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postinst_script: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -198,6 +201,8 @@ pub struct DebInfo {
     pub breaks: Option<Dependencies>,
     pub replaces: Option<Dependencies>,
     pub enhances: Option<Dependencies>,
+
+    pub postinst_script: Option<String>,
 }
 
 impl TryFrom<DebRep> for DebInfo {
@@ -215,6 +220,8 @@ impl TryFrom<DebRep> for DebInfo {
             breaks: Dependencies::try_from(rep.breaks).ok(),
             replaces: Dependencies::try_from(rep.replaces).ok(),
             enhances: Dependencies::try_from(rep.enhances).ok(),
+
+            postinst_script: rep.postinst_script,
         })
     }
 }

@@ -61,6 +61,35 @@ pub async fn build(
         });
         debug!(control = %control);
 
+        // Upload install scripts
+        if let Some(deb) = &ctx.build.recipe.metadata.deb {
+            let mut scripts = vec![];
+            if let Some(postinst) = &deb.postinst_script {
+                scripts.push(("./postinst", postinst.as_bytes()));
+            }
+            if !scripts.is_empty() {
+                let scripts_paths: String = scripts
+                    .iter()
+                    .map(|s| s.0.trim_start_matches("./"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                ctx.container
+                    .upload_files(scripts, &deb_dir, ctx.build.quiet)
+                    .await
+                    .context("failed to upload install scripts to container")?;
+
+                ctx.checked_exec(
+                    &ExecOpts::default()
+                        .cmd(&format!("chmod 0755 {}", scripts_paths))
+                        .working_dir(&deb_dir)
+                        .build(),
+                )
+                .await
+                .context("failed to change ownership of build scripts")?;
+            }
+        }
+
         ctx.container
             .upload_files(
                 vec![("./control", control.as_bytes())],

@@ -3,6 +3,7 @@
 - Add a `copy` subcommand that can copy a recipe or an image [#80](https://github.com/vv9k/pkger/pull/80)
 - Fix heavy cpu consumption. pkger would consume a whole cpu core constantly just for checking the ctrl-c signal.
 - Clean repository cache before installing dependencies
+- Add a way to specify `postinst` script during DEB build
 
 # 0.7.0
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build
