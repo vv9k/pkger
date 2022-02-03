@@ -22,11 +22,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tracing::{info, info_span, trace, warn, Instrument};
+use uuid::Uuid;
 
 #[derive(Debug)]
 /// Groups all data and functionality necessary to create an artifact
 pub struct Context {
     id: String,
+    session_id: Uuid,
     recipe: Arc<Recipe>,
     image: Image,
     docker: Docker,
@@ -45,6 +47,7 @@ pub struct Context {
 impl Context {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        session_id: &Uuid,
         recipe: Arc<Recipe>,
         image: Image,
         docker: Docker,
@@ -79,6 +82,7 @@ impl Context {
 
         Context {
             id,
+            session_id: session_id.clone(),
             recipe,
             image,
             docker,

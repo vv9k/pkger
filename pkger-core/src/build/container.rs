@@ -72,8 +72,9 @@ pub async fn spawn<'ctx>(
 
         let opts = ContainerCreateOpts::builder(&image_state.id)
             .name(&ctx.id)
-            .cmd(vec!["sleep infinity"])
-            .entrypoint(vec!["/bin/sh", "-c"])
+            .cmd(["sleep infinity"])
+            .entrypoint(["/bin/sh", "-c"])
+            .labels([("pkger.session", ctx.session_id.to_string())])
             .volumes(volumes)
             .env(env.clone().kv_vec())
             .working_dir(ctx.container_bld_dir.to_string_lossy())

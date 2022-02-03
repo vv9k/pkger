@@ -29,5 +29,7 @@ serde_yaml = "0.8"
 
 tempdir = "0.3"
 
+uuid = { version = "0.8", features = ["serde", "v4"] }
+
 [dev-dependencies]
 pretty_assertions = "0.3"

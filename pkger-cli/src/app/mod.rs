@@ -26,6 +26,7 @@ use std::sync::Arc;
 use std::time;
 use tempdir::TempDir;
 use tracing::{error, info, info_span, trace, warn};
+use uuid::Uuid;
 
 // ################################################################################
 
@@ -118,6 +119,7 @@ pub struct Application {
     is_running: Arc<AtomicBool>,
     app_dir: TempDir,
     gpg_key: Option<GpgKey>,
+    session_id: Uuid,
 }
 
 impl Application {
@@ -157,6 +159,7 @@ impl Application {
             is_running: Arc::new(AtomicBool::new(true)),
             app_dir,
             gpg_key: None,
+            session_id: Uuid::new_v4(),
         };
         let is_running = app.is_running.clone();
         set_ctrlc_handler(is_running);

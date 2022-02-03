@@ -184,6 +184,7 @@ impl Application {
                     }
                 };
                 let ctx = Context::new(
+                    &self.session_id,
                     recipe,
                     image,
                     self.docker.connect(),
@@ -193,7 +194,7 @@ impl Application {
                     is_simple,
                     self.gpg_key.clone(),
                     self.config.ssh.clone(),
-                    quiet
+                    quiet,
                 );
                 let id = ctx.id().to_string();
 

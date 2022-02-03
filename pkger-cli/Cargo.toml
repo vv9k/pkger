@@ -39,3 +39,5 @@ tracing = "0.1"
 tracing-core = "0.1"
 tracing-futures = "0.1"
 tracing-subscriber = {version = "0.2", features = ["fmt", "chrono"]}
+
+uuid = { version = "0.8", features = ["serde", "v4"] }
