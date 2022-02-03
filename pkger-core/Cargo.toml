@@ -11,7 +11,7 @@ rpmspec = { path = "../libs/rpmspec" }
 pkgbuild = { path = "../libs/pkgbuild" }
 apkbuild = { path = "../libs/apkbuild" }
 
-docker-api = "0.5"
+docker-api = { git = "https://github.com/vv9k/docker-api-rs" }
 
 anyhow = "1"
 

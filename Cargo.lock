@@ -216,6 +216,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "containers-api-conn"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b556df09c7386a733ab63b5e42590cbdcffeb51fb51a3da08a82c8befd143622"
+dependencies = [
+ "futures-util",
+ "futures_codec",
+ "http",
+ "hyper",
+ "hyperlocal",
+ "log",
+ "mime",
+ "pin-project 1.0.8",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio 1.12.0",
+ "url",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -318,14 +339,14 @@ dependencies = [
 
 [[package]]
 name = "docker-api"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0191c73aa4f69e173765fdf3316708ee05f84bc56a8fc03cbe0e148d4f5e2554"
+version = "0.8.0"
+source = "git+https://github.com/vv9k/docker-api-rs#cea51b6a1ca2b5640da8ea3e2ba55bdbfa36f53a"
 dependencies = [
  "base64",
  "byteorder",
  "bytes 1.1.0",
  "chrono",
+ "containers-api-conn",
  "flate2",
  "futures-util",
  "futures_codec",
