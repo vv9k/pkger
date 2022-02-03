@@ -26,6 +26,15 @@ fn truncate(id: &str) -> &str {
     }
 }
 
+/// Removes invalid characters from the given name.
+///
+/// According to the error message allowed characters are [a-zA-Z0-9_.-].
+pub fn fix_name(name: &str) -> String {
+    name.chars()
+        .filter(|&c| c.is_alphanumeric() || c == '-' || c == '.' || c == '-')
+        .collect()
+}
+
 #[derive(Debug, Default)]
 pub struct Output<T> {
     pub stdout: Vec<T>,

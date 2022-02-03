@@ -1,5 +1,5 @@
 use crate::build;
-use crate::container::{DockerContainer, ExecOpts, Output};
+use crate::container::{fix_name, DockerContainer, ExecOpts, Output};
 use crate::docker::{api::ContainerCreateOpts, ExecContainerOpts};
 use crate::image::ImageState;
 use crate::ssh;
@@ -73,7 +73,7 @@ pub async fn spawn<'ctx>(
         trace!(env = ?env);
 
         let opts = ContainerCreateOpts::builder(&image_state.id)
-            .name(&ctx.id)
+            .name(fix_name(&ctx.id))
             .cmd(["sleep infinity"])
             .entrypoint(["/bin/sh", "-c"])
             .labels([(SESSION_LABEL_KEY, ctx.session_id.to_string())])
