@@ -9,6 +9,8 @@ use crate::recipe::Env;
 use std::path::Path;
 use tracing::{info_span, trace, Instrument};
 
+pub static SESSION_LABEL_KEY: &str = "pkger.session";
+
 macro_rules! _exec {
     ($cmd: expr) => {
         ExecOpts::default().cmd($cmd)
@@ -74,7 +76,7 @@ pub async fn spawn<'ctx>(
             .name(&ctx.id)
             .cmd(["sleep infinity"])
             .entrypoint(["/bin/sh", "-c"])
-            .labels([("pkger.session", ctx.session_id.to_string())])
+            .labels([(SESSION_LABEL_KEY, ctx.session_id.to_string())])
             .volumes(volumes)
             .env(env.clone().kv_vec())
             .working_dir(ctx.container_bld_dir.to_string_lossy())

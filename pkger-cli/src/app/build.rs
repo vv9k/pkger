@@ -1,7 +1,8 @@
 use crate::app::Application;
 use crate::job::{JobCtx, JobResult};
 use crate::opts::BuildOpts;
-use pkger_core::build::Context;
+use pkger_core::build::{container::SESSION_LABEL_KEY, Context};
+use pkger_core::container;
 use pkger_core::docker::DockerConnectionPool;
 use pkger_core::image::Image;
 use pkger_core::recipe::{BuildTarget, ImageTarget, Recipe};
@@ -240,6 +241,16 @@ impl Application {
                 self.save_images_state().await;
             } else {
                 trace!("images state unchanged, not saving");
+            }
+
+            let docker = self.docker.connect();
+            match container::cleanup(&docker, SESSION_LABEL_KEY, self.session_id.to_string()).await {
+                Ok(info) => {
+                    trace!(?info, "successfuly removed containers");
+                }
+                Err(e) => {
+                    error!(session = %self.session_id, reason = ?e, "failed to cleanup containers");
+                }
             }
 
             if task_failed {

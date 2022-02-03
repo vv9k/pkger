@@ -2,7 +2,10 @@ use crate::archive::{create_tarball, unpack_tarball};
 use crate::{ErrContext, Result};
 
 use docker_api::{
-    api::{ContainerCreateOpts, ExecContainerOpts, LogsOpts, RmContainerOpts},
+    api::{
+        ContainerCreateOpts, ContainerPruneFilter, ContainerPruneOpts, ContainersPruneInfo,
+        ExecContainerOpts, LogsOpts, RmContainerOpts,
+    },
     conn::TtyChunk,
     Container, Docker, Exec,
 };
@@ -108,11 +111,10 @@ impl<'opts> ExecOpts<'opts> {
 
     pub fn build(self) -> ExecContainerOpts {
         let mut builder = ExecContainerOpts::builder();
-        let mut mut_builder = &mut builder;
 
         trace!(exec = ?self);
 
-        mut_builder = mut_builder
+        builder = builder
             .cmd(vec![self.shell, "-c", self.cmd])
             .tty(self.allocate_tty)
             .attach_stdout(self.attach_stdout)
@@ -120,18 +122,18 @@ impl<'opts> ExecOpts<'opts> {
             .privileged(self.privileged);
 
         if let Some(user) = self.user {
-            mut_builder = mut_builder.user(user);
+            builder = builder.user(user);
         }
 
         if let Some(working_dir) = self.working_dir {
-            mut_builder = mut_builder.working_dir(working_dir.to_string_lossy());
+            builder = builder.working_dir(working_dir.to_string_lossy());
         }
 
         if let Some(env) = self.env {
-            mut_builder = mut_builder.env(env);
+            builder = builder.env(env);
         }
 
-        mut_builder.build()
+        builder.build()
     }
 }
 
@@ -254,11 +256,7 @@ impl<'job> DockerContainer<'job> {
             info!("collecting output");
             let mut output = Output::default();
             while let Some(chunk) = logs_stream.next().await {
-                match chunk? {
-                    TtyChunk::StdErr(mut inner) => output.stderr.append(&mut inner),
-                    TtyChunk::StdOut(mut inner) => output.stdout.append(&mut inner),
-                    _ => unreachable!(),
-                }
+                output.stdout.append(&mut chunk?.to_vec());
             }
 
             Ok(output)
@@ -337,4 +335,20 @@ impl<'job> DockerContainer<'job> {
         .instrument(span)
         .await
     }
+}
+
+pub async fn cleanup<'docker>(
+    docker: &'docker Docker,
+    key: impl Into<String>,
+    value: impl Into<String>,
+) -> Result<ContainersPruneInfo> {
+    docker
+        .containers()
+        .prune(
+            &ContainerPruneOpts::builder()
+                .filter([ContainerPruneFilter::Label(key.into(), value.into())])
+                .build(),
+        )
+        .await
+        .context("cleaning up containers")
 }
