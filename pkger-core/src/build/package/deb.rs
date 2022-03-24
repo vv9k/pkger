@@ -9,9 +9,10 @@ use tracing::{debug, info, info_span, trace, Instrument};
 
 pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
-        "{}-{}.{}{}",
+        "{}-{}-{}.{}{}",
         &ctx.build.recipe.metadata.name,
         &ctx.build.recipe.metadata.version,
+        ctx.build.recipe.metadata.release(),
         ctx.build.recipe.metadata.arch.deb_name(),
         if extension { ".deb" } else { "" },
     )
