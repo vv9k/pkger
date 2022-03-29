@@ -135,5 +135,6 @@ from remote source.
     - /some/absolute/path/to.patch
     - https://someremotesource.com/other.patch
     - patch: with-strip-level.patch
+      images: [ debian10 ] # specify the images that this patch should be aplied on
       strip: 2 # this specifies the number of directories to strip before applying the patch (known as -pN or --stripN option in UNIX patch tool
 ```
