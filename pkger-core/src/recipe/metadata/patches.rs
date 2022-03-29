@@ -1,24 +1,37 @@
 #![allow(dead_code)]
 use crate::Result;
 
+use anyhow::Context as ErrContext;
+use serde::Deserialize;
 use serde_yaml::{Mapping, Sequence, Value as YamlValue};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
 pub static COMMON_PATCHES_KEY: &str = "all";
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub struct Patch {
     patch: String,
+    #[serde(default)]
     strip: u8,
+    images: Option<Vec<String>>,
 }
 
 impl Patch {
-    pub fn new<S: Into<String>>(patch: S, strip: u8) -> Self {
+    pub fn new<S: Into<String>, I: IntoIterator<Item = S>>(
+        patch: S,
+        strip: u8,
+        images: Option<I>,
+    ) -> Self {
         Self {
             patch: patch.into(),
             strip,
+            images: images.map(|images| images.into_iter().map(|s| s.into()).collect()),
         }
+    }
+
+    pub fn images(&self) -> Option<&[String]> {
+        self.images.as_deref()
     }
 
     pub fn patch(&self) -> &str {
@@ -43,9 +56,9 @@ impl TryFrom<&YamlValue> for Patch {
 
     fn try_from(value: &YamlValue) -> Result<Self> {
         if let YamlValue::String(patch) = value {
-            Ok(Patch::new(patch, 0))
-        } else if let YamlValue::Mapping(mapping) = value {
-            Patch::try_from(mapping)
+            Ok(Patch::new(patch, 0, None::<Vec<_>>))
+        } else if let YamlValue::Mapping(_) = value {
+            serde_yaml::from_value(value.clone()).context("deserializing patch")
         } else {
             Err(anyhow!(
                 "expected a string or a mapping as patch, found `{:?}`",
@@ -114,7 +127,7 @@ impl TryFrom<&Mapping> for Patch {
         }
 
         match u8::try_from(level.as_u64().unwrap()) {
-            Ok(level) => Ok(Patch::new(name, level)),
+            Ok(level) => Ok(Patch::new(name, level, None::<Vec<_>>)),
             Err(_) => Err(anyhow!(
                 "expected a number in range of 0-255, found `{:?}`",
                 level
