@@ -11,6 +11,14 @@ pub async fn apply(ctx: &container::Context<'_>, patches: Vec<(Patch, PathBuf)>)
     async move {
         trace!(patches = ?patches);
         for (patch, location) in patches {
+            if let Some(images) = patch.images() {
+                if !images.is_empty() {
+                    if !images.contains(&ctx.build.image.name) {
+                        debug!(patch = ?patch, "skipping");
+                        continue;
+                    }
+                }
+            }
             debug!(patch = ?patch, "applying");
             if let Err(e) = ctx
                 .checked_exec(
