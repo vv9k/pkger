@@ -6,6 +6,7 @@
 - Add a way to specify `postinst` script during DEB build
 - Filter out invalid characters from the containers name. This could happen when a package contained characters not matching `[a-zA-Z0-9_.-]` regex.
 - Add revision number to DEB package name
+- Add a way to apply patches only on specified images.
 
 # 0.7.0
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build
