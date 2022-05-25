@@ -79,7 +79,8 @@ pub async fn fetch_source(ctx: &Context<'_>) -> Result<()> {
                 fetch_http_source(ctx, source.as_str(), &ctx.build.container_tmp_dir).await?;
             } else {
                 let src_path = PathBuf::from(source);
-                fetch_fs_source(ctx, &[src_path.as_path()], &ctx.build.container_tmp_dir).await?;
+                let sources_archive = ctx.build.container_tmp_dir.join("sources.tar");
+                fetch_fs_source(ctx, &[src_path.as_path()], &sources_archive).await?;
             }
             ctx.checked_exec(
                 &ExecOpts::default()
