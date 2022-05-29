@@ -21,5 +21,5 @@ Optional fields that will be used when building RPM target.
     #obsoletes: ["foo"]
     # or as a map
     obsoletes:
-      centos8: ["foo"]
+      rocky: ["foo"]
 ```

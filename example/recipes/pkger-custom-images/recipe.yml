@@ -11,29 +11,29 @@ metadata:
     - pkger
   all_images: true
   depends:
-    debian10:
+    debian:
       - libssl-dev
-    centos8:
+    rocky:
       - openssl-devel
   build_depends:
     all: [ gcc, pkg-config]
-    centos8+arch: [ cargo ]
-    centos8: [ openssl-devel ]
-    debian10: [ curl, libssl-dev]
+    rocky+arch: [ cargo ]
+    rocky: [ openssl-devel ]
+    debian: [ curl, libssl-dev]
 env:
   RUSTUP_URL: https://sh.rustup.rs
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh  $RUSTUP_URL
-      images: ["debian10"]
+      images: ["debian"]
     - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
-      images: ["debian10"]
+      images: ["debian"]
 build:
   steps:
     - cmd: cargo build --color=never
-      images: ["centos8", "arch"]
+      images: ["rocky", "arch"]
     - cmd: $HOME/.cargo/bin/cargo build --color=never
-      images: ["debian10"]
+      images: ["debian"]
 install:
   steps:
     - cmd: mkdir -p usr/bin

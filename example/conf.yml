@@ -10,9 +10,9 @@ images:
   - name: arch
     target: pkg
     os: Arch Linux
-  - name: centos8
+  - name: rocky
     target: rpm
-    os: CentOS
-  - name: debian10
+    os: Rocky
+  - name: debian
     target: deb
     os: Debian

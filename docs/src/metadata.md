@@ -18,7 +18,7 @@ To specify which images a recipe should use add images parameter with a list of 
 when building with `--simple` flag.
 
 ```yaml
-  images: [ centos8, debian10 ]
+  images: [ rocky, debian ]
 ```
 
 You can also specify that all images apply to this recipe with:
@@ -98,16 +98,16 @@ supported distribution. Default dependencies like `gzip` or `git` might be insta
     all: ["gcc", "pkg-config", "git"]
 
     # dependencies for custom images
-    centos8: ["cargo", "openssl-devel"]
-    debian10: ["curl", "libssl-dev"]
+    rocky: ["cargo", "openssl-devel"]
+    debian: ["curl", "libssl-dev"]
 ```
 
 To specify same dependencies for multiple images join the images by `+` sign like this:
 ```yaml
-    centos8+fedora34: [ cargo, openssl-devel ]
-    ubuntu20+debian10: [ libssl-dev ]
+    rocky+fedora34: [ cargo, openssl-devel ]
+    ubuntu20+debian: [ libssl-dev ]
     # you can later specify dependencies just for this images
-    debian10: [ curl ]
+    debian: [ curl ]
 ```
 
 if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
@@ -119,7 +119,7 @@ images:
     pkger-gzip: []
 ```
 
-A custom image, for example `centos8`, will also use dependecies defined for `pkger-rpm`. The same will apply for all rpm based images (or images that have their target specified to RPM in the [configuration](./configuration.md))
+A custom image, for example `rocky`, will also use dependecies defined for `pkger-rpm`. The same will apply for all rpm based images (or images that have their target specified to RPM in the [configuration](./configuration.md))
 
 
 ### Patches
@@ -135,6 +135,6 @@ from remote source.
     - /some/absolute/path/to.patch
     - https://someremotesource.com/other.patch
     - patch: with-strip-level.patch
-      images: [ debian10 ] # specify the images that this patch should be aplied on
+      images: [ debian ] # specify the images that this patch should be aplied on
       strip: 2 # this specifies the number of directories to strip before applying the patch (known as -pN or --stripN option in UNIX patch tool
 ```

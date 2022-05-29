@@ -77,7 +77,7 @@ jobs:
       - name: Build the test package
         run: cargo run -- -t -c example/conf.yml build test-package
       - name: Build simple APK and PKG
-        run: cargo run -- -t -c example/conf.yml build -s apk pkg -- test-package
+        run: cargo run -- -t -c example/conf.yml build -s apk -s pkg -- test-package
       - name: Verify DEB package
         run: |
           sudo dpkg -i example/output/debian10/test-package-0.1.0.amd64.deb

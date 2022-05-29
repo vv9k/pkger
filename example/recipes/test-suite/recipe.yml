@@ -8,7 +8,7 @@ metadata:
   exclude:
     - share
     - info
-  images: [ debian10, centos8 ]
+  images: [ debian, rocky ]
 env:
   ENV_VAR_TEST: 'test.com:1010'
 configure:
@@ -41,7 +41,7 @@ build:
     - cmd: >-
         echo 'Testing pkger env variables';
         echo PKGER_OS=$PKGER_OS;
-        if [[ $PKGER_OS =~ debian|centos ]]; then exit 0; else echo 'Environment
+        if [[ $PKGER_OS =~ debian|rocky ]]; then exit 0; else echo 'Environment
         variable PKGER_OS is not set properly'; exit 1; fi
     # This does not always work
     #- cmd: >-
@@ -70,25 +70,25 @@ build:
         echo 'Environment variable RECIPE_RELEASE is not set properly'; exit 1; fi
     - cmd: echo 'Testing pkger command syntax'
     # test if pkger commands work correctly
-    - images: ["centos8"]
-      cmd: touch /tmp/only_centos
-    # assure the file exists on centos8
-    - images: ["centos8"]
+    - images: ["rocky"]
+      cmd: touch /tmp/only_rocky
+    # assure the file exists on rocky
+    - images: ["rocky"]
       cmd: >-
-        if [ ! -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos should
-        exist on image centos8'; exit 1; fi
-    # assure the file doesn't exist on debian10
-    - images: ["debian10"]
+        if [ ! -f '/tmp/only_rocky' ]; then echo 'File /tmp/only_rocky should
+        exist on image rocky'; exit 1; fi
+    # assure the file doesn't exist on debian
+    - images: ["debian"]
       cmd: >-
-        if [ -f '/tmp/only_centos' ]; then echo 'File /tmp/only_centos shouldnt
-        exist on image debian10'; exit 1; fi
-    - images: ["centos8", "debian10"]
+        if [ -f '/tmp/only_rocky' ]; then echo 'File /tmp/only_rocky shouldnt
+        exist on image debian'; exit 1; fi
+    - images: ["rocky", "debian"]
       cmd: touch /tmp/pkger_group
     # assure the file exists on both images
-    - images: ["centos8", "debian10"]
+    - images: ["rocky", "debian"]
       cmd: >-
         if [ ! -f '/tmp/pkger_group' ]; then echo 'File /tmp/pkger_group should
-        exist on image both centos8 and debian10'; exit 1; fi
+        exist on image both rocky and debian'; exit 1; fi
 install:
   steps:
     - cmd: >-

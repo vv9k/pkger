@@ -6,8 +6,8 @@ To make this functionality work, export this variable in your shell's init scrip
 Edit images and recipes by name:
 
 ```
-# This will open up the Dockerfile in the `centos8` image.
-$ pkger edit image centos8 
+# This will open up the Dockerfile in the `rocky` image.
+$ pkger edit image rocky 
 
 # This will open up the `recipe.yml` or `recipe.yaml` file in `pkger-simple` recipe directory
 $ pkger edit recipe pkger-simple

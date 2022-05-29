@@ -51,7 +51,7 @@ pkger build -i custom-image1 custom-image2 -- recipe1 recipe2
 
 #### Build simple RPM, DEB, PKG... packages:
 ```shell
-pkger build -s rpm deb pkg gzip -- recipe1
+pkger build -s rpm -s deb -s pkg -s gzip -- recipe1
 ```
 
 #### Build only RPM package:

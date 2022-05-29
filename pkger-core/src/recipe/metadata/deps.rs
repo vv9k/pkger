@@ -193,13 +193,13 @@ mod tests {
         input = r#"
 build_depends:
   all: ["gcc", "pkg-config", "git"]
-  centos8: ["cargo", "openssl-devel"]
-  debian10: ["curl", "libssl-dev"]
+  rocky: ["cargo", "openssl-devel"]
+  debian: ["curl", "libssl-dev"]
 "#,
         want =
             all      => "gcc", "pkg-config", "git";
-            centos8  => "cargo", "openssl-devel", "gcc", "pkg-config", "git";
-            debian10 => "curl", "libssl-dev", "gcc", "pkg-config", "git"
+            rocky  => "cargo", "openssl-devel", "gcc", "pkg-config", "git";
+            debian => "curl", "libssl-dev", "gcc", "pkg-config", "git"
         );
         test_deps!(
         input = r#"
@@ -218,14 +218,14 @@ build_depends:
         test_deps!(
         input = r#"
 build_depends:
-  centos8+fedora34: [ cargo,  openssl-devel ]
-  debian10+ubuntu20: [ libssl-dev ]
-  debian10: [ curl ]
+  rocky+fedora34: [ cargo,  openssl-devel ]
+  debian+ubuntu20: [ libssl-dev ]
+  debian: [ curl ]
 "#,
         want =
-            centos8 => "cargo", "openssl-devel";
+            rocky => "cargo", "openssl-devel";
             fedora34 => "cargo", "openssl-devel";
-            debian10 => "curl", "libssl-dev";
+            debian => "curl", "libssl-dev";
             ubuntu20 => "libssl-dev"
         );
     }

@@ -268,17 +268,17 @@ mod tests {
         input = r#"
 patches:
   all: ["test.patch", "1.patch", "http://remote.com/file.patch"]
-  centos8:
-    - patch: only-cent.patch
+  rocky:
+    - patch: only-rocky.patch
       strip: 1
-  debian10:
+  debian:
     - patch: only-deb.patch
       strip: 2
 "#,
         want =
             all      => "test.patch" 0, "1.patch" 0, "http://remote.com/file.patch" 0;
-            centos8  => "test.patch" 0, "1.patch" 0, "http://remote.com/file.patch" 0, "only-cent.patch" 1;
-            debian10 => "test.patch" 0, "1.patch" 0, "http://remote.com/file.patch" 0, "only-deb.patch" 2
+            rocky  => "test.patch" 0, "1.patch" 0, "http://remote.com/file.patch" 0, "only-rocky.patch" 1;
+            debian => "test.patch" 0, "1.patch" 0, "http://remote.com/file.patch" 0, "only-deb.patch" 2
         );
     }
 }

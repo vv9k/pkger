@@ -26,9 +26,9 @@ ssh:
 
 # To define custom images add the following
 images:
-  - name: centos8
+  - name: rocky
     target: rpm
-  - name: debian10
+  - name: debian
     target: deb
 # if pkger fails to find out the operating system you can specify it by os parameter
   - name: arch

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Examples:
 /// "echo 123"
 ///
-/// { cmd = "echo 123", images = ["centos8", "debian10"] }
+/// { cmd = "echo 123", images = ["rocky", "debian"] }
 ///
 /// { cmd = "echo 321", rpm = true } # execute only when building rpm target
 pub struct Command {

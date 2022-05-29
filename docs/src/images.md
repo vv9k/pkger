@@ -12,12 +12,12 @@ So example structure like this:
 images
 ├── arch
 │  └── Dockerfile
-├── centos8
+├── rocky
 │  └── Dockerfile
-└── debian10
+└── debian
    └── Dockerfile
 ```
-**pkger** will detect 3 images - *arch*, *centos8* and *debian10*.
+**pkger** will detect 3 images - *arch*, *rocky* and *debian*.
 
 Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
 dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.

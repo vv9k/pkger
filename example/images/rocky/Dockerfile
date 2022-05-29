@@ -1,0 +1,1 @@
+FROM rockylinux/rockylinux:latest

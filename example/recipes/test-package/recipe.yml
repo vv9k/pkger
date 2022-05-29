@@ -5,7 +5,7 @@ metadata:
   description: pkger test package
   arch: x86_64
   license: MIT
-  images: [ centos8, debian10 ]
+  images: [ rocky, debian ]
 configure:
   steps:
     - cmd: mkdir -p $PKGER_OUT_DIR/$RECIPE_VERSION/$RECIPE
@@ -16,10 +16,10 @@ build:
 install:
   steps:
     - cmd: mkdir -p $PKGER_OUT_DIR/test/deb
-      images: ["debian10"]
+      images: ["debian"]
     - cmd: mkdir -p $PKGER_OUT_DIR/test/rpm
-      images: ["centos8"]
+      images: ["rocky"]
     - cmd: echo "123" > $PKGER_OUT_DIR/test/rpm/test_file
-      images: ["centos8"]
+      images: ["rocky"]
     - cmd: echo "321" > $PKGER_OUT_DIR/test/deb/test_file
-      images: ["debian10"]
+      images: ["debian"]
