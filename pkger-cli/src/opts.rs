@@ -13,7 +13,7 @@ pub const APP_NAME: &str = "pkger";
 )]
 pub struct Opts {
     #[clap(short, long)]
-    /// Suppress all output from containers.
+    /// Display only errors and warnings.
     pub quiet: bool,
     #[clap(short, long)]
     /// Enable debug output.
