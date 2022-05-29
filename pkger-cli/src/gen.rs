@@ -1,13 +1,12 @@
 use crate::opts::GenRecipeOpts;
+use pkger_core::log::{debug, trace, warning, BoxedCollector};
 use pkger_core::recipe::{DebRep, MetadataRep, PkgRep, RecipeRep, RpmRep};
 
 use serde_yaml::{Mapping, Value as YamlValue};
-use tracing::{info_span, trace, warn};
 
-pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
-    let span = info_span!("gen-recipe");
-    let _enter = span.enter();
-    trace!(opts = ?opts);
+pub fn recipe(opts: Box<GenRecipeOpts>, logger: &mut BoxedCollector) -> RecipeRep {
+    debug!(logger => "generating recipe");
+    trace!(logger => "{:?}", opts);
 
     let git = if let Some(url) = opts.git_url {
         let mut git_src = Mapping::new();
@@ -27,13 +26,13 @@ pub fn recipe(opts: Box<GenRecipeOpts>) -> RecipeRep {
             if let Some(k) = kv_split.next() {
                 if let Some(v) = kv_split.next() {
                     if let Some(entry) = env.insert(YamlValue::from(k), YamlValue::from(v)) {
-                        warn!(key = k, old = ?entry.as_str(), new = v, "key already exists, overwriting")
+                        warning!(logger => "key '{}' already exists, old: {}, new: {}", k, entry.as_str().unwrap_or_default(), v);
                     }
                 } else {
-                    warn!(entry = ?kv, "env entry missing a `=`");
+                    warning!(logger => "env entry '{}' missing a `=`", kv);
                 }
             } else {
-                warn!(entry = kv, "env entry missing a key or `=`");
+                warning!(logger => "env entry '{}' missing a key or `=`", kv);
             }
         }
     }

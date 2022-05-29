@@ -10,9 +10,9 @@ pub mod container;
 pub mod docker;
 pub mod gpg;
 pub mod image;
-pub mod oneshot;
 #[macro_export]
-pub mod output;
+pub mod log;
+pub mod oneshot;
 pub mod recipe;
 pub mod ssh;
 pub mod template;

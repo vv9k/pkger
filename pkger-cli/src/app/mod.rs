@@ -10,6 +10,7 @@ use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::Image;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
+use pkger_core::log::{error, info, trace, warning, BoxedCollector, Level};
 use pkger_core::recipe;
 use pkger_core::{ErrContext, Error, Result};
 
@@ -25,17 +26,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time;
 use tempdir::TempDir;
-use tracing::{error, info, info_span, trace, warn};
 use uuid::Uuid;
 
 // ################################################################################
 
 fn set_ctrlc_handler(is_running: Arc<AtomicBool>) {
     if let Err(e) = ctrlc::set_handler(move || {
-        warn!("got ctrl-c");
+        warning!("got ctrl-c");
         is_running.store(false, Ordering::SeqCst);
     }) {
-        error!(reason = %e, "failed to set ctrl-c handler");
+        error!("failed to set ctrl-c handler, reason: {}", e);
     };
 }
 
@@ -110,6 +110,11 @@ impl std::future::Future for IsRunning {
     }
 }
 
+pub struct AppOutputConfig {
+    pub level: Level,
+    pub log_dir: Option<PathBuf>,
+}
+
 pub struct Application {
     config: Arc<Configuration>,
     recipes: Arc<recipe::Loader>,
@@ -123,7 +128,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(config: Configuration) -> Result<Self> {
+    pub fn new(config: Configuration, logger: &mut BoxedCollector) -> Result<Self> {
         let app_dir = create_app_dirs()?;
         let recipes = recipe::Loader::new(&config.recipes_dir)
             .context("failed to initialize recipe loader")?;
@@ -141,14 +146,13 @@ impl Application {
             match ImagesState::load(&state_path).context("failed to load images state") {
                 Ok(state) => state,
                 Err(e) => {
-                    let e = format!("{:?}", e);
-                    warn!(msg = %e);
+                    warning!(logger => "{:?}", e);
                     ImagesState::new(&state_path)
                 }
             },
         ));
 
-        trace!(?images_state);
+        trace!(logger => "{:?}", images_state);
 
         let app = Application {
             config: Arc::new(config),
@@ -166,16 +170,30 @@ impl Application {
         Ok(app)
     }
 
-    pub async fn process_opts(&mut self, opts: Opts) -> Result<()> {
+    pub async fn process_opts(&mut self, opts: Opts, logger: &mut BoxedCollector) -> Result<()> {
         match opts.command {
             Command::Build(build_opts) => {
                 if !build_opts.no_sign {
                     self.gpg_key = load_gpg_key(&self.config)?;
                 }
                 let tasks = self
-                    .process_build_opts(build_opts)
+                    .process_build_opts(build_opts, logger)
                     .context("processing build opts")?;
-                self.process_tasks(tasks, opts.quiet).await?;
+
+                let output_config = AppOutputConfig {
+                    level: if opts.trace {
+                        Level::Trace
+                    } else if opts.debug {
+                        Level::Debug
+                    } else if opts.quiet {
+                        Level::Warn
+                    } else {
+                        Level::Info
+                    },
+                    log_dir: opts.log_dir,
+                };
+
+                self.process_tasks(tasks, output_config, logger).await?;
                 Ok(())
             }
             Command::List {
@@ -193,7 +211,7 @@ impl Application {
             Command::CleanCache => self.clean_cache().await,
             Command::Init { .. } => unreachable!(),
             Command::Edit { object } => self.edit(object),
-            Command::New { object } => self.create(object),
+            Command::New { object } => self.create(object, logger),
             Command::Copy { object } => self.copy(object),
             Command::PrintCompletions(opts) => {
                 completions::print(&opts);
@@ -206,7 +224,7 @@ impl Application {
         IsRunning(self.is_running.clone())
     }
 
-    fn create(&self, object: NewObject) -> Result<()> {
+    fn create(&self, object: NewObject, logger: &mut BoxedCollector) -> Result<()> {
         match object {
             NewObject::Image { name } => {
                 let path = self.config.images_dir.clone().context("can't create an image when images directory is not specified in the configuration.")?.join(&name);
@@ -226,7 +244,7 @@ impl Application {
                     return err!("recipe `{}` already exists", &opts.name);
                 }
 
-                let recipe = gen::recipe(opts);
+                let recipe = gen::recipe(opts, logger);
                 println!("creating directory for recipe ~> `{}`", path.display());
                 fs::create_dir(&path).context("failed to create a directory for the recipe")?;
                 let path = path.join("recipe.yml");
@@ -314,9 +332,8 @@ impl Application {
                     .map(|_| ())
             }
         }
-        let span = info_span!("copy");
 
-        span.in_scope(|| match object {
+        match object {
             CopyObject::Image { source, dest } => {
                 if let Some(images_dir) = &self.config.images_dir {
                     let base_path = images_dir.join(&source);
@@ -350,19 +367,15 @@ impl Application {
                 info!("done.");
                 Ok(())
             }
-        })
+        }
     }
 
     async fn clean_cache(&mut self) -> Result<()> {
-        let span = info_span!("clean-cache");
-        let _entered = span.enter();
-
+        info!("clearing cache");
         let mut state = self.images_state.write().await;
 
-        span.in_scope(|| {
-            state.clear();
-            state.save()
-        })?;
+        state.clear();
+        state.save()?;
 
         info!("ok");
         Ok(())
@@ -397,7 +410,7 @@ impl Application {
                         recipe.metadata.license.cell().left().color(Color::White),
                         recipe.metadata.description.cell().left(),
                     ]),
-                    Err(e) => warn!(recipe = %name, reason = %format!("{:?}", e)),
+                    Err(e) => warning!("failed to load recipe {}, reason: {:?}", name, e),
                 }
             }
             let table = table.into_table().with_headers(vec![
@@ -423,7 +436,7 @@ impl Application {
         let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
             Ok(e) => Some(e.path()),
             Err(e) => {
-                warn!(reason = %format!("{:?}", e), "invalid entry");
+                warning!("invalid entry, reason: {:?}", e);
                 None
             }
         });
@@ -505,13 +518,19 @@ impl Application {
                                 }
                             }
                             Err(e) => {
-                                error!(reason = %format!("{:?}", e), image = %image_name, "failed to list a package");
+                                error!(
+                                    "failed to list package for image {}, reason {:?}",
+                                    image_name, e
+                                );
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    error!(reason = %format!("{:?}", e), image = %image_name, "failed to list packages");
+                    error!(
+                        "failed to list packages for image {}, reason {:?}",
+                        image_name, e
+                    );
                 }
             }
         }
@@ -575,7 +594,7 @@ impl Application {
                             images.push(out);
                         }
                         Err(e) => {
-                            warn!(reason = %format!("{:?}", e), "invalid entry");
+                            warning!("invalid entry, reason: {:?}", e);
                         }
                     }
                 });
@@ -599,14 +618,12 @@ impl Application {
         }
     }
 
-    async fn save_images_state(&self) {
-        let span = info_span!("save-images-state");
-        let _enter = span.enter();
-
+    async fn save_images_state(&self, logger: &mut BoxedCollector) {
+        info!(logger => "saving images state");
         let state = self.images_state.read().await;
 
         if let Err(e) = state.save() {
-            error!(reason = %format!("{:?}", e), "failed to save image state");
+            error!(logger => "failed to save image state, reason: {:?}", e);
         }
     }
 }

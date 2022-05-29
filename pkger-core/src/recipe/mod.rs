@@ -10,6 +10,7 @@ pub use metadata::{
     RpmInfo, RpmRep,
 };
 
+use crate::log::{debug, trace, warning, BoxedCollector};
 use crate::{err, Error, Result};
 
 use anyhow::Context;
@@ -23,7 +24,6 @@ use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
 use std::path::Path;
 use std::path::PathBuf;
-use tracing::{info_span, trace, warn};
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
 
@@ -101,11 +101,11 @@ impl Loader {
     }
 
     /// Loads all recipes in the underlying directory
-    pub fn load_all(&self) -> Result<Vec<Recipe>> {
+    pub fn load_all(&self, logger: &mut BoxedCollector) -> Result<Vec<Recipe>> {
         let path = self.path.as_path();
 
-        let span = info_span!("load-recipes", path = %path.display());
-        let _enter = span.enter();
+        debug!(logger => "loading reicipes from '{}'", path.display());
+
         let mut recipes = Vec::new();
 
         for entry in fs::read_dir(path)? {
@@ -116,15 +116,15 @@ impl Loader {
                     match RecipeRep::try_from(entry).map(|rep| Recipe::new(rep, path)) {
                         Ok(result) => {
                             let recipe = result?;
-                            trace!(recipe = ?recipe);
+                            trace!(logger => "{:?}", recipe);
                             recipes.push(recipe);
                         }
                         Err(e) => {
-                            warn!(recipe = %filename, reason = %format!("{:?}", e), "failed to read recipe")
+                            warning!(logger => "failed to read recipe from '{}', reason: {:?}", filename, e);
                         }
                     }
                 }
-                Err(e) => warn!(reason = %format!("{:?}", e), "invalid entry"),
+                Err(e) => warning!(logger => "invalid entry, reason: {:?}", e),
             }
         }
 
@@ -169,9 +169,14 @@ impl Recipe {
 }
 
 impl Recipe {
-    pub fn as_deb_control(&self, image: &str, installed_size: Option<&str>) -> BinaryDebControl {
+    pub fn as_deb_control(
+        &self,
+        image: &str,
+        installed_size: Option<&str>,
+        logger: &mut BoxedCollector,
+    ) -> BinaryDebControl {
         let name = if self.metadata.name.contains('_') {
-            warn!("Debian package names can't contain `_`, converting to `-`");
+            warning!(logger => "Debian package names can't contain `_`, converting to `-`");
             self.metadata.name.replace('_', "-")
         } else {
             self.metadata.name.to_owned()

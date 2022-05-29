@@ -1,5 +1,6 @@
 use pkger_core::build::{self, Context};
 use pkger_core::docker;
+use pkger_core::log::BoxedCollector;
 
 use std::time::{Duration, Instant};
 
@@ -47,10 +48,10 @@ pub enum JobCtx {
 }
 
 impl JobCtx {
-    pub async fn run(self) -> JobResult {
+    pub async fn run(self, mut logger: BoxedCollector) -> JobResult {
         let start = Instant::now();
         match self {
-            JobCtx::Build(mut ctx) => match build::run(&mut ctx).await {
+            JobCtx::Build(mut ctx) => match build::run(&mut ctx, &mut logger).await {
                 Err(e) => {
                     let duration = start.elapsed();
                     let reason = match e.downcast::<docker::Error>() {
