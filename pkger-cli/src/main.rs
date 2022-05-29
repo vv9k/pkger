@@ -39,7 +39,6 @@ async fn main() -> Result<()> {
         .unwrap_or_default()
         .as_secs();
 
-
     if let opts::Command::Init(opts) = opts.command {
         let config_dir = dirs::config_dir().context("missing config directory")?;
         let pkger_dir = config_dir.join("pkger");
@@ -139,7 +138,6 @@ async fn main() -> Result<()> {
     } else if opts.quiet {
         logger.set_level(log::Level::Warn);
     }
-
 
     let mut app = match Application::new(config, &mut logger).context("failed to initialize pkger")
     {
