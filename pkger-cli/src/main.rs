@@ -14,7 +14,6 @@ use pkger_core::{ErrContext, Error, Result};
 mod app;
 mod completions;
 mod config;
-mod fmt;
 mod gen;
 mod job;
 mod metadata;
@@ -54,7 +53,6 @@ async fn main() -> Result<()> {
             recipes_dir,
             output_dir,
             images_dir: Some(images_dir),
-            filter: opts.filter,
             docker: opts.docker,
             gpg_key: opts.gpg_key,
             gpg_name: opts.gpg_name,
