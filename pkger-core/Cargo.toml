@@ -18,7 +18,9 @@ anyhow = "1"
 tar = "0.4"
 flate2 = "1"
 
-tracing = "0.1"
+chrono = "0.4"
+
+colored = "2"
 
 async-rwlock = "1"
 futures = "0.3"
@@ -30,6 +32,7 @@ serde_yaml = "0.8"
 tempdir = "0.3"
 
 uuid = { version = "0.8", features = ["serde", "v4"] }
+lazy_static = "1"
 
 [dev-dependencies]
 pretty_assertions = "0.3"
