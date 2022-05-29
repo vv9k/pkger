@@ -554,18 +554,8 @@ gpg_name: Packager Name # must be the same as the `Name` field on the key
 <p>When <strong>pkger</strong> detects the gpg key in the configuration it will prompt for a password to the key on each run.</p>
 <p>Currently, only <em>deb</em> and <em>rpm</em> targets support signing.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="formatting-output"><a class="header" href="#formatting-output">Formatting output</a></h1>
-<p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. To debug run with <code>-d</code> or
-<code>--debug</code> option. To surpress all output except for errors add <code>-q</code> or <code>--quiet</code>. To manually set log level set
-<code>RUST_LOG</code> env variable to a value like <code>pkger=debug</code> with debug replaced with the desired log level.</p>
-<p>To decide what parts of events are displayed use the <code>--hide</code> flag that takes a filter string as input and tells
-<strong>pkger</strong> what fields to display. Each character of filter string is responsible for a single part of output.
-Characters are case insensitive, the order doesn't matter and duplicates are silently ignored. Available modules are:</p>
-<ul>
-<li><code>d</code> hides the timestamp</li>
-<li><code>f</code> hides the fields in spans (the values between curly braces like <code>{id = vw89wje92}</code>)</li>
-<li><code>l</code> hides the level</li>
-<li><code>s</code> hides the spans entirely</li>
-</ul>
+<p>By default <strong>pkger</strong> will display basic output as hierhical log with level set to <code>INFO</code>. All log messages will be printed to stdout unless a <code>--log-dir</code> flag (or <code>log_dir</code> is specified in <a href="./configuration.html">configuration</a>) is provided, in that case there will be a single global log file in the logging directory created on each run as well as a separate file for each task.</p>
+<p>To debug run with <code>-d</code> or <code>--debug</code> option. To surpress all output except for errors and warnings add <code>-q</code> or <code>--quiet</code>. To enable very verbose output add <code>-t</code> or `--trace option.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="generate-recipes"><a class="header" href="#generate-recipes">Generate recipes</a></h1>
 <p>To generate a recipe declaratively from CLI use the <code>pkger new recipe</code> subcommand. By default it requires only the name
 of the  package and creates a directory with <code>recipe.yml</code> in it.</p>
