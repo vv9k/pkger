@@ -12,6 +12,7 @@ recipes_dir: ""
 output_dir: ""
 
 # optional
+log_dir: ""
 images_dir: ""
 docker: "unix:///var/run/docker.sock"
 
