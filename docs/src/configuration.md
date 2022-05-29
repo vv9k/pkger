@@ -16,13 +16,6 @@ log_dir: ""
 images_dir: ""
 docker: "unix:///var/run/docker.sock"
 
-# A formatting filter that decides what gets displayed with each output message. This acts the same as CLI argument
-# `--filter`.
-# All characters can be upper or lower case, the order doesn't matter, duplicates and errors are silently ignored.
-# Available fields to show are: D - Date, F - Fields, S - Spans.
-# Available fields to hide are: L - Levels.
-filter: "SFL" # will display spans and fields of the spans but the level like `INFO` will be omitted
-
 ssh:
   # this will make the ssh auth socket available to the container so that it can use private keys from the host.
   forward_agent: true

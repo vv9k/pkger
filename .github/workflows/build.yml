@@ -73,11 +73,11 @@ jobs:
       - name: Test
         run: cargo test
       - name: Run the test suite
-        run: cargo run -- --filter sf -t -c example/conf.yml build test-suite
+        run: cargo run -- -t -c example/conf.yml build test-suite
       - name: Build the test package
-        run: cargo run -- --filter sf -t -c example/conf.yml build test-package
+        run: cargo run -- -t -c example/conf.yml build test-package
       - name: Build simple APK and PKG
-        run: cargo run -- --filter sf -t -c example/conf.yml build -s apk pkg -- test-package
+        run: cargo run -- -t -c example/conf.yml build -s apk pkg -- test-package
       - name: Verify DEB package
         run: |
           sudo dpkg -i example/output/debian10/test-package-0.1.0.amd64.deb
