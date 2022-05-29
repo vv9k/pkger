@@ -12,6 +12,7 @@ pub struct Configuration {
     pub recipes_dir: PathBuf,
     pub output_dir: PathBuf,
     pub images_dir: Option<PathBuf>,
+    pub log_dir: Option<PathBuf>,
     pub docker: Option<String>,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,

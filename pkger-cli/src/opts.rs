@@ -25,6 +25,10 @@ pub struct Opts {
     /// Path to the config file (default - "~/.pkger.yml").
     pub config: Option<String>,
 
+    #[clap(short, long)]
+    /// Directory for log files. All output will be redirected to files in this directory.
+    pub log_dir: Option<PathBuf>,
+
     #[clap(subcommand)]
     /// Subcommand to run
     pub command: Command,
