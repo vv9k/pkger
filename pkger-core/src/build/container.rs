@@ -137,6 +137,8 @@ impl<'job> Context<'job> {
             if let Some(context) = context {
                 res = res.context(context);
             }
+
+            #[allow(clippy::question_mark)]
             if res.is_err() {
                 return res;
             }

@@ -15,11 +15,9 @@ pub async fn apply(
     trace!(logger => "{:?}", patches);
     for (patch, location) in patches {
         if let Some(images) = patch.images() {
-            if !images.is_empty() {
-                if !images.contains(&ctx.build.image.name) {
-                    debug!(logger => "skipping patch {:?}", patch);
-                    continue;
-                }
+            if !images.is_empty() && !images.contains(&ctx.build.image.name) {
+                debug!(logger => "skipping patch {:?}", patch);
+                continue;
             }
         }
         debug!(logger => "applying patch: {:?}", patch);

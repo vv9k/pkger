@@ -41,6 +41,7 @@ impl PartialEq for ImageState {
 }
 
 impl ImageState {
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         id: &str,
         target: &RecipeTarget,

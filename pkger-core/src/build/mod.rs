@@ -79,7 +79,7 @@ impl Context {
 
         Context {
             id,
-            session_id: session_id.clone(),
+            session_id: *session_id,
             recipe,
             image,
             docker,

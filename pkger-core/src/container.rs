@@ -31,7 +31,7 @@ fn truncate(id: &str) -> &str {
 /// According to the error message allowed characters are [a-zA-Z0-9_.-].
 pub fn fix_name(name: &str) -> String {
     name.chars()
-        .filter(|&c| c.is_alphanumeric() || c == '-' || c == '.' || c == '-')
+        .filter(|&c| c.is_alphanumeric() || c == '-' || c == '.' || c == '_')
         .collect()
 }
 
@@ -319,8 +319,8 @@ impl<'job> DockerContainer<'job> {
     }
 }
 
-pub async fn cleanup<'docker>(
-    docker: &'docker Docker,
+pub async fn cleanup(
+    docker: &'_ Docker,
     key: impl Into<String>,
     value: impl Into<String>,
 ) -> Result<ContainersPruneInfo> {

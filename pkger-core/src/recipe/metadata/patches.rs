@@ -244,7 +244,7 @@ mod tests {
             let mut names = got.resolve_names(stringify!($image));
             let mut $image = vec![
                 $(
-                    Patch::new($patch, $level)
+                    Patch::new($patch, $level, None::<Vec<_>>)
                 ),+
             ];
 

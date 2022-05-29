@@ -283,7 +283,7 @@ impl Table {
 
                 let padding = cols_max[i].saturating_sub(len);
 
-                add_text_with_padding!(text, &header, padding, i == headers_last);
+                add_text_with_padding!(text, header, padding, i == headers_last);
 
                 if i != headers_last {
                     tokens.push(Token::ColumnSeparator);
@@ -308,7 +308,7 @@ impl Table {
                     let text = cell.text();
                     let padding = col_size.saturating_sub(text.len());
 
-                    add_text_with_padding!(text, &cell, padding, i == cols_max_len - 1);
+                    add_text_with_padding!(text, cell, padding, i == cols_max_len - 1);
 
                     if i != last_col {
                         tokens.push(Token::ColumnSeparator);

@@ -460,7 +460,7 @@ impl Application {
         for image in images {
             let image_name = image
                 .file_name()
-                .unwrap_or_else(|| image.as_os_str())
+                .unwrap_or(image.as_os_str())
                 .to_string_lossy();
             table.push(vec![format!("{}:", image_name)
                 .cell()
