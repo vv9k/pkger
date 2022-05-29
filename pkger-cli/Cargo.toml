@@ -35,9 +35,4 @@ async-rwlock = "1"
 futures = "0.3"
 tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
 
-tracing = "0.1"
-tracing-core = "0.1"
-tracing-futures = "0.1"
-tracing-subscriber = {version = "0.2", features = ["fmt", "chrono"]}
-
 uuid = { version = "0.8", features = ["serde", "v4"] }
