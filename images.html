@@ -144,12 +144,12 @@ containing a <code>Dockerfile</code> as an image. The name of the directory will
 <pre><code>images
 ├── arch
 │  └── Dockerfile
-├── centos8
+├── rocky
 │  └── Dockerfile
-└── debian10
+└── debian
    └── Dockerfile
 </code></pre>
-<p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>centos8</em> and <em>debian10</em>.</p>
+<p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>rocky</em> and <em>debian</em>.</p>
 <p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
 dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
 

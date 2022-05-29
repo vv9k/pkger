@@ -170,9 +170,9 @@ ssh:
 
 # To define custom images add the following
 images:
-  - name: centos8
+  - name: rocky
     target: rpm
-  - name: debian10
+  - name: debian
     target: deb
 # if pkger fails to find out the operating system you can specify it by os parameter
   - name: arch
@@ -246,7 +246,7 @@ install:
 <h2 id="optional-fields"><a class="header" href="#optional-fields">optional fields</a></h2>
 <p>To specify which images a recipe should use add images parameter with a list of image targets. This field is ignored
 when building with <code>--simple</code> flag.</p>
-<pre><code class="language-yaml">  images: [ centos8, debian10 ]
+<pre><code class="language-yaml">  images: [ rocky, debian ]
 </code></pre>
 <p>You can also specify that all images apply to this recipe with:</p>
 <pre><code class="language-yaml">  all_images: true
@@ -303,14 +303,14 @@ supported distribution. Default dependencies like <code>gzip</code> or <code>git
     all: [&quot;gcc&quot;, &quot;pkg-config&quot;, &quot;git&quot;]
 
     # dependencies for custom images
-    centos8: [&quot;cargo&quot;, &quot;openssl-devel&quot;]
-    debian10: [&quot;curl&quot;, &quot;libssl-dev&quot;]
+    rocky: [&quot;cargo&quot;, &quot;openssl-devel&quot;]
+    debian: [&quot;curl&quot;, &quot;libssl-dev&quot;]
 </code></pre>
 <p>To specify same dependencies for multiple images join the images by <code>+</code> sign like this:</p>
-<pre><code class="language-yaml">    centos8+fedora34: [ cargo, openssl-devel ]
-    ubuntu20+debian10: [ libssl-dev ]
+<pre><code class="language-yaml">    rocky+fedora34: [ cargo, openssl-devel ]
+    ubuntu20+debian: [ libssl-dev ]
     # you can later specify dependencies just for this images
-    debian10: [ curl ]
+    debian: [ curl ]
 </code></pre>
 <p>if running a simple build and there is a need to specify dependencies for the target add dependencies for one of this
 images:</p>
@@ -318,7 +318,7 @@ images:</p>
     pkger-deb: [&quot;curl&quot;]
     pkger-gzip: []
 </code></pre>
-<p>A custom image, for example <code>centos8</code>, will also use dependecies defined for <code>pkger-rpm</code>. The same will apply for all rpm based images (or images that have their target specified to RPM in the <a href="./configuration.html">configuration</a>)</p>
+<p>A custom image, for example <code>rocky</code>, will also use dependecies defined for <code>pkger-rpm</code>. The same will apply for all rpm based images (or images that have their target specified to RPM in the <a href="./configuration.html">configuration</a>)</p>
 <h3 id="patches"><a class="header" href="#patches">Patches</a></h3>
 <p>To apply patches to the fetched source code specify them just like dependencies. Patches can be specified as just file
 name in which case <strong>pkger</strong> will look for the patch in the recipe directory, if the path is absolute it will be read
@@ -329,7 +329,7 @@ from remote source.</p>
     - /some/absolute/path/to.patch
     - https://someremotesource.com/other.patch
     - patch: with-strip-level.patch
-      images: [ debian10 ] # specify the images that this patch should be aplied on
+      images: [ debian ] # specify the images that this patch should be aplied on
       strip: 2 # this specifies the number of directories to strip before applying the patch (known as -pN or --stripN option in UNIX patch tool
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="rpm-fields"><a class="header" href="#rpm-fields">RPM fields</a></h1>
@@ -352,7 +352,7 @@ from remote source.</p>
     #obsoletes: [&quot;foo&quot;]
     # or as a map
     obsoletes:
-      centos8: [&quot;foo&quot;]
+      rocky: [&quot;foo&quot;]
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="deb-fields"><a class="header" href="#deb-fields">DEB fields</a></h1>
 <p>Optional fields that may be used when building a DEB package.</p>
@@ -442,8 +442,8 @@ was specified.</p>
 <pre><code class="language-yaml">build:
   steps:
     - cmd: $HOME/.cargo/bin/cargo build --release .
-    - images = [&quot;debian10&quot;]
-      cmd: echo 'hello from Debian' # will only be executed on image `debian10`
+    - images = [&quot;debian&quot;]
+      cmd: echo 'hello from Debian' # will only be executed on image `debian`
     - cmd: echo 'will only run on images with target == `rpm`'
       rpm: true
     # same applies to other targets
@@ -488,12 +488,12 @@ containing a <code>Dockerfile</code> as an image. The name of the directory will
 <pre><code>images
 ├── arch
 │  └── Dockerfile
-├── centos8
+├── rocky
 │  └── Dockerfile
-└── debian10
+└── debian
    └── Dockerfile
 </code></pre>
-<p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>centos8</em> and <em>debian10</em>.</p>
+<p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>rocky</em> and <em>debian</em>.</p>
 <p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
 dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-a-package"><a class="header" href="#build-a-package">Build a package</a></h1>
@@ -560,8 +560,8 @@ specified in the <a href="./configuration.html">configuration</a>.</p>
 <p><strong>pkger</strong> provides utility subcommand <code>edit</code> that invokes the default editor defined by <code>$EDITOR</code> environment variable.
 To make this functionality work, export this variable in your shell's init script like <code>~/.bashrc</code>.</p>
 <p>Edit images and recipes by name:</p>
-<pre><code># This will open up the Dockerfile in the `centos8` image.
-$ pkger edit image centos8 
+<pre><code># This will open up the Dockerfile in the `rocky` image.
+$ pkger edit image rocky 
 
 # This will open up the `recipe.yml` or `recipe.yaml` file in `pkger-simple` recipe directory
 $ pkger edit recipe pkger-simple

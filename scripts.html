@@ -170,8 +170,8 @@ was specified.</p>
 <pre><code class="language-yaml">build:
   steps:
     - cmd: $HOME/.cargo/bin/cargo build --release .
-    - images = [&quot;debian10&quot;]
-      cmd: echo 'hello from Debian' # will only be executed on image `debian10`
+    - images = [&quot;debian&quot;]
+      cmd: echo 'hello from Debian' # will only be executed on image `debian`
     - cmd: echo 'will only run on images with target == `rpm`'
       rpm: true
     # same applies to other targets
