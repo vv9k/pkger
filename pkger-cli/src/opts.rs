@@ -13,7 +13,7 @@ pub const APP_NAME: &str = "pkger";
 )]
 pub struct Opts {
     #[clap(short, long)]
-    /// Suppress all output from containers.
+    /// Display only errors and warnings.
     pub quiet: bool,
     #[clap(short, long)]
     /// Enable debug output.
@@ -21,15 +21,13 @@ pub struct Opts {
     #[clap(short, long)]
     /// Enable trace output.
     pub trace: bool,
-    #[clap(long)]
-    /// Filter string that instruments the formatter which fields should be displayed. Each
-    /// character of the string corresponds to a field. Available fields to show are: D - Date, F -
-    /// Fields, S - Spans. L - Levels is on by default, use L to turn it off. All characters can be
-    /// upper or lower case, the order doesn't matter, duplicates and errors are silently ignored.
-    pub filter: Option<String>,
     #[clap(short, long)]
     /// Path to the config file (default - "~/.pkger.yml").
     pub config: Option<String>,
+
+    #[clap(short, long)]
+    /// Directory for log files. All output will be redirected to files in this directory.
+    pub log_dir: Option<PathBuf>,
 
     #[clap(subcommand)]
     /// Subcommand to run
@@ -98,9 +96,6 @@ pub struct InitOpts {
     #[clap(short, long)]
     /// Override the default location of recipes.
     pub recipes: Option<PathBuf>,
-    #[clap(short, long)]
-    /// Filter string that sets which fields are displayed during builds.
-    pub filter: Option<String>,
     #[clap(short, long)]
     /// URL to Docker daemon listening on a unix or tcp socket. An example could be
     /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host

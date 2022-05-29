@@ -3,18 +3,17 @@ extern crate pkger_core;
 
 use std::fs;
 use std::process;
-
-use tracing::error;
+use std::time::SystemTime;
 
 use app::Application;
 use config::Configuration;
 use opts::Opts;
+use pkger_core::log::{self, error};
 use pkger_core::{ErrContext, Error, Result};
 
 mod app;
 mod completions;
 mod config;
-mod fmt;
 mod gen;
 mod job;
 mod metadata;
@@ -23,9 +22,22 @@ mod table;
 
 static DEFAULT_CONFIG_FILE: &str = ".pkger.yml";
 
+macro_rules! exit {
+    ($($args:tt)*) => {{
+        error!($($args)*);
+        process::exit(1);
+    }};
+
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
 
     if let opts::Command::Init(opts) = opts.command {
         let config_dir = dirs::config_dir().context("missing config directory")?;
@@ -54,7 +66,7 @@ async fn main() -> Result<()> {
             recipes_dir,
             output_dir,
             images_dir: Some(images_dir),
-            filter: opts.filter,
+            log_dir: None,
             docker: opts.docker,
             gpg_key: opts.gpg_key,
             gpg_name: opts.gpg_name,
@@ -97,26 +109,44 @@ async fn main() -> Result<()> {
                 .to_string(),
             None => DEFAULT_CONFIG_FILE.to_string(),
         });
-    let result = Configuration::load(&config_path);
+    let result = Configuration::load(&config_path).context("failed to load configuration file");
     if let Err(e) = &result {
-        eprintln!("`{}` - {:?}", config_path, e);
-        process::exit(1);
+        exit!("execution failed, reason: {:?}", e);
     }
     let config = result.unwrap();
 
-    fmt::setup_tracing(&opts, &config);
-
-    let mut app = match Application::new(config) {
-        Ok(app) => app,
-        Err(error) => {
-            error!(reason = %format!("{:?}", error), "failed to initialize pkger");
-            process::exit(1);
-        }
+    let logger_config = if let Some(p) = &opts.log_dir {
+        log::Config::file(p.join(format!("pkger-{}.log", timestamp)))
+    } else if let Some(p) = &config.log_dir {
+        log::Config::file(p.join(format!("pkger-{}.log", timestamp)))
+    } else {
+        log::Config::stdout()
     };
 
-    if let Err(error) = app.process_opts(opts).await {
-        error!(reason = %format!("{:?}", error), "execution failed");
-        process::exit(1);
+    let mut logger = match logger_config
+        .as_collector()
+        .context("failed to initialize global output collector")
+    {
+        Ok(config) => config,
+        Err(e) => exit!("execution failed, reason: {:?}", e),
+    };
+
+    if opts.trace {
+        logger.set_level(log::Level::Trace);
+    } else if opts.debug {
+        logger.set_level(log::Level::Debug);
+    } else if opts.quiet {
+        logger.set_level(log::Level::Warn);
+    }
+
+    let mut app = match Application::new(config, &mut logger).context("failed to initialize pkger")
+    {
+        Ok(app) => app,
+        Err(e) => exit!("execution failed, reason: {:?}", e),
+    };
+
+    if let Err(e) = app.process_opts(opts, &mut logger).await {
+        exit!("execution failed, reason: {:?}", e);
     }
     Ok(())
 }
