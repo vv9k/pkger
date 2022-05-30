@@ -531,7 +531,7 @@ dependencies have to be pulled from remote sources. This saves a lot of space, t
 <pre><code class="language-shell">pkger build -i custom-image1 custom-image2 -- recipe1 recipe2
 </code></pre>
 <h4 id="build-simple-rpm-deb-pkg-packages"><a class="header" href="#build-simple-rpm-deb-pkg-packages">Build simple RPM, DEB, PKG... packages:</a></h4>
-<pre><code class="language-shell">pkger build -s rpm deb pkg gzip -- recipe1
+<pre><code class="language-shell">pkger build -s rpm -s deb -s pkg -s gzip -- recipe1
 </code></pre>
 <h4 id="build-only-rpm-package"><a class="header" href="#build-only-rpm-package">Build only RPM package:</a></h4>
 <pre><code class="language-shell">pkger build -s rpm -- recipe1
