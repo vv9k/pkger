@@ -770,7 +770,7 @@ dependencies = [
 
 [[package]]
 name = "pkger"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-rwlock",
  "chrono",
@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "pkger-core"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "apkbuild",

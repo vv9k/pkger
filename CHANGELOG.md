@@ -1,4 +1,4 @@
-#
+# 0.8.0
 - Dependencies defined for default images like `pkger-deb` or `pkger-rpm` will be used for custom images using the same output target. This means that all images used for building RPM will use dependencies defined for `pkger-rpm` - cleaner recipes ;)
 - Add a `copy` subcommand that can copy a recipe or an image [#80](https://github.com/vv9k/pkger/pull/80)
 - Fix heavy cpu consumption. pkger would consume a whole cpu core constantly just for checking the ctrl-c signal.
