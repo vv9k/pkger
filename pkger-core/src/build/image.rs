@@ -132,11 +132,11 @@ pub async fn create_cache(
             let dockerfile = format!(
 r#"FROM {}
 ENV DEBIAN_FRONTEND noninteractive
-RUN {} {}
+{}
 RUN {} {}
 RUN {} {} {}"#,
                 tag,
-                pkg_mngr_name, pkg_mngr.clean_cache().join(" "),
+                if pkg_mngr.should_clean_cache() { format!("RUN {} {}", pkg_mngr_name, pkg_mngr.clean_cache().join(" "))} else { String::new() },
                 pkg_mngr_name, pkg_mngr.update_repos_args().join(" "),
                 pkg_mngr_name, pkg_mngr.install_args().join(" "), deps_joined.join(" ")
             );

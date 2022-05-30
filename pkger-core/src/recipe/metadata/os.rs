@@ -167,4 +167,12 @@ impl PackageManager {
             Self::Apk => vec!["cache", "clean"],
         }
     }
+
+    pub fn should_clean_cache(&self) -> bool {
+        #[allow(clippy::match_like_matches_macro)]
+        match self {
+            Self::Apk => false,
+            _ => true,
+        }
+    }
 }
