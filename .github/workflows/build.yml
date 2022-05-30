@@ -80,13 +80,13 @@ jobs:
         run: cargo run -- -t -c example/conf.yml build -s apk -s pkg -- test-package
       - name: Verify DEB package
         run: |
-          sudo dpkg -i example/output/debian10/test-package-0.1.0.amd64.deb
+          sudo dpkg -i example/output/debian/test-package-0.1.0-0.amd64.deb
           cat /test/deb/test_file
       - name: Install alien
         run: sudo apt install alien
       - name: Verify RPM package
         run: |
-          sudo alien -i example/output/centos8/test-package-0.1.0-0.x86_64.rpm
+          sudo alien -i example/output/rocky/test-package-0.1.0-0.x86_64.rpm
           cat /test/rpm/test_file
       - name: Create a new image
         run: |
