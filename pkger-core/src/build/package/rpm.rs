@@ -102,7 +102,7 @@ pub(crate) async fn build(
     trace!(logger => "source files: {:?}", files);
 
     let spec = recipe
-        .as_rpm_spec(&[source_tar], &files[..], &image_state.image)
+        .as_rpm_spec(&[source_tar], &files[..], &image_state.image, logger)
         .render();
 
     let spec_file = [&recipe.metadata.name, ".spec"].join("");

@@ -85,7 +85,7 @@ pub(crate) async fn build(
     let pkgbuild = ctx
         .build
         .recipe
-        .as_pkgbuild(&image_state.image, &sources, &checksums)
+        .as_pkgbuild(&image_state.image, &sources, &checksums, logger)
         .render();
     debug!(logger => "{}", pkgbuild);
 

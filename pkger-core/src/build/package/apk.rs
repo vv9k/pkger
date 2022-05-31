@@ -67,7 +67,7 @@ pub(crate) async fn build(
     let apkbuild = ctx
         .build
         .recipe
-        .as_apkbuild(&image_state.image, &sources, &bld_dir)
+        .as_apkbuild(&image_state.image, &sources, &bld_dir, logger)
         .render();
     debug!(logger => "{}", apkbuild);
 

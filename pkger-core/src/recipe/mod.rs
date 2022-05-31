@@ -247,7 +247,13 @@ impl Recipe {
         builder.build()
     }
 
-    pub fn as_rpm_spec(&self, sources: &[String], files: &[String], image: &str) -> RpmSpec {
+    pub fn as_rpm_spec(
+        &self,
+        sources: &[String],
+        files: &[String],
+        image: &str,
+        _logger: &mut BoxedCollector,
+    ) -> RpmSpec {
         let install_script = sources
             .iter()
             .enumerate()
@@ -330,7 +336,13 @@ impl Recipe {
         builder.build()
     }
 
-    pub fn as_pkgbuild(&self, image: &str, sources: &[String], checksums: &[String]) -> PkgBuild {
+    pub fn as_pkgbuild(
+        &self,
+        image: &str,
+        sources: &[String],
+        checksums: &[String],
+        _logger: &mut BoxedCollector,
+    ) -> PkgBuild {
         let package_func = sources.iter().fold(String::new(), |mut s, src| {
             s.push_str(&format!("    tar xvf {} -C $pkgdir\n", src));
             s
@@ -367,7 +379,13 @@ impl Recipe {
         builder.build()
     }
 
-    pub fn as_apkbuild(&self, image: &str, sources: &[String], builddir: &Path) -> ApkBuild {
+    pub fn as_apkbuild(
+        &self,
+        image: &str,
+        sources: &[String],
+        builddir: &Path,
+        _logger: &mut BoxedCollector,
+    ) -> ApkBuild {
         let package_func =
             sources
                 .iter()

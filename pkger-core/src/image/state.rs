@@ -60,7 +60,7 @@ impl ImageState {
                 .unwrap_or_default()
                 .as_secs()
         );
-        info!(logger => "creating image state for {}", name);
+        info!(logger => "creating image state for {}, id: {}, tag: {}", name, id, tag);
         let os = if let Some(os) = target.image_os() {
             os.clone()
         } else {

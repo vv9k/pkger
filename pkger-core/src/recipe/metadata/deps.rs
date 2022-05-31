@@ -107,7 +107,6 @@ impl Dependencies {
     /// Returns a set of dependencies for the given `image`. This includes common images
     /// from [COMMON_DEPS_KEY](COMMON_DEPS_KEY).
     pub fn resolve_names(&self, image: &str) -> HashSet<&str> {
-        // it's ok to unwrap here, the new function adds an empty hashset on initialization
         let mut deps = HashSet::new();
         if let Some(common_deps) = self.inner.get(COMMON_DEPS_KEY) {
             deps.extend(common_deps.iter().map(|s| s.as_str()));

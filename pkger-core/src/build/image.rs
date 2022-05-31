@@ -95,6 +95,7 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
                 )
                 .await?;
 
+                trace!(logger => "updating image state {}", state.id);
                 let mut image_state = ctx.image_state.write().await;
                 (*image_state).update(ctx.target.clone(), state.clone());
 

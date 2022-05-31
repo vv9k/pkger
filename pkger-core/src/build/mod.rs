@@ -132,12 +132,16 @@ pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathB
     let mut container_ctx = container::spawn(ctx, &image_state, logger).await?;
 
     let image_state = if image_state.tag != image::CACHED {
+        trace!(logger => "image tag is not {}, caching", image::CACHED);
         let mut deps = deps::default(
             ctx.target.build_target(),
             &ctx.recipe,
             ctx.gpg_key.is_some(),
         );
-        deps.extend(deps::recipe(&container_ctx, &image_state));
+        trace!(logger => "default deps: {:?}", deps);
+        let recipe_deps = deps::recipe(&container_ctx, &image_state);
+        trace!(logger => "recipe deps: {:?}", recipe_deps);
+        deps.extend(recipe_deps);
         let new_state =
             image::create_cache(&container_ctx, &ctx.docker, &image_state, &deps, logger).await?;
 
