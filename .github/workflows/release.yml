@@ -140,8 +140,8 @@ jobs:
         with:
           repo_name: wojciechkepka/pkger
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: example/output/pkger-deb/pkger-${{steps.set_version.outputs.PKGER_VERSION}}.amd64.deb
-          asset_name: pkger-${{steps.set_version.outputs.PKGER_VERSION}}.amd64.deb
+          file: example/output/pkger-deb/pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.amd64.deb
+          asset_name: pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.amd64.deb
           tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
           overwrite: true
       - name: Upload rpm
