@@ -156,6 +156,11 @@ ssh:
   disable_key_verification: true
 
 
+# override default images used by pkger
+custom_simple_images:
+  deb: ubuntu:latest
+  rpm: centos:latest
+
 # To define custom images add the following
 images:
   - name: rocky
