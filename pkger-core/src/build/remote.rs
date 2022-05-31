@@ -1,4 +1,3 @@
-use crate::archive::create_tarball;
 use crate::build::container::Context;
 use crate::container::ExecOpts;
 use crate::log::{info, trace, BoxedCollector};
@@ -67,9 +66,7 @@ pub async fn fetch_fs_source(
         entries.push((filename, fs::read(f)?));
     }
 
-    let archive = create_tarball(entries.iter().map(|(p, b)| (p, &b[..])), logger)?;
-
-    ctx.container.inner().copy_file_into(dest, &archive).await?;
+    ctx.container.upload_files(entries.iter().map(|(p, b)| (p, &b[..])), dest, logger).await?;
 
     Ok(())
 }
