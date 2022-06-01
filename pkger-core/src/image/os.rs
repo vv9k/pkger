@@ -1,4 +1,5 @@
-use crate::docker::{api::ContainerCreateOpts, Docker};
+use crate::container::CreateOpts;
+use crate::docker::Docker;
 use crate::log::{info, trace, BoxedCollector};
 use crate::oneshot::{self, OneShotCtx};
 use crate::recipe::Os;
@@ -34,9 +35,7 @@ async fn from_osrelease(
     let out = oneshot::run(
         &OneShotCtx::new(
             docker,
-            &ContainerCreateOpts::builder(&image_id)
-                .cmd(vec!["cat", "/etc/os-release"])
-                .build(),
+            &CreateOpts::new(image_id).cmd(vec!["cat", "/etc/os-release"]),
             true,
             true,
         ),
@@ -92,9 +91,7 @@ async fn os_from(
     let out = oneshot::run(
         &OneShotCtx::new(
             docker,
-            &ContainerCreateOpts::builder(&image_id)
-                .cmd(vec!["cat", file])
-                .build(),
+            &CreateOpts::new(image_id).cmd(vec!["cat", file]),
             true,
             true,
         ),

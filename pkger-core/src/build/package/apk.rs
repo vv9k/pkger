@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
@@ -44,8 +44,7 @@ pub(crate) async fn build(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("cp -rv . {}", src_dir.display()))
-            .working_dir(&ctx.build.container_out_dir)
-            .build(),
+            .working_dir(&ctx.build.container_out_dir),
         logger,
     )
     .await
@@ -55,8 +54,7 @@ pub(crate) async fn build(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
-            .working_dir(src_dir.as_path())
-            .build(),
+            .working_dir(src_dir.as_path()),
         logger,
     )
     .await?;
@@ -88,14 +86,17 @@ pub(crate) async fn build(
     ctx.script_exec(
         [
             (
-                &exec!(&format!("adduser -D {}", BUILD_USER)),
+                ExecOpts::new().cmd(&format!("adduser -D {}", BUILD_USER)),
                 Some("failed to create a build user"),
             ),
             (
-                &exec!(&format!("passwd -d {}", BUILD_USER)),
+                ExecOpts::new().cmd(&format!("passwd -d {}", BUILD_USER)),
                 Some("failed to set password of build user"),
             ),
-            (&exec!(&format!("mkdir {}", abuild_dir.display())), None),
+            (
+                ExecOpts::new().cmd(&format!("mkdir {}", abuild_dir.display())),
+                None,
+            ),
         ],
         logger,
     )
@@ -118,9 +119,12 @@ pub(crate) async fn build(
                 .upload_files([(SIGNING_KEY, key.as_slice())], &abuild_dir, logger)
                 .await
                 .context("failed to upload signing key")?;
-            ctx.checked_exec(&exec!(&format!("chmod 600 {}", key_path.display())), logger)
-                .await
-                .context("failed to change mode of signing key")?;
+            ctx.checked_exec(
+                &ExecOpts::new().cmd(&format!("chmod 600 {}", key_path.display())),
+                logger,
+            )
+            .await
+            .context("failed to change mode of signing key")?;
             true
         } else {
             false
@@ -132,7 +136,7 @@ pub(crate) async fn build(
     ctx.script_exec(
         [
             (
-                &exec!(&format!(
+                ExecOpts::new().cmd(&format!(
                     "chown -Rv {0}:{0} {1} {2}",
                     BUILD_USER,
                     bld_dir.display(),
@@ -141,7 +145,9 @@ pub(crate) async fn build(
                 Some("failed to change ownership of the build directory"),
             ),
             (
-                &exec!("chmod 644 APKBUILD", &bld_dir),
+                ExecOpts::new()
+                    .cmd("chmod 644 APKBUILD")
+                    .working_dir(&bld_dir),
                 Some("failed to change mode of APKBUILD"),
             ),
         ],
@@ -150,18 +156,23 @@ pub(crate) async fn build(
     .await?;
 
     if !uploaded_key {
-        ctx.checked_exec(&exec!("abuild-keygen -an", &bld_dir, BUILD_USER), logger)
-            .await?;
+        ctx.checked_exec(
+            &ExecOpts::new()
+                .cmd("abuild-keygen -an")
+                .working_dir(&bld_dir)
+                .user(BUILD_USER),
+            logger,
+        )
+        .await?;
     } else {
         ctx.checked_exec(
-            &exec!(
-                &format!(
+            &ExecOpts::new()
+                .cmd(&format!(
                     "echo PACKAGER_PRIVKEY=\"{}\" >> abuild.conf",
                     key_path.display()
-                ),
-                &abuild_dir,
-                BUILD_USER
-            ),
+                ))
+                .working_dir(&abuild_dir)
+                .user(BUILD_USER),
             logger,
         )
         .await?;
@@ -170,11 +181,17 @@ pub(crate) async fn build(
     ctx.script_exec(
         [
             (
-                &exec!("abuild checksum", &bld_dir, BUILD_USER),
+                ExecOpts::new()
+                    .cmd("abuild checksum")
+                    .working_dir(&bld_dir)
+                    .user(BUILD_USER),
                 Some("failed to calculate checksum"),
             ),
             (
-                &exec!("abuild", &bld_dir, BUILD_USER),
+                ExecOpts::new()
+                    .cmd("abuild")
+                    .working_dir(&bld_dir)
+                    .user(BUILD_USER),
                 Some("failed to run abuild"),
             ),
         ],

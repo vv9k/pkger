@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
@@ -45,8 +45,7 @@ pub(crate) async fn build(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("cp -rv . {}", src_dir.display()))
-            .working_dir(&ctx.build.container_out_dir)
-            .build(),
+            .working_dir(&ctx.build.container_out_dir),
         logger,
     )
     .await
@@ -56,8 +55,7 @@ pub(crate) async fn build(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
-            .working_dir(src_dir.as_path())
-            .build(),
+            .working_dir(src_dir.as_path()),
         logger,
     )
     .await?;
@@ -65,9 +63,7 @@ pub(crate) async fn build(
     trace!(logger => "calculate source MD5 checksum");
     let sum = ctx
         .checked_exec(
-            &ExecOpts::default()
-                .cmd(&format!("md5sum {}", source_tar_path.display()))
-                .build(),
+            &ExecOpts::default().cmd(&format!("md5sum {}", source_tar_path.display())),
             logger,
         )
         .await
@@ -102,23 +98,30 @@ pub(crate) async fn build(
     ctx.script_exec(
         [
             (
-                &exec!(&format!("useradd -m {}", BUILD_USER)),
+                ExecOpts::new().cmd(&format!("useradd -m {}", BUILD_USER)),
                 Some("failed to create build user"),
             ),
             (
-                &exec!(&format!("passwd -d {}", BUILD_USER)),
+                ExecOpts::new().cmd(&format!("passwd -d {}", BUILD_USER)),
                 Some("failed to create build user"),
             ),
             (
-                &exec!(&format!("chown -Rv {0}:{0} .", BUILD_USER), &bld_dir),
+                ExecOpts::new()
+                    .cmd(&format!("chown -Rv {0}:{0} .", BUILD_USER))
+                    .working_dir(&bld_dir),
                 Some("failed to change ownership of build directory"),
             ),
             (
-                &exec!("chmod 644 PKGBUILD", &bld_dir),
+                ExecOpts::new()
+                    .cmd("chmod 644 PKGBUILD")
+                    .working_dir(&bld_dir),
                 Some("failed to change mode of PKGBUILD"),
             ),
             (
-                &exec!("makepkg", &bld_dir, BUILD_USER),
+                ExecOpts::new()
+                    .cmd("makepkg")
+                    .working_dir(&bld_dir)
+                    .user(BUILD_USER),
                 Some("failed to makepkg"),
             ),
         ],

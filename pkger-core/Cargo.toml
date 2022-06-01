@@ -22,6 +22,7 @@ chrono = "0.4"
 
 colored = "2"
 
+async-trait = "0.1"
 async-rwlock = "1"
 futures = "0.3"
 

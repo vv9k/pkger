@@ -47,7 +47,7 @@ macro_rules! run_script {
             }
 
             info!($logger => "running command {:?}", cmd);
-            $ctx.checked_exec(&opts.clone().cmd(&cmd.cmd).build(), $logger)
+            $ctx.checked_exec(&opts.clone().cmd(&cmd.cmd), $logger)
                 .await?;
         }
 

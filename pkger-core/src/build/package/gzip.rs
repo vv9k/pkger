@@ -1,5 +1,6 @@
 use crate::archive::{save_tar_gz, tar};
 use crate::build::container::Context;
+use crate::container::Container;
 use crate::log::{info, BoxedCollector};
 use crate::{ErrContext, Result};
 

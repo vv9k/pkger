@@ -29,8 +29,7 @@ pub async fn apply(
                         patch.strip_level(),
                         location.display()
                     ))
-                    .working_dir(&ctx.build.container_bld_dir)
-                    .build(),
+                    .working_dir(&ctx.build.container_bld_dir),
                 logger,
             )
             .await
@@ -89,13 +88,11 @@ pub async fn collect(
     remote::fetch_fs_source(ctx, &to_copy, &patches_archive, logger).await?;
 
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!(
-                "tar xf {} -C {}",
-                patches_archive.display(),
-                patch_dir.display()
-            ))
-            .build(),
+        &ExecOpts::default().cmd(&format!(
+            "tar xf {} -C {}",
+            patches_archive.display(),
+            patch_dir.display()
+        )),
         logger,
     )
     .await

@@ -1,6 +1,6 @@
 use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
@@ -43,8 +43,7 @@ pub async fn build(
         .checked_exec(
             &ExecOpts::default()
                 .cmd("du -s .")
-                .working_dir(&ctx.build.container_out_dir)
-                .build(),
+                .working_dir(&ctx.build.container_out_dir),
             logger,
         )
         .await
@@ -81,8 +80,7 @@ pub async fn build(
             ctx.checked_exec(
                 &ExecOpts::default()
                     .cmd(&format!("chmod 0755 {}", scripts_paths))
-                    .working_dir(&deb_dir)
-                    .build(),
+                    .working_dir(&deb_dir),
                 logger,
             )
             .await
@@ -99,8 +97,7 @@ pub async fn build(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("cp -rv . {}", base_dir.display()))
-            .working_dir(&ctx.build.container_out_dir)
-            .build(),
+            .working_dir(&ctx.build.container_out_dir),
         logger,
     )
     .await
@@ -113,13 +110,11 @@ pub async fn build(
     };
 
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!(
-                "dpkg-deb {} {}",
-                dpkg_deb_opts,
-                base_dir.display()
-            ))
-            .build(),
+        &ExecOpts::default().cmd(&format!(
+            "dpkg-deb {} {}",
+            dpkg_deb_opts,
+            base_dir.display()
+        )),
         logger,
     )
     .await
@@ -160,9 +155,7 @@ pub(crate) async fn sign_package(
     trace!(logger => "get key id");
     let key_id = ctx
         .checked_exec(
-            &ExecOpts::default()
-                .cmd("gpg --list-keys --with-colons")
-                .build(),
+            &ExecOpts::default().cmd("gpg --list-keys --with-colons"),
             logger,
         )
         .await
@@ -182,15 +175,13 @@ pub(crate) async fn sign_package(
 
     trace!(logger => "add signature");
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!(
-                r#"dpkg-sig -k {} -g "--pinentry-mode=loopback --passphrase {}" --sign {} {}"#,
-                key_id,
-                gpg_key.pass(),
-                gpg_key.name().to_lowercase(),
-                package.display()
-            ))
-            .build(),
+        &ExecOpts::default().cmd(&format!(
+            r#"dpkg-sig -k {} -g "--pinentry-mode=loopback --passphrase {}" --sign {} {}"#,
+            key_id,
+            gpg_key.pass(),
+            gpg_key.name().to_lowercase(),
+            package.display()
+        )),
         logger,
     )
     .await

@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::log::{info, BoxedCollector};
 use crate::{ErrContext, Result};
 
@@ -40,7 +40,7 @@ pub(crate) async fn import_gpg_key(
 ) -> Result<()> {
     info!(logger => "importing GPG key from '{}'", path.display());
     ctx.checked_exec(
-        &exec!(&format!(
+        &ExecOpts::new().cmd(&format!(
             r#"gpg --pinentry-mode=loopback --passphrase {} --import {}"#,
             gpg_key.pass(),
             path.display(),

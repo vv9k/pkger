@@ -1,5 +1,5 @@
-use crate::container::{DockerContainer, Output};
-use crate::docker::{api::ContainerCreateOpts, Docker};
+use crate::container::{Container, CreateOpts, DockerContainer, Output};
+use crate::docker::Docker;
 use crate::log::BoxedCollector;
 use crate::Result;
 
@@ -11,7 +11,7 @@ use std::time::SystemTime;
 pub struct OneShotCtx<'job> {
     id: String,
     docker: &'job Docker,
-    opts: &'job ContainerCreateOpts,
+    opts: &'job CreateOpts,
     stdout: bool,
     stderr: bool,
 }
@@ -24,12 +24,7 @@ pub async fn run(ctx: &OneShotCtx<'_>, logger: &mut BoxedCollector) -> Result<Ou
 }
 
 impl<'job> OneShotCtx<'job> {
-    pub fn new(
-        docker: &'job Docker,
-        opts: &'job ContainerCreateOpts,
-        stdout: bool,
-        stderr: bool,
-    ) -> Self {
+    pub fn new(docker: &'job Docker, opts: &'job CreateOpts, stdout: bool, stderr: bool) -> Self {
         let id = format!(
             "pkger-oneshot-{}",
             SystemTime::now()

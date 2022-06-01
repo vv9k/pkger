@@ -1,6 +1,5 @@
 use crate::build;
-use crate::container::{fix_name, DockerContainer, ExecOpts, Output};
-use crate::docker::{api::ContainerCreateOpts, ExecContainerOpts};
+use crate::container::{fix_name, Container, CreateOpts, DockerContainer, ExecOpts, Output};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::ssh;
@@ -10,30 +9,6 @@ use crate::recipe::Env;
 use std::path::Path;
 
 pub static SESSION_LABEL_KEY: &str = "pkger.session";
-
-macro_rules! _exec {
-    ($cmd: expr) => {
-        ExecOpts::default().cmd($cmd)
-    };
-    ($cmd: expr, $working_dir: expr) => {
-        _exec!($cmd).working_dir($working_dir)
-    };
-    ($cmd: expr, $working_dir: expr, $user: expr) => {
-        _exec!($cmd).working_dir($working_dir).user($user)
-    };
-}
-
-macro_rules! exec {
-    ($cmd: expr) => {
-        _exec!($cmd).build()
-    };
-    ($cmd: expr, $working_dir: expr) => {
-        _exec!($cmd, $working_dir).build()
-    };
-    ($cmd: expr, $working_dir: expr, $user: expr) => {
-        _exec!($cmd, $working_dir, $user).build()
-    };
-}
 
 // https://github.com/rust-lang/rust-clippy/issues/7271
 #[allow(clippy::needless_lifetimes)]
@@ -72,15 +47,16 @@ pub async fn spawn<'ctx>(
 
     trace!("{:?}", env);
 
-    let opts = ContainerCreateOpts::builder(&image_state.id)
-        .name(fix_name(&ctx.id))
+    let session_label = ctx.session_id.to_string();
+
+    let opts = CreateOpts::new(&image_state.id)
+        .name(&fix_name(&ctx.id))
         .cmd(["sleep infinity"])
         .entrypoint(["/bin/sh", "-c"])
-        .labels([(SESSION_LABEL_KEY, ctx.session_id.to_string())])
+        .labels([(SESSION_LABEL_KEY, session_label.as_str())])
         .volumes(volumes)
         .env(env.clone().kv_vec())
-        .working_dir(ctx.container_bld_dir.to_string_lossy())
-        .build();
+        .working_dir(ctx.container_bld_dir.to_string_lossy());
 
     let mut ctx = Context::new(ctx, opts);
     ctx.set_env(env);
@@ -89,13 +65,13 @@ pub async fn spawn<'ctx>(
 
 pub struct Context<'job> {
     pub container: DockerContainer<'job>,
-    pub opts: ContainerCreateOpts,
+    pub opts: CreateOpts,
     pub build: &'job build::Context,
     pub vars: Env,
 }
 
 impl<'job> Context<'job> {
-    pub fn new(build: &'job build::Context, opts: ContainerCreateOpts) -> Context<'job> {
+    pub fn new(build: &'job build::Context, opts: CreateOpts) -> Context<'job> {
         Context {
             container: DockerContainer::new(&build.docker),
             opts,
@@ -110,7 +86,7 @@ impl<'job> Context<'job> {
 
     pub async fn checked_exec(
         &self,
-        opts: &ExecContainerOpts,
+        opts: &ExecOpts<'_>,
         logger: &mut BoxedCollector,
     ) -> Result<Output<String>> {
         debug!(logger => "running checked exec");
@@ -128,12 +104,12 @@ impl<'job> Context<'job> {
 
     pub async fn script_exec(
         &self,
-        script: impl IntoIterator<Item = (&ExecContainerOpts, Option<&'static str>)>,
+        script: impl IntoIterator<Item = (ExecOpts<'_>, Option<&'static str>)>,
         logger: &mut BoxedCollector,
     ) -> Result<()> {
         debug!(logger => "executing script");
         for (opts, context) in script.into_iter() {
-            let mut res = self.checked_exec(opts, logger).await.map(|_| ());
+            let mut res = self.checked_exec(&opts, logger).await.map(|_| ());
             if let Some(context) = context {
                 res = res.context(context);
             }
@@ -163,8 +139,11 @@ impl<'job> Context<'job> {
         info!(logger => "creating directories");
         debug!(logger => "Directories: {}", dirs_joined);
 
-        self.checked_exec(&exec!(&format!("mkdir -p {}", dirs_joined)), logger)
-            .await
-            .map(|_| ())
+        self.checked_exec(
+            &ExecOpts::new().cmd(&format!("mkdir -p {}", dirs_joined)),
+            logger,
+        )
+        .await
+        .map(|_| ())
     }
 }

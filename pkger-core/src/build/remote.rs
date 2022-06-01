@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::log::{info, trace, BoxedCollector};
 use crate::recipe::GitSource;
 use crate::template;
@@ -15,14 +15,12 @@ pub async fn fetch_git_source(
 ) -> Result<()> {
     info!(logger => "cloning git repository to {}, url = {}, branch = {}", ctx.build.container_bld_dir.display(),repo.url(), repo.branch());
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!(
-                "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
-                repo.branch(),
-                repo.url(),
-                ctx.build.container_bld_dir.display()
-            ))
-            .build(),
+        &ExecOpts::default().cmd(&format!(
+            "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
+            repo.branch(),
+            repo.url(),
+            ctx.build.container_bld_dir.display()
+        )),
         logger,
     )
     .await
@@ -40,8 +38,7 @@ pub async fn fetch_http_source(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("curl -LO {}", source))
-            .working_dir(dest)
-            .build(),
+            .working_dir(dest),
         logger,
     )
     .await
@@ -66,7 +63,9 @@ pub async fn fetch_fs_source(
         entries.push((filename, fs::read(f)?));
     }
 
-    ctx.container.upload_files(entries.iter().map(|(p, b)| (p, &b[..])), dest, logger).await?;
+    ctx.container
+        .upload_files(entries.iter().map(|(p, b)| (p, &b[..])), dest, logger)
+        .await?;
 
     Ok(())
 }
@@ -107,8 +106,7 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
                     ctx.build.container_bld_dir.display(),
                 ))
                 .working_dir(&ctx.build.container_tmp_dir)
-                .shell("/bin/bash")
-                .build(),
+                .shell("/bin/bash"),
             logger,
         )
         .await?;

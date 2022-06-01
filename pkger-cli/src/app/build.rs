@@ -280,7 +280,9 @@ impl Application {
         }
 
         let docker = self.docker.connect();
-        match container::cleanup(&docker, SESSION_LABEL_KEY, self.session_id.to_string()).await {
+        match container::docker::cleanup(&docker, SESSION_LABEL_KEY, self.session_id.to_string())
+            .await
+        {
             Ok(info) => {
                 trace!(logger => "successfuly removed containers");
                 trace!(logger => "{:?}", info);

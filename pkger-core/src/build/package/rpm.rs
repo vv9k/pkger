@@ -1,6 +1,6 @@
 use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::recipe::BuildArch;
@@ -58,13 +58,11 @@ pub(crate) async fn build(
 
     trace!(logger => "copy source files to temporary location");
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!(
-                "cp -rv {} {}",
-                ctx.build.container_out_dir.display(),
-                tmp_buildroot.display(),
-            ))
-            .build(),
+        &ExecOpts::default().cmd(&format!(
+            "cp -rv {} {}",
+            ctx.build.container_out_dir.display(),
+            tmp_buildroot.display(),
+        )),
         logger,
     )
     .await
@@ -74,8 +72,7 @@ pub(crate) async fn build(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd(&format!("tar -zcvf {} .", source_tar_path.display(),))
-            .working_dir(tmp_buildroot.as_path())
-            .build(),
+            .working_dir(tmp_buildroot.as_path()),
         logger,
     )
     .await?;
@@ -85,8 +82,7 @@ pub(crate) async fn build(
         .checked_exec(
             &ExecOpts::default()
                 .cmd(r#"find . -type f -o -type l -name "*""#)
-                .working_dir(&ctx.build.container_out_dir)
-                .build(),
+                .working_dir(&ctx.build.container_out_dir),
             logger,
         )
         .await
@@ -131,25 +127,23 @@ pub(crate) async fn build(
             specs.join(spec_file).display()
         )
     };
-    ctx.checked_exec(&ExecOpts::default().cmd(&cmd).build(), logger)
+    ctx.checked_exec(&ExecOpts::default().cmd(&cmd), logger)
         .await
         .context("failed to build rpm package")?;
 
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!(
-                "cp {} {}",
-                srpms
-                    .join(format!(
-                        "{}-{}-{}.src.rpm",
-                        &recipe.metadata.name,
-                        &recipe.metadata.version,
-                        recipe.metadata.release()
-                    ))
-                    .display(),
-                arch_dir.display()
-            ))
-            .build(),
+        &ExecOpts::default().cmd(&format!(
+            "cp {} {}",
+            srpms
+                .join(format!(
+                    "{}-{}-{}.src.rpm",
+                    &recipe.metadata.name,
+                    &recipe.metadata.version,
+                    recipe.metadata.release()
+                ))
+                .display(),
+            arch_dir.display()
+        )),
         logger,
     )
     .await
@@ -209,8 +203,7 @@ pub(crate) async fn sign_package(
                 gpg_key.pass(),
                 gpg_key.name()
             ))
-            .working_dir(&ctx.build.container_tmp_dir)
-            .build(),
+            .working_dir(&ctx.build.container_tmp_dir),
         logger,
     )
     .await
@@ -220,8 +213,7 @@ pub(crate) async fn sign_package(
     ctx.checked_exec(
         &ExecOpts::default()
             .cmd("rpm --import public.key")
-            .working_dir(&ctx.build.container_tmp_dir)
-            .build(),
+            .working_dir(&ctx.build.container_tmp_dir),
         logger,
     )
     .await
@@ -229,9 +221,7 @@ pub(crate) async fn sign_package(
 
     trace!(logger => "add signature");
     ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!("rpm --addsign {}", package.display()))
-            .build(),
+        &ExecOpts::default().cmd(&format!("rpm --addsign {}", package.display())),
         logger,
     )
     .await

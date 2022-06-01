@@ -7,7 +7,7 @@ pub mod patches;
 pub mod remote;
 pub mod scripts;
 
-use crate::container::ExecOpts;
+use crate::container::{Container, ExecOpts};
 use crate::docker::Docker;
 use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
@@ -212,8 +212,7 @@ pub async fn exclude_paths(
         ctx.checked_exec(
             &ExecOpts::default()
                 .cmd(&format!("rm -rvf {}", exclude_paths.join(" ")))
-                .working_dir(&ctx.build.container_out_dir)
-                .build(),
+                .working_dir(&ctx.build.container_out_dir),
             logger,
         )
         .await?;
