@@ -1,12 +1,16 @@
 use crate::container::CreateOpts;
-use crate::docker::Docker;
 use crate::log::{info, trace, BoxedCollector};
 use crate::oneshot::{self, OneShotCtx};
 use crate::recipe::Os;
+use crate::runtime::RuntimeConnector;
 use crate::{err, ErrContext, Error, Result};
 
 /// Finds out the operating system and version of the image with id `image_id`
-pub async fn find(image_id: &str, docker: &Docker, logger: &mut BoxedCollector) -> Result<Os> {
+pub async fn find(
+    image_id: &str,
+    runtime: &RuntimeConnector,
+    logger: &mut BoxedCollector,
+) -> Result<Os> {
     info!(logger => "finding os of image {}", image_id);
 
     macro_rules! return_if_ok {
@@ -20,21 +24,21 @@ pub async fn find(image_id: &str, docker: &Docker, logger: &mut BoxedCollector) 
         };
     }
 
-    return_if_ok!(from_osrelease(image_id, docker, logger));
-    return_if_ok!(from_issue(image_id, docker, logger));
-    return_if_ok!(from_rhrelease(image_id, docker, logger));
+    return_if_ok!(from_osrelease(image_id, runtime, logger));
+    return_if_ok!(from_issue(image_id, runtime, logger));
+    return_if_ok!(from_rhrelease(image_id, runtime, logger));
 
     err!("failed to determine distribution")
 }
 
 async fn from_osrelease(
     image_id: &str,
-    docker: &Docker,
+    runtime: &RuntimeConnector,
     logger: &mut BoxedCollector,
 ) -> Result<Os> {
     let out = oneshot::run(
         &OneShotCtx::new(
-            docker,
+            runtime,
             &CreateOpts::new(image_id).cmd(vec!["cat", "/etc/os-release"]),
             true,
             true,
@@ -84,13 +88,13 @@ fn extract_version(text: &str) -> Option<String> {
 
 async fn os_from(
     image_id: &str,
-    docker: &Docker,
+    runtime: &RuntimeConnector,
     file: &str,
     logger: &mut BoxedCollector,
 ) -> Result<Os> {
     let out = oneshot::run(
         &OneShotCtx::new(
-            docker,
+            runtime,
             &CreateOpts::new(image_id).cmd(vec!["cat", file]),
             true,
             true,
@@ -111,12 +115,16 @@ async fn os_from(
 
 async fn from_rhrelease(
     image_id: &str,
-    docker: &Docker,
+    runtime: &RuntimeConnector,
     logger: &mut BoxedCollector,
 ) -> Result<Os> {
-    os_from(image_id, docker, "/etc/redhat-release", logger).await
+    os_from(image_id, runtime, "/etc/redhat-release", logger).await
 }
 
-async fn from_issue(image_id: &str, docker: &Docker, logger: &mut BoxedCollector) -> Result<Os> {
-    os_from(image_id, docker, "/etc/issue", logger).await
+async fn from_issue(
+    image_id: &str,
+    runtime: &RuntimeConnector,
+    logger: &mut BoxedCollector,
+) -> Result<Os> {
+    os_from(image_id, runtime, "/etc/issue", logger).await
 }

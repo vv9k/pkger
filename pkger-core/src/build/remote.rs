@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::{Container, ExecOpts};
+use crate::container::ExecOpts;
 use crate::log::{info, trace, BoxedCollector};
 use crate::recipe::GitSource;
 use crate::template;
@@ -58,13 +58,17 @@ pub async fn fetch_fs_source(
         trace!(logger => "adding file {} to archive", f.display());
         let filename = f
             .file_name()
-            .map(|s| format!("./{}", s.to_string_lossy()))
+            .map(|s| PathBuf::from(format!("./{}", s.to_string_lossy())))
             .unwrap_or_default();
         entries.push((filename, fs::read(f)?));
     }
 
     ctx.container
-        .upload_files(entries.iter().map(|(p, b)| (p, &b[..])), dest, logger)
+        .upload_files(
+            entries.iter().map(|(p, b)| (p.as_path(), &b[..])).collect(),
+            dest,
+            logger,
+        )
         .await?;
 
     Ok(())

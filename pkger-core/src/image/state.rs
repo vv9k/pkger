@@ -1,8 +1,8 @@
 use crate::image::find;
 
-use crate::docker::{image::ImageDetails, Docker};
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::recipe::{Os, RecipeTarget};
+use crate::runtime::RuntimeConnector;
 use crate::{ErrContext, Result};
 
 use std::collections::{HashMap, HashSet};
@@ -23,7 +23,6 @@ pub struct ImageState {
     pub tag: String,
     pub os: Os,
     pub timestamp: SystemTime,
-    pub details: ImageDetails,
     pub deps: HashSet<String>,
     pub simple: bool,
 }
@@ -47,7 +46,7 @@ impl ImageState {
         target: &RecipeTarget,
         tag: &str,
         timestamp: &SystemTime,
-        docker: &Docker,
+        runtime: &RuntimeConnector,
         deps: &HashSet<&str>,
         simple: bool,
         logger: &mut BoxedCollector,
@@ -64,12 +63,9 @@ impl ImageState {
         let os = if let Some(os) = target.image_os() {
             os.clone()
         } else {
-            find(id, docker, logger).await?
+            find(id, runtime, logger).await?
         };
         debug!(logger => "parsed image info: {:?}", os);
-
-        let image_handle = docker.images().get(id);
-        let details = image_handle.inspect().await?;
 
         Ok(ImageState {
             id: id.to_string(),
@@ -77,16 +73,22 @@ impl ImageState {
             os,
             tag: tag.to_string(),
             timestamp: *timestamp,
-            details,
             deps: deps.iter().map(|s| s.to_string()).collect(),
             simple,
         })
     }
 
     /// Verifies if a given image exists in docker, on connection error returns false
-    pub async fn exists(&self, docker: &Docker, logger: &mut BoxedCollector) -> bool {
-        info!(logger => "checking if image '{}' exists in Docker", self.image);
-        docker.images().get(&self.id).inspect().await.is_ok()
+    pub async fn exists(&self, runtime: &RuntimeConnector, logger: &mut BoxedCollector) -> bool {
+        info!(logger => "checking if image '{}' exists", self.image);
+        match runtime {
+            RuntimeConnector::Docker(docker) => {
+                docker.images().get(&self.id).inspect().await.is_ok()
+            }
+            RuntimeConnector::Podman(podman) => {
+                podman.images().get(&*self.id).inspect().await.is_ok()
+            }
+        }
     }
 }
 

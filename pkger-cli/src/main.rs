@@ -34,18 +34,22 @@ macro_rules! exit {
 async fn main() -> Result<()> {
     let opts = Opts::from_args();
 
+    pretty_env_logger::init();
+
     let timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 
-    if let opts::Command::Init(opts) = opts.command {
+    if let opts::Command::Init(init_opts) = opts.command {
         let config_dir = dirs::config_dir().context("missing config directory")?;
         let pkger_dir = config_dir.join("pkger");
-        let recipes_dir = opts.recipes.unwrap_or_else(|| pkger_dir.join("recipes"));
-        let output_dir = opts.output.unwrap_or_else(|| pkger_dir.join("output"));
-        let images_dir = opts.images.unwrap_or_else(|| pkger_dir.join("images"));
-        let config_path = opts
+        let recipes_dir = init_opts
+            .recipes
+            .unwrap_or_else(|| pkger_dir.join("recipes"));
+        let output_dir = init_opts.output.unwrap_or_else(|| pkger_dir.join("output"));
+        let images_dir = init_opts.images.unwrap_or_else(|| pkger_dir.join("images"));
+        let config_path = init_opts
             .config
             .unwrap_or_else(|| config_dir.join(DEFAULT_CONFIG_FILE));
 
@@ -67,9 +71,10 @@ async fn main() -> Result<()> {
             output_dir,
             images_dir: Some(images_dir),
             log_dir: None,
-            docker: opts.docker,
-            gpg_key: opts.gpg_key,
-            gpg_name: opts.gpg_name,
+            runtime_uri: opts.runtime_uri,
+            podman: opts.podman,
+            gpg_key: init_opts.gpg_key,
+            gpg_name: init_opts.gpg_name,
             ssh: None,
             images: vec![],
             path: config_path,
@@ -139,11 +144,11 @@ async fn main() -> Result<()> {
         logger.set_level(log::Level::Warn);
     }
 
-    let mut app = match Application::new(config, &mut logger).context("failed to initialize pkger")
-    {
-        Ok(app) => app,
-        Err(e) => exit!("execution failed, reason: {:?}", e),
-    };
+    let mut app =
+        match Application::new(config, &opts, &mut logger).context("failed to initialize pkger") {
+            Ok(app) => app,
+            Err(e) => exit!("execution failed, reason: {:?}", e),
+        };
 
     if let Err(e) = app.process_opts(opts, &mut logger).await {
         exit!("execution failed, reason: {:?}", e);

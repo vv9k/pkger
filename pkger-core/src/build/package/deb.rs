@@ -1,6 +1,6 @@
 use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
-use crate::container::{Container, ExecOpts};
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
@@ -62,13 +62,14 @@ pub async fn build(
     // Upload install scripts
     if let Some(deb) = &ctx.build.recipe.metadata.deb {
         let mut scripts = vec![];
+        let postinst_path = PathBuf::from("./postinst");
         if let Some(postinst) = &deb.postinst_script {
-            scripts.push(("./postinst", postinst.as_bytes()));
+            scripts.push((postinst_path.as_path(), postinst.as_bytes()));
         }
         if !scripts.is_empty() {
             let scripts_paths: String = scripts
                 .iter()
-                .map(|s| s.0.trim_start_matches("./"))
+                .map(|s| s.0.to_string_lossy())
                 .collect::<Vec<_>>()
                 .join(" ");
 
@@ -89,7 +90,11 @@ pub async fn build(
     }
 
     ctx.container
-        .upload_files(vec![("./control", control.as_bytes())], &deb_dir, logger)
+        .upload_files(
+            vec![(PathBuf::from("./control").as_path(), control.as_bytes())],
+            &deb_dir,
+            logger,
+        )
         .await
         .context("failed to upload control file to container")?;
 

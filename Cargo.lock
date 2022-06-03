@@ -271,7 +271,7 @@ dependencies = [
 [[package]]
 name = "docker-api"
 version = "0.8.0"
-source = "git+https://github.com/vv9k/docker-api-rs#cea51b6a1ca2b5640da8ea3e2ba55bdbfa36f53a"
+source = "git+https://github.com/vv9k/docker-api-rs#d7cc97b4539a60736630de4c99973aede760e018"
 dependencies = [
  "base64",
  "byteorder",
@@ -294,6 +294,19 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
+dependencies = [
+ "atty",
+ "humantime",
+ "log",
+ "regex",
+ "termcolor",
 ]
 
 [[package]]
@@ -526,6 +539,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 
 [[package]]
+name = "humantime"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
+dependencies = [
+ "quick-error",
+]
+
+[[package]]
 name = "hyper"
 version = "0.14.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -635,9 +657,9 @@ checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.5.1"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2b29bd4bc3f33391105ebee3589c19197c4271e3e5a9ec9bfe8127eeff8f082"
+checksum = "6f5c75688da582b8ffc1f1799e9db273f32133c49e048f614d22ec3256773ccc"
 dependencies = [
  "adler",
 ]
@@ -793,6 +815,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "pkger-core",
+ "pretty_env_logger",
  "regex",
  "rpassword",
  "serde",
@@ -818,6 +841,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "pkgbuild",
+ "podman-api",
  "pretty_assertions",
  "rpmspec",
  "serde",
@@ -839,6 +863,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "podman-api"
+version = "0.2.3"
+dependencies = [
+ "base64",
+ "byteorder",
+ "bytes 1.1.0",
+ "chrono",
+ "containers-api-conn",
+ "flate2",
+ "futures-util",
+ "futures_codec",
+ "log",
+ "paste",
+ "podman-api-stubs",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "podman-api-stubs"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a008437671b4e8ac19ce1c8bc21a8d8ce56a4aa0b6a95b890b97a083472f769"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "pretty_assertions"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -846,6 +904,16 @@ checksum = "b5dc44a7f8ba9e19aeb6f900eb518343170f2aae27d3c9c78e4d5c3db623638d"
 dependencies = [
  "ansi_term",
  "difference",
+]
+
+[[package]]
+name = "pretty_env_logger"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
+dependencies = [
+ "env_logger",
+ "log",
 ]
 
 [[package]]
@@ -880,6 +948,12 @@ checksum = "c54b25569025b7fc9651de43004ae593a75ad88543b17178aa5e1b9c4f15f56f"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "quick-error"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quote"

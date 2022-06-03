@@ -1,7 +1,8 @@
 use crate::build;
-use crate::container::{fix_name, Container, CreateOpts, DockerContainer, ExecOpts, Output};
+use crate::container::{fix_name, Container, CreateOpts, ExecOpts, Output};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
+use crate::runtime::{DockerContainer, PodmanContainer, RuntimeConnector};
 use crate::ssh;
 use crate::{err, ErrContext, Error, Result};
 
@@ -55,25 +56,29 @@ pub async fn spawn<'ctx>(
         .entrypoint(["/bin/sh", "-c"])
         .labels([(SESSION_LABEL_KEY, session_label.as_str())])
         .volumes(volumes)
-        .env(env.clone().kv_vec())
+        .env(env.clone())
         .working_dir(ctx.container_bld_dir.to_string_lossy());
 
     let mut ctx = Context::new(ctx, opts);
     ctx.set_env(env);
-    ctx.container.spawn(&ctx.opts, logger).await.map(|_| ctx)
+    ctx.container.spawn(&ctx.opts, logger).await?;
+    Ok(ctx)
 }
 
 pub struct Context<'job> {
-    pub container: DockerContainer<'job>,
+    pub container: Box<dyn Container + Send + Sync>,
     pub opts: CreateOpts,
     pub build: &'job build::Context,
     pub vars: Env,
 }
 
 impl<'job> Context<'job> {
-    pub fn new(build: &'job build::Context, opts: CreateOpts) -> Context<'job> {
+    pub fn new(build: &'job build::Context, opts: CreateOpts) -> Context<'_> {
         Context {
-            container: DockerContainer::new(&build.docker),
+            container: match &build.runtime {
+                RuntimeConnector::Docker(docker) => Box::new(DockerContainer::new(docker.clone())),
+                RuntimeConnector::Podman(podman) => Box::new(PodmanContainer::new(podman.clone())),
+            },
             opts,
             build,
             vars: Env::new(),

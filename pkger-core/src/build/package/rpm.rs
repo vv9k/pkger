@@ -1,6 +1,6 @@
 use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
-use crate::container::{Container, ExecOpts};
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::recipe::BuildArch;
@@ -106,7 +106,10 @@ pub(crate) async fn build(
 
     ctx.container
         .upload_files(
-            vec![(["./", &spec_file].join(""), spec.as_bytes())],
+            vec![(
+                PathBuf::from(["./", &spec_file].join("")).as_path(),
+                spec.as_bytes(),
+            )],
             &specs,
             logger,
         )
@@ -191,7 +194,11 @@ pub(crate) async fn sign_package(
     );
 
     ctx.container
-        .upload_files(vec![("./.rpmmacros", macros.as_bytes())], "/root/", logger)
+        .upload_files(
+            vec![(PathBuf::from("./.rpmmacros").as_path(), macros.as_bytes())],
+            PathBuf::from("/root/").as_path(),
+            logger,
+        )
         .await
         .context("failed to upload rpm macros")?;
 

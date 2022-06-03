@@ -7,12 +7,12 @@ pub mod patches;
 pub mod remote;
 pub mod scripts;
 
-use crate::container::{Container, ExecOpts};
-use crate::docker::Docker;
+use crate::container::ExecOpts;
 use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::log::{debug, info, trace, warning, write_out, BoxedCollector};
 use crate::recipe::{ImageTarget, Recipe, RecipeTarget};
+use crate::runtime::RuntimeConnector;
 use crate::ssh::SshConfig;
 use crate::{ErrContext, Result};
 
@@ -30,7 +30,7 @@ pub struct Context {
     session_id: Uuid,
     recipe: Arc<Recipe>,
     image: Image,
-    docker: Docker,
+    runtime: RuntimeConnector,
     container_bld_dir: PathBuf,
     container_out_dir: PathBuf,
     container_tmp_dir: PathBuf,
@@ -48,7 +48,7 @@ impl Context {
         session_id: &Uuid,
         recipe: Arc<Recipe>,
         image: Image,
-        docker: Docker,
+        connector: RuntimeConnector,
         target: ImageTarget,
         out_dir: &Path,
         image_state: Arc<RwLock<ImagesState>>,
@@ -82,7 +82,7 @@ impl Context {
             session_id: *session_id,
             recipe,
             image,
-            docker,
+            runtime: connector,
             container_bld_dir,
             container_out_dir,
             container_tmp_dir,
@@ -93,6 +93,14 @@ impl Context {
             gpg_key,
             ssh,
         }
+    }
+
+    pub fn is_docker(&self) -> bool {
+        matches!(self.runtime, RuntimeConnector::Docker(_))
+    }
+
+    pub fn is_podman(&self) -> bool {
+        matches!(self.runtime, RuntimeConnector::Podman(_))
     }
 
     pub fn id(&self) -> &str {
@@ -142,8 +150,7 @@ pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathB
         let recipe_deps = deps::recipe(&container_ctx, &image_state);
         trace!(logger => "recipe deps: {:?}", recipe_deps);
         deps.extend(recipe_deps);
-        let new_state =
-            image::create_cache(&container_ctx, &ctx.docker, &image_state, &deps, logger).await?;
+        let new_state = image::create_cache(&container_ctx, &image_state, &deps, logger).await?;
 
         info!(logger => "successfully cached image, id = {}, image = {}", &new_state.id, &new_state.image);
 

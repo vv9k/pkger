@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::{Container, ExecOpts};
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
@@ -71,7 +71,7 @@ pub(crate) async fn build(
 
     ctx.container
         .upload_files(
-            vec![("APKBUILD".to_string(), apkbuild.as_bytes())],
+            vec![(PathBuf::from("APKBUILD").as_path(), apkbuild.as_bytes())],
             &bld_dir,
             logger,
         )
@@ -116,7 +116,11 @@ pub(crate) async fn build(
             info!("uploading signing key");
             trace!(logger => "key location: {}", key_location.display());
             ctx.container
-                .upload_files([(SIGNING_KEY, key.as_slice())], &abuild_dir, logger)
+                .upload_files(
+                    [(PathBuf::from(SIGNING_KEY).as_path(), key.as_slice())].to_vec(),
+                    &abuild_dir,
+                    logger,
+                )
                 .await
                 .context("failed to upload signing key")?;
             ctx.checked_exec(

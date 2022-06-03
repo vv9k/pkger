@@ -14,7 +14,10 @@ output_dir: ""
 # optional
 log_dir: ""
 images_dir: ""
-docker: "unix:///var/run/docker.sock"
+runtime_uri: "unix:///var/run/docker.sock"
+
+# Decides wether `runtime_uri` should be treated as Podman runtime. If false (default) Docker will be used
+podman: false
 
 ssh:
   # this will make the ssh auth socket available to the container so that it can use private keys from the host.
@@ -46,8 +49,10 @@ The required fields when running a build are `recipes_dir` and `output_dir`. Fir
 
 When using [custom images](./images.md) their location can be specified with `images_dir`.
 
-If Docker daemon that **pkger** should connect does not run on a default unix socket override the uri with `docker`
+If Docker daemon that **pkger** should connect does not run on a default unix socket override the uri with `runtime_uri`
 parameter.
+
+To use Podman as the container runtime, set `podman: true`.
 
 If an option is available as both configuration parameter and cli argument **pkger** will favour the arguments passed
 during startup.

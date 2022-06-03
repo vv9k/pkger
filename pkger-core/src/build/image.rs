@@ -1,12 +1,10 @@
 use crate::build::{container, deps, Context};
-use crate::docker::{
-    api::{BuildOpts, ImageBuildChunk},
-    Docker,
-};
 use crate::image::{ImageState, ImagesState};
 use crate::log::{debug, info, trace, warning, BoxedCollector};
 use crate::recipe::RecipeTarget;
+use crate::runtime::RuntimeConnector;
 use crate::{err, Error, Result};
+use docker_api::api::{BuildOpts, ImageBuildChunk};
 
 use async_rwlock::RwLock;
 use futures::StreamExt;
@@ -53,7 +51,7 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
         } else {
             trace!(logger => "dependencies unchanged");
 
-            if state.exists(&ctx.docker, logger).await {
+            if state.exists(&ctx.runtime, logger).await {
                 trace!(logger => "image state exists in docker, reusing");
                 return Ok(state);
             } else {
@@ -63,54 +61,76 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
     }
 
     debug!(logger => "building from scratch");
-    let images = ctx.docker.images();
-    let opts = BuildOpts::builder(&ctx.image.path)
-        .tag(&format!("{}:{}", &ctx.target.image(), LATEST))
-        .build();
 
-    let mut stream = images.build(&opts);
+    match &ctx.runtime {
+        RuntimeConnector::Docker(docker) => {
+            let images = docker.images();
+            let opts = BuildOpts::builder(&ctx.image.path)
+                .tag(&format!("{}:{}", &ctx.target.image(), LATEST))
+                .build();
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        match chunk {
-            ImageBuildChunk::Error {
-                error,
-                error_detail: _,
-            } => {
-                return err!(error);
+            let mut stream = images.build(&opts);
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+                match chunk {
+                    ImageBuildChunk::Error {
+                        error,
+                        error_detail: _,
+                    } => {
+                        return err!(error);
+                    }
+                    ImageBuildChunk::Update { stream } => {
+                        info!(logger => "{}", stream);
+                    }
+                    ImageBuildChunk::Digest { aux } => {
+                        let state = ImageState::new(
+                            &aux.id,
+                            &ctx.target,
+                            LATEST,
+                            &SystemTime::now(),
+                            &ctx.runtime,
+                            &Default::default(),
+                            ctx.simple,
+                            logger,
+                        )
+                        .await?;
+
+                        trace!(logger => "updating image state {}", state.id);
+                        let mut image_state = ctx.image_state.write().await;
+                        (*image_state).update(ctx.target.clone(), state.clone());
+
+                        return Ok(state);
+                    }
+                    _ => {}
+                }
             }
-            ImageBuildChunk::Update { stream } => {
-                info!(logger => "{}", stream);
-            }
-            ImageBuildChunk::Digest { aux } => {
-                let state = ImageState::new(
-                    &aux.id,
-                    &ctx.target,
-                    LATEST,
-                    &SystemTime::now(),
-                    &ctx.docker,
-                    &Default::default(),
-                    ctx.simple,
-                    logger,
-                )
-                .await?;
-
-                trace!(logger => "updating image state {}", state.id);
-                let mut image_state = ctx.image_state.write().await;
-                (*image_state).update(ctx.target.clone(), state.clone());
-
-                return Ok(state);
-            }
-            _ => {}
         }
-    }
+        RuntimeConnector::Podman(podman) => {
+            use podman_api::opts::ImageBuildOpts;
+
+            let opts = ImageBuildOpts::builder(ctx.image.path.to_string_lossy())
+                .tag(format!("{}:{}", ctx.target.image(), LATEST))
+                .build();
+
+            let images = podman.images();
+
+            let mut stream = images.build(&opts);
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+
+                info!(logger => "{}", chunk.stream);
+            }
+            todo!()
+        }
+    };
 
     err!("stream ended before image id was received")
 }
 
 pub async fn create_cache(
     ctx: &container::Context<'_>,
-    docker: &Docker,
     state: &ImageState,
     deps: &HashSet<&str>,
     logger: &mut BoxedCollector,
@@ -157,43 +177,65 @@ RUN {} {} {}"#,
     trace!(logger => "temp dir: {}", temp_path.display());
     fs::write(temp_path.join("Dockerfile"), dockerfile)?;
 
-    let images = docker.images();
-    let opts = BuildOpts::builder(&temp_path)
-        .tag(format!("{}:{}", state.image, CACHED))
-        .build();
+    match &ctx.build.runtime {
+        RuntimeConnector::Docker(docker) => {
+            let images = docker.images();
+            let opts = BuildOpts::builder(&temp_path)
+                .tag(format!("{}:{}", state.image, CACHED))
+                .build();
 
-    let mut stream = images.build(&opts);
+            let mut stream = images.build(&opts);
 
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        match chunk {
-            ImageBuildChunk::Error {
-                error,
-                error_detail: _,
-            } => {
-                return err!(error);
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+                match chunk {
+                    ImageBuildChunk::Error {
+                        error,
+                        error_detail: _,
+                    } => {
+                        return err!(error);
+                    }
+                    ImageBuildChunk::Update { stream } => {
+                        info!(logger => "{}", stream);
+                    }
+                    ImageBuildChunk::Digest { aux } => {
+                        return ImageState::new(
+                            &aux.id,
+                            &ctx.build.target,
+                            CACHED,
+                            &SystemTime::now(),
+                            &ctx.build.runtime,
+                            deps,
+                            ctx.build.simple,
+                            logger,
+                        )
+                        .await
+                    }
+                    _ => {}
+                }
             }
-            ImageBuildChunk::Update { stream } => {
-                info!(logger => "{}", stream);
+
+            err!("id of image not received")
+        }
+        RuntimeConnector::Podman(podman) => {
+            use podman_api::opts::ImageBuildOpts;
+
+            let opts = ImageBuildOpts::builder(temp_path.to_string_lossy())
+                .tag(format!("{}:{}", state.image, CACHED))
+                .build();
+
+            let images = podman.images();
+
+            let mut stream = images.build(&opts);
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+
+                info!(logger => "{}", chunk.stream);
             }
-            ImageBuildChunk::Digest { aux } => {
-                return ImageState::new(
-                    &aux.id,
-                    &ctx.build.target,
-                    CACHED,
-                    &SystemTime::now(),
-                    docker,
-                    deps,
-                    ctx.build.simple,
-                    logger,
-                )
-                .await
-            }
-            _ => {}
+            todo!()
         }
     }
-
-    err!("id of image not received")
 }
 
 /// Checks whether any of the files located at the path of this Image changed since last build.

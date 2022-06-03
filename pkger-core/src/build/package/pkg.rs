@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::{Container, ExecOpts};
+use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
@@ -87,7 +87,7 @@ pub(crate) async fn build(
 
     ctx.container
         .upload_files(
-            vec![("PKGBUILD".to_string(), pkgbuild.as_bytes())],
+            vec![(PathBuf::from("PKGBUILD").as_path(), pkgbuild.as_bytes())],
             &bld_dir,
             logger,
         )

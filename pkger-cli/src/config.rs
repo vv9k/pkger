@@ -13,7 +13,9 @@ pub struct Configuration {
     pub output_dir: PathBuf,
     pub images_dir: Option<PathBuf>,
     pub log_dir: Option<PathBuf>,
-    pub docker: Option<String>,
+    pub runtime_uri: Option<String>,
+    #[serde(default)]
+    pub podman: bool,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
     pub ssh: Option<SshConfig>,

@@ -1,6 +1,6 @@
-use crate::container::{Container, CreateOpts, DockerContainer, Output};
-use crate::docker::Docker;
+use crate::container::{Container, CreateOpts, Output};
 use crate::log::BoxedCollector;
+use crate::runtime::{DockerContainer, PodmanContainer, RuntimeConnector};
 use crate::Result;
 
 use std::time::SystemTime;
@@ -10,21 +10,36 @@ use std::time::SystemTime;
 /// stderr.
 pub struct OneShotCtx<'job> {
     id: String,
-    docker: &'job Docker,
+    runtime: &'job RuntimeConnector,
     opts: &'job CreateOpts,
     stdout: bool,
     stderr: bool,
 }
 
 pub async fn run(ctx: &OneShotCtx<'_>, logger: &mut BoxedCollector) -> Result<Output<u8>> {
-    let mut container = DockerContainer::new(ctx.docker);
-    container.spawn(ctx.opts, logger).await?;
+    match ctx.runtime {
+        RuntimeConnector::Docker(docker) => {
+            let mut container = DockerContainer::new(docker.clone());
+            container.spawn(ctx.opts, logger).await?;
 
-    container.logs(ctx.stdout, ctx.stderr, logger).await
+            container.logs(ctx.stdout, ctx.stderr, logger).await
+        }
+        RuntimeConnector::Podman(podman) => {
+            let mut container = PodmanContainer::new(podman.clone());
+            container.spawn(ctx.opts, logger).await?;
+
+            container.logs(ctx.stdout, ctx.stderr, logger).await
+        }
+    }
 }
 
 impl<'job> OneShotCtx<'job> {
-    pub fn new(docker: &'job Docker, opts: &'job CreateOpts, stdout: bool, stderr: bool) -> Self {
+    pub fn new(
+        runtime: &'job RuntimeConnector,
+        opts: &'job CreateOpts,
+        stdout: bool,
+        stderr: bool,
+    ) -> Self {
         let id = format!(
             "pkger-oneshot-{}",
             SystemTime::now()
@@ -35,7 +50,7 @@ impl<'job> OneShotCtx<'job> {
 
         Self {
             id,
-            docker,
+            runtime,
             opts,
             stdout,
             stderr,

@@ -1,8 +1,5 @@
-pub mod docker;
-
-pub use docker::DockerContainer;
-
 use crate::log::{trace, BoxedCollector};
+use crate::recipe::Env;
 use crate::Result;
 
 use async_trait::async_trait;
@@ -13,7 +10,7 @@ use std::str;
 static CONTAINER_ID_LEN: usize = 12;
 static DEFAULT_SHELL: &str = "/bin/sh";
 
-fn truncate(id: &str) -> &str {
+pub(crate) fn truncate(id: &str) -> &str {
     if id.len() > CONTAINER_ID_LEN {
         &id[..CONTAINER_ID_LEN]
     } else {
@@ -45,7 +42,7 @@ pub struct CreateOpts {
     entrypoint: Option<Vec<String>>,
     labels: Option<Vec<(String, String)>>,
     volumes: Option<Vec<String>>,
-    env: Option<Vec<String>>,
+    env: Option<Env>,
     working_dir: Option<String>,
 }
 
@@ -90,8 +87,8 @@ impl CreateOpts {
         self
     }
 
-    pub fn env(mut self, env: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.env = Some(env.into_iter().map(|e| e.into()).collect());
+    pub fn env(mut self, env: Env) -> Self {
+        self.env = Some(env);
         self
     }
 
@@ -119,10 +116,37 @@ impl CreateOpts {
             builder = builder.volumes(volumes);
         }
         if let Some(env) = self.env {
-            builder = builder.env(env);
+            builder = builder.env(env.kv_vec());
         }
         if let Some(working_dir) = self.working_dir {
             builder = builder.working_dir(working_dir);
+        }
+
+        builder.build()
+    }
+
+    pub fn build_podman(self) -> podman_api::opts::ContainerCreateOpts {
+        let mut builder = podman_api::opts::ContainerCreateOpts::builder();
+
+        builder = builder.image(self.image);
+
+        if let Some(name) = self.name {
+            builder = builder.name(name);
+        }
+        if let Some(cmd) = self.cmd {
+            builder = builder.command(cmd);
+        }
+        if let Some(entrypoint) = self.entrypoint {
+            builder = builder.entrypoint(entrypoint);
+        }
+        if let Some(labels) = self.labels {
+            builder = builder.labels(labels);
+        }
+        if let Some(env) = self.env {
+            builder = builder.env(env.iter());
+        }
+        if let Some(working_dir) = self.working_dir {
+            builder = builder.work_dir(working_dir);
         }
 
         builder.build()
@@ -139,7 +163,7 @@ pub struct ExecOpts<'opts> {
     shell: &'opts str,
     user: Option<&'opts str>,
     working_dir: Option<&'opts Path>,
-    env: Option<&'opts [String]>,
+    env: Option<Env>,
 }
 
 impl<'opts> Default for ExecOpts<'opts> {
@@ -226,7 +250,35 @@ impl<'opts> ExecOpts<'opts> {
         }
 
         if let Some(env) = self.env {
-            builder = builder.env(env);
+            builder = builder.env(env.kv_vec());
+        }
+
+        builder.build()
+    }
+
+    pub fn build_podman(self) -> podman_api::opts::ExecCreateOpts {
+        use podman_api::opts::UserOpt;
+        let mut builder = podman_api::opts::ExecCreateOpts::builder();
+
+        trace!("{:?}", self);
+
+        builder = builder
+            .command(vec![self.shell, "-c", self.cmd])
+            .tty(self.allocate_tty)
+            .attach_stdout(self.attach_stdout)
+            .attach_stderr(self.attach_stderr)
+            .privileged(self.privileged);
+
+        if let Some(user) = self.user {
+            builder = builder.user(UserOpt::User(user.into()));
+        }
+
+        if let Some(working_dir) = self.working_dir {
+            builder = builder.working_dir(working_dir.to_string_lossy());
+        }
+
+        if let Some(env) = self.env {
+            builder = builder.env(env.iter());
         }
 
         builder.build()
@@ -234,11 +286,8 @@ impl<'opts> ExecOpts<'opts> {
 }
 
 #[async_trait]
-pub trait Container<'job> {
-    type T;
-
+pub trait Container {
     fn id(&self) -> &str;
-    fn new(opts: &'job Self::T) -> Self;
     async fn spawn(&mut self, opts: &CreateOpts, logger: &mut BoxedCollector) -> Result<()>;
     async fn remove(&self, logger: &mut BoxedCollector) -> Result<()>;
     async fn exec<'cmd>(
@@ -259,14 +308,10 @@ pub trait Container<'job> {
         dest: &Path,
         logger: &mut BoxedCollector,
     ) -> Result<()>;
-    async fn upload_files<'files, F, EN, P>(
+    async fn upload_files<'files>(
         &self,
-        files: F,
-        destination: P,
+        files: Vec<(&Path, &'files [u8])>,
+        destination: &Path,
         logger: &mut BoxedCollector,
-    ) -> Result<()>
-    where
-        F: IntoIterator<Item = (EN, &'files [u8])> + Send,
-        EN: AsRef<Path>,
-        P: AsRef<Path> + Send;
+    ) -> Result<()>;
 }

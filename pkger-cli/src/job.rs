@@ -1,6 +1,6 @@
 use pkger_core::build::{self, Context};
-use pkger_core::docker;
 use pkger_core::log::BoxedCollector;
+use pkger_core::runtime;
 
 use std::time::{Duration, Instant};
 
@@ -54,12 +54,22 @@ impl JobCtx {
             JobCtx::Build(mut ctx) => match build::run(&mut ctx, &mut logger).await {
                 Err(e) => {
                     let duration = start.elapsed();
-                    let reason = match e.downcast::<docker::Error>() {
-                        Ok(err) => match err {
-                            docker::Error::Fault { code: _, message } => message,
-                            e => e.to_string(),
-                        },
-                        Err(e) => format!("{:?}", e),
+                    let reason = if ctx.is_docker() {
+                        match e.downcast::<runtime::docker_api::Error>() {
+                            Ok(err) => match err {
+                                runtime::docker_api::Error::Fault { code: _, message } => message,
+                                e => e.to_string(),
+                            },
+                            Err(e) => format!("{:?}", e),
+                        }
+                    } else {
+                        match e.downcast::<runtime::podman_api::Error>() {
+                            Ok(err) => match err {
+                                runtime::podman_api::Error::Fault { code: _, message } => message,
+                                e => e.to_string(),
+                            },
+                            Err(e) => format!("{:?}", e),
+                        }
                     };
                     JobResult::failure(ctx.id(), duration, reason)
                 }

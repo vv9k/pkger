@@ -2,11 +2,10 @@ use crate::app::{AppOutputConfig, Application};
 use crate::job::{JobCtx, JobResult};
 use crate::opts::BuildOpts;
 use pkger_core::build::{container::SESSION_LABEL_KEY, Context};
-use pkger_core::container;
-use pkger_core::docker::DockerConnectionPool;
 use pkger_core::image::Image;
 use pkger_core::log::{self, debug, error, info, trace, warning, BoxedCollector};
 use pkger_core::recipe::{BuildTarget, ImageTarget, Recipe};
+use pkger_core::runtime::{self, RuntimeConnector};
 use pkger_core::{err, ErrContext, Error, Result};
 
 use futures::stream::FuturesUnordered;
@@ -147,26 +146,6 @@ impl Application {
             }
         }
 
-        self.docker = Arc::new(
-            // check if docker uri provided as cli arg
-            match &opts.docker {
-                Some(uri) => {
-                    trace!(logger => "using docker uri from opts, uri: {}", uri);
-                    DockerConnectionPool::new(uri)
-                }
-                None => {
-                    // otherwise check if available as config parameter
-                    if let Some(uri) = &self.config.docker {
-                        trace!(logger => "using docker uri from config, uri {}", uri);
-                        DockerConnectionPool::new(uri)
-                    } else {
-                        trace!(logger => "using default docker uri");
-                        Ok(DockerConnectionPool::default())
-                    }
-                }
-            }
-            .context("Failed to initialize docker connection")?,
-        );
         Ok(tasks)
     }
 
@@ -212,7 +191,7 @@ impl Application {
                 &self.session_id,
                 recipe,
                 image,
-                self.docker.connect(),
+                self.runtime.connect(),
                 target,
                 self.config.output_dir.as_path(),
                 self.images_state.clone(),
@@ -279,16 +258,27 @@ impl Application {
             trace!(logger => "images state unchanged, not saving");
         }
 
-        let docker = self.docker.connect();
-        match container::docker::cleanup(&docker, SESSION_LABEL_KEY, self.session_id.to_string())
-            .await
-        {
-            Ok(info) => {
-                trace!(logger => "successfuly removed containers");
-                trace!(logger => "{:?}", info);
+        let runtime = self.runtime.connect();
+        match runtime {
+            RuntimeConnector::Docker(docker) => {
+                match runtime::docker::cleanup(
+                    &docker,
+                    SESSION_LABEL_KEY,
+                    self.session_id.to_string(),
+                )
+                .await
+                {
+                    Ok(info) => {
+                        trace!(logger => "successfuly removed containers");
+                        trace!(logger => "{:?}", info);
+                    }
+                    Err(e) => {
+                        error!(logger => "failed to cleanup containers for session {}, reason {:?}", self.session_id, e);
+                    }
+                }
             }
-            Err(e) => {
-                error!(logger => "failed to cleanup containers for session {}, reason {:?}", self.session_id, e);
+            RuntimeConnector::Podman(_podman) => {
+                todo!()
             }
         }
 

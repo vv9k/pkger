@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::container::{Container, ExecOpts};
+use crate::container::ExecOpts;
 use crate::log::{info, BoxedCollector};
 use crate::{ErrContext, Result};
 
@@ -22,8 +22,8 @@ pub(crate) async fn upload_gpg_key(
 
     ctx.container
         .upload_files(
-            vec![("./GPG-SIGN-KEY", key.as_slice())],
-            &destination,
+            vec![(PathBuf::from("./GPG-SIGN-KEY").as_path(), key.as_slice())],
+            destination,
             logger,
         )
         .await

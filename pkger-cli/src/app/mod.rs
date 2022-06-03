@@ -6,12 +6,12 @@ use crate::gen;
 use crate::metadata::PackageMetadata;
 use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts};
 use crate::table::{Cell, IntoCell, IntoTable};
-use pkger_core::docker::DockerConnectionPool;
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::Image;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
 use pkger_core::log::{error, info, trace, warning, BoxedCollector, Level};
 use pkger_core::recipe;
+use pkger_core::runtime::{self, ConnectionPool};
 use pkger_core::{ErrContext, Error, Result};
 
 use async_rwlock::RwLock;
@@ -89,6 +89,55 @@ fn system_time_to_date_time(t: time::SystemTime) -> chrono::DateTime<Utc> {
     Utc.timestamp(sec, nsec)
 }
 
+fn init_runtime(
+    opts: &Opts,
+    config: &Configuration,
+    logger: &mut BoxedCollector,
+) -> Result<Arc<ConnectionPool>> {
+    Ok(Arc::new(
+        // check if docker uri provided as cli arg
+        match &opts.runtime_uri {
+            Some(uri) => {
+                trace!(logger => "using runtime uri from opts, uri: {}", uri);
+                if opts.podman || config.podman {
+                    trace!(logger => "using podman runtime");
+                    ConnectionPool::podman(uri)
+                } else {
+                    trace!(logger => "using docker runtime");
+                    ConnectionPool::docker(uri)
+                }
+            }
+            None => {
+                // otherwise check if available as config parameter
+                if let Some(uri) = &config.runtime_uri {
+                    trace!(logger => "using docker uri from config, uri {}", uri);
+                    if opts.podman || config.podman {
+                        trace!(logger => "using podman runtime");
+                        ConnectionPool::podman(uri)
+                    } else {
+                        trace!(logger => "using docker runtime");
+                        ConnectionPool::docker(uri)
+                    }
+                } else {
+                    trace!(logger => "using default docker uri");
+                    if opts.podman || config.podman {
+                        trace!(logger => "using podman runtime");
+                        ConnectionPool::podman(runtime::podman::PODMAN_SOCK)
+                    } else {
+                        trace!(logger => "using docker runtime");
+                        if std::path::PathBuf::from(runtime::docker::DOCKER_SOCK).exists() {
+                            ConnectionPool::docker(runtime::docker::DOCKER_SOCK)
+                        } else {
+                            ConnectionPool::docker(runtime::docker::DOCKER_SOCK_SECONDARY)
+                        }
+                    }
+                }
+            }
+        }
+        .context("Failed to initialize docker connection")?,
+    ))
+}
+
 // ################################################################################
 
 /// A future representing the state of the application. When this future resolves it means
@@ -118,7 +167,7 @@ pub struct AppOutputConfig {
 pub struct Application {
     config: Arc<Configuration>,
     recipes: Arc<recipe::Loader>,
-    docker: Arc<DockerConnectionPool>,
+    runtime: Arc<ConnectionPool>,
     images_state: Arc<RwLock<ImagesState>>,
     user_images_dir: PathBuf,
     is_running: Arc<AtomicBool>,
@@ -128,7 +177,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(config: Configuration, logger: &mut BoxedCollector) -> Result<Self> {
+    pub fn new(config: Configuration, opts: &Opts, logger: &mut BoxedCollector) -> Result<Self> {
         let app_dir = create_app_dirs()?;
         let recipes = recipe::Loader::new(&config.recipes_dir)
             .context("failed to initialize recipe loader")?;
@@ -154,10 +203,12 @@ impl Application {
 
         trace!(logger => "{:?}", images_state);
 
+        let runtime = init_runtime(opts, &config, logger)?;
+
         let app = Application {
             config: Arc::new(config),
             recipes: Arc::new(recipes),
-            docker: Arc::new(DockerConnectionPool::default()),
+            runtime,
             images_state,
             user_images_dir,
             is_running: Arc::new(AtomicBool::new(true)),

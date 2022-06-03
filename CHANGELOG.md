@@ -9,6 +9,9 @@
 - Add a way to apply patches only on specified images.
 - Add `--log-dir` flag as well as `log_dir` config setting to specify directory where all output should end up.
 - Remove `--filter` flag and `filter` config setting.
+- Rename `--docker-uri` option to `--runtime-uri` and make it global (no longer part of build and init command)
+- Rename `docker_uri` configuration option to `runtime_uri`
+- Add `--podman` global option and `podman` boolean configuration option that decides wether Podman runtime should be used for containers.
 
 # 0.7.0
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build

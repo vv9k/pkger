@@ -32,6 +32,17 @@ pub struct Opts {
     #[clap(subcommand)]
     /// Subcommand to run
     pub command: Command,
+
+    #[clap(short, long)]
+    /// URL to container runtime daemon listening on a unix or tcp socket. An example could be
+    /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
+    /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
+    /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
+    /// `127.0.0.1:8080` is used.
+    pub runtime_uri: Option<String>,
+    #[clap(short, long)]
+    /// If provided pkger will try to use podman instead of docker as a container runtime.
+    pub podman: bool,
 }
 
 impl Opts {
@@ -96,13 +107,6 @@ pub struct InitOpts {
     #[clap(short, long)]
     /// Override the default location of recipes.
     pub recipes: Option<PathBuf>,
-    #[clap(short, long)]
-    /// URL to Docker daemon listening on a unix or tcp socket. An example could be
-    /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
-    /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
-    /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
-    /// `127.0.0.1:8080` is used.
-    pub docker: Option<String>,
     #[clap(long)]
     /// Absolute path to the GPG key used to sign packages.
     pub gpg_key: Option<PathBuf>,
@@ -169,13 +173,6 @@ pub struct BuildOpts {
     /// of the images provided as this argument are going to get built. This flag is ignored when
     /// `targets` is specified.
     pub images: Option<Vec<String>>,
-    #[clap(long)]
-    /// URL to Docker daemon listening on a unix or tcp socket. An example could be
-    /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
-    /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
-    /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
-    /// `127.0.0.1:8080` is used.
-    pub docker: Option<String>,
 
     #[clap(long, short)]
     /// If set to true, all recipes will be built.

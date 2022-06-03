@@ -15,36 +15,36 @@ use futures::{StreamExt, TryStreamExt};
 use std::path::Path;
 use std::str;
 
+#[cfg(unix)]
+pub static DOCKER_SOCK: &str = "unix:///run/docker.sock";
+#[cfg(not(unix))]
+pub static DOCKER_SOCK: &str = "tcp://127.0.0.1:8080";
+#[cfg(unix)]
+pub static DOCKER_SOCK_SECONDARY: &str = "unix:///var/run/docker.sock";
+#[cfg(not(unix))]
+pub static DOCKER_SOCK_SECONDARY: &str = DOCKER_SOCK;
+
 /// Wrapper type that allows easier manipulation of Docker containers
-pub struct DockerContainer<'job> {
-    container: docker_api::Container<'job>,
-    docker: &'job Docker,
+pub struct DockerContainer {
+    container: docker_api::Container,
+    docker: Docker,
 }
 
-impl<'job> DockerContainer<'job> {
-    pub fn new(docker: &'job Docker) -> DockerContainer<'job> {
+impl DockerContainer {
+    pub fn new(docker: Docker) -> DockerContainer {
         Self {
             container: docker.containers().get(""),
             docker,
         }
     }
 
-    pub fn inner(&self) -> &docker_api::Container<'job> {
+    pub fn inner(&self) -> &docker_api::Container {
         &self.container
     }
 }
 
 #[async_trait]
-impl<'job> Container<'job> for DockerContainer<'job> {
-    type T = Docker;
-
-    fn new(docker: &'job Self::T) -> DockerContainer<'job> {
-        Self {
-            container: docker.containers().get(""),
-            docker,
-        }
-    }
-
+impl Container for DockerContainer {
     fn id(&self) -> &str {
         truncate(self.container.id())
     }
@@ -90,7 +90,8 @@ impl<'job> Container<'job> for DockerContainer<'job> {
         logger: &mut BoxedCollector,
     ) -> Result<Output<String>> {
         debug!(logger => "executing command in container {}, {:?}", self.id(), opts);
-        let exec = Exec::create(self.docker, self.id(), &opts.clone().build_docker()).await?;
+        let exec =
+            Exec::create(self.docker.clone(), self.id(), &opts.clone().build_docker()).await?;
         let mut stream = exec.start();
 
         let mut container_output = Output::default();
@@ -167,18 +168,12 @@ impl<'job> Container<'job> for DockerContainer<'job> {
         unpack_tarball(&mut archive, dest, logger)
     }
 
-    async fn upload_files<'files, F, E, P>(
+    async fn upload_files<'files>(
         &self,
-        files: F,
-        destination: P,
+        files: Vec<(&Path, &'files [u8])>,
+        destination: &Path,
         logger: &mut BoxedCollector,
-    ) -> Result<()>
-    where
-        F: IntoIterator<Item = (E, &'files [u8])> + Send,
-        E: AsRef<Path>,
-        P: AsRef<Path> + Send,
-    {
-        let destination = destination.as_ref();
+    ) -> Result<()> {
         let tar = create_tarball(files.into_iter(), logger)
             .context("failed creating a tarball with files")?;
         let tar_path = destination.join("archive.tgz");
