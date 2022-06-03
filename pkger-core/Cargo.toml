@@ -12,8 +12,7 @@ pkgbuild = { path = "../libs/pkgbuild" }
 apkbuild = { path = "../libs/apkbuild" }
 
 docker-api = { git = "https://github.com/vv9k/docker-api-rs" }
-#podman-api = { git = "https://github.com/vv9k/podman-api-rs" }
-podman-api = { path = "../../podman-api-rs" }
+podman-api = { git = "https://github.com/vv9k/podman-api-rs" }
 
 anyhow = "1"
 
@@ -36,6 +35,9 @@ tempdir = "0.3"
 
 uuid = { version = "0.8", features = ["serde", "v4"] }
 lazy_static = "1"
+
+git2 = "0.14"
+tokio = "1"
 
 [dev-dependencies]
 pretty_assertions = "0.3"

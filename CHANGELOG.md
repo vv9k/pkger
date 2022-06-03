@@ -12,6 +12,7 @@
 - Rename `--docker-uri` option to `--runtime-uri` and make it global (no longer part of build and init command)
 - Rename `docker_uri` configuration option to `runtime_uri`
 - Add `--podman` global option and `podman` boolean configuration option that decides wether Podman runtime should be used for containers.
+- `git` dependency is no longer needed in a build image as **pkger** will now clone the repository by itself and upload it to the container
 
 # 0.7.0
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build

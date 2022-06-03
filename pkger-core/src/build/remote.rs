@@ -3,7 +3,7 @@ use crate::container::ExecOpts;
 use crate::log::{info, trace, BoxedCollector};
 use crate::recipe::GitSource;
 use crate::template;
-use crate::Result;
+use crate::{ErrContext, Result};
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -14,11 +14,45 @@ pub async fn fetch_git_source(
     logger: &mut BoxedCollector,
 ) -> Result<()> {
     info!(logger => "cloning git repository to {}, url = {}, branch = {}", ctx.build.container_bld_dir.display(),repo.url(), repo.branch());
+
+    let tmp = tempdir::TempDir::new(&ctx.build.id)
+        .context("failed to initialize temporary directory for git repo")?;
+
+    tokio::task::block_in_place(|| {
+        let mut repo_builder = git2::build::RepoBuilder::new();
+
+        let proxy_opts = git2::ProxyOptions::new();
+        // #TODO: handle proxy
+
+        let mut opts = git2::FetchOptions::new();
+        opts.proxy_options(proxy_opts);
+
+        repo_builder.branch(repo.branch());
+        repo_builder.fetch_options(opts);
+        repo_builder
+            .clone(repo.url(), tmp.path())
+            .context("failed to clone git repository")
+    })?;
+
+    let tar_file = vec![];
+    let mut tar = tar::Builder::new(tar_file);
+
+    tar.append_dir_all("./", tmp.path())
+        .context("failed to build tar archive of git repo")?;
+    tar.finish()?;
+    let tar_file = tar.into_inner()?;
+
+    ctx.container
+        .upload_files(
+            vec![(PathBuf::from("./git-repo.tar").as_path(), &tar_file)],
+            &ctx.build.container_bld_dir,
+            logger,
+        )
+        .await?;
+
     ctx.checked_exec(
         &ExecOpts::default().cmd(&format!(
-            "git clone -j 8 --single-branch --branch {} --recurse-submodules -- {} {}",
-            repo.branch(),
-            repo.url(),
+            "tar xvf {0}/git-repo.tar && rm -f {0}/git-repo.tar",
             ctx.build.container_bld_dir.display()
         )),
         logger,

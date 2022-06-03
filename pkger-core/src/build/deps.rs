@@ -50,9 +50,8 @@ pub fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashS
             deps.insert("bash");
         }
     }
-    if recipe.metadata.git.is_some() {
-        deps.insert("git");
-    } else if let Some(src) = &recipe.metadata.source {
+
+    if let Some(src) = &recipe.metadata.source {
         if src.starts_with("http") {
             deps.insert("curl");
         }
