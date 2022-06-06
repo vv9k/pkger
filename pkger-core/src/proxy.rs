@@ -249,9 +249,18 @@ mod test {
 
         env::remove_var(HTTPS_PROXY_ENV);
         env::remove_var(NO_PROXY_ENV);
-        env::set_var(HTTPS_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
-        env::set_var(HTTP_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
-        env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "10.0.0.1,*.test.com,test.com");
+        env::set_var(
+            HTTPS_PROXY_ENV.to_ascii_uppercase(),
+            "http://proxy.test.com:80",
+        );
+        env::set_var(
+            HTTP_PROXY_ENV.to_ascii_uppercase(),
+            "http://proxy.test.com:80",
+        );
+        env::set_var(
+            NO_PROXY_ENV.to_ascii_uppercase(),
+            "10.0.0.1,*.test.com,test.com",
+        );
 
         let config = ProxyConfig::from_env();
         assert_eq!(
@@ -280,7 +289,10 @@ mod test {
         env::remove_var(HTTPS_PROXY_ENV.to_ascii_uppercase());
         env::remove_var(HTTP_PROXY_ENV.to_ascii_uppercase());
         env::remove_var(NO_PROXY_ENV.to_ascii_uppercase());
-        env::set_var(HTTPS_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
+        env::set_var(
+            HTTPS_PROXY_ENV.to_ascii_uppercase(),
+            "http://proxy.test.com:80",
+        );
         env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "10.0.0.0/8,.test.com");
         let config = ProxyConfig::from_env();
 
@@ -323,7 +335,10 @@ mod test {
             config.should_proxy("https://some.more.other.com")
         );
 
-        env::set_var(HTTP_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
+        env::set_var(
+            HTTP_PROXY_ENV.to_ascii_uppercase(),
+            "http://proxy.test.com:80",
+        );
         env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "*.some.test.com");
         let config = ProxyConfig::from_env();
         println!("{:?}", config);
