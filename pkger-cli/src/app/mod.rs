@@ -436,9 +436,11 @@ impl Application {
     }
 
     fn list_recipes(&self, verbose: bool) -> Result<()> {
+        let mut recipes = self.recipes.list()?;
+        recipes.sort_unstable();
         if verbose {
             let mut table = vec![];
-            for name in self.recipes.list()? {
+            for name in recipes {
                 match self.recipes.load(&name) {
                     Ok(recipe) => table.push(vec![
                         recipe
@@ -477,8 +479,10 @@ impl Application {
 
             table.print();
         } else {
-            for name in self.recipes.list()? {
-                println!("{}", name);
+            for name in recipes {
+                if self.recipes.load(&name).is_ok() {
+                    println!("{}", name);
+                }
             }
         }
 
@@ -495,7 +499,7 @@ impl Application {
             }
         });
 
-        let images: Vec<_> = if let Some(filter) = images_filter {
+        let mut images: Vec<_> = if let Some(filter) = images_filter {
             images
                 .filter(|image| {
                     filter.contains(
@@ -511,72 +515,83 @@ impl Application {
             images.collect()
         };
 
+        images.sort_unstable();
+
         for image in images {
             let image_name = image
                 .file_name()
                 .unwrap_or(image.as_os_str())
                 .to_string_lossy();
-            table.push(vec![format!("{}:", image_name)
-                .cell()
-                .bold()
-                .color(Color::Blue)
-                .right()]);
 
             match fs::read_dir(&image) {
                 Ok(packages) => {
-                    for package in packages {
-                        match package.context("invalid dir entry").and_then(|entry| {
-                            PackageMetadata::try_from_dir_entry(&entry)
-                                .map(|v| (v, entry.path()))
-                                .context("failed to parse package metadata")
-                        }) {
-                            Ok((package, path)) => {
-                                if verbose {
-                                    let version = if let Some(release) = package.release() {
-                                        format!("{}-{}", package.version(), release)
-                                    } else {
-                                        package.version().to_string()
-                                    };
-                                    let timestamp = package
-                                        .created()
-                                        .map(|c| {
-                                            system_time_to_date_time(c)
-                                                .to_rfc3339_opts(SecondsFormat::Secs, true)
-                                        })
-                                        .unwrap_or_default();
-
-                                    table.push(vec![
-                                        "".cell(),
-                                        package.name().cell().left().color(Color::BrightBlue),
-                                        package.package_type().as_ref().cell(),
-                                        package
-                                            .arch()
-                                            .as_ref()
-                                            .map(|arch| arch.as_ref())
-                                            .unwrap_or_default()
-                                            .cell()
-                                            .color(Color::White),
-                                        version.cell().color(Color::BrightYellow),
-                                        timestamp.cell().left().color(Color::White),
-                                    ]);
-                                } else {
-                                    table.push(vec![
-                                        "".cell(),
-                                        path.file_name()
-                                            .map(|s| s.to_string_lossy().to_string())
-                                            .unwrap_or_default()
-                                            .cell()
-                                            .left()
-                                            .color(Color::BrightBlue),
-                                    ]);
-                                }
-                            }
-                            Err(e) => {
+                    let mut packages: Vec<_> = packages
+                        .filter(|p| {
+                            if let Err(e) = p {
                                 error!(
                                     "failed to list package for image {}, reason {:?}",
                                     image_name, e
                                 );
+                                false
+                            } else {
+                                true
                             }
+                        })
+                        .map(|p| p.unwrap())
+                        .collect();
+                    packages.sort_unstable_by_key(|p| p.file_name());
+                    if packages.is_empty() {
+                        continue;
+                    }
+
+                    table.push(vec![format!("{}:", image_name)
+                        .cell()
+                        .bold()
+                        .color(Color::Blue)
+                        .right()]);
+
+                    for package in packages {
+                        let path = package.path();
+                        let metadata = PackageMetadata::try_from_dir_entry(&package)
+                            .context("failed to parse package metadata")?;
+                        if verbose {
+                            let version = if let Some(release) = metadata.release() {
+                                format!("{}-{}", metadata.version(), release)
+                            } else {
+                                metadata.version().to_string()
+                            };
+                            let timestamp = metadata
+                                .created()
+                                .map(|c| {
+                                    system_time_to_date_time(c)
+                                        .to_rfc3339_opts(SecondsFormat::Secs, true)
+                                })
+                                .unwrap_or_default();
+
+                            table.push(vec![
+                                "".cell(),
+                                metadata.name().cell().left().color(Color::BrightBlue),
+                                metadata.package_type().as_ref().cell(),
+                                metadata
+                                    .arch()
+                                    .as_ref()
+                                    .map(|arch| arch.as_ref())
+                                    .unwrap_or_default()
+                                    .cell()
+                                    .color(Color::White),
+                                version.cell().color(Color::BrightYellow),
+                                timestamp.cell().left().color(Color::White),
+                            ]);
+                        } else {
+                            table.push(vec![
+                                "".cell(),
+                                path.file_name()
+                                    .map(|s| s.to_string_lossy().to_string())
+                                    .unwrap_or_default()
+                                    .cell()
+                                    .left()
+                                    .color(Color::BrightBlue),
+                            ]);
                         }
                     }
                 }
@@ -636,22 +651,32 @@ impl Application {
         let mut images = vec![];
 
         if let Some(dir) = &self.config.images_dir {
-            fs::read_dir(&dir)
+            let mut entries: Vec<_> = fs::read_dir(&dir)
                 .context("failed to read images directory")?
-                .for_each(|e| {
-                    match e
-                        .context("failed to read entry")
-                        .and_then(|e| Image::try_from_path(e.path()))
-                        .and_then(|image| process_image(image, verbose))
-                    {
-                        Ok(out) => {
-                            images.push(out);
-                        }
-                        Err(e) => {
-                            warning!("invalid entry, reason: {:?}", e);
-                        }
+                .filter(|e| {
+                    if let Err(e) = e {
+                        warning!("invalid entry, reason: {:?}", e);
+                        false
+                    } else {
+                        true
                     }
-                });
+                })
+                .map(|e| e.unwrap())
+                .collect();
+
+            entries.sort_unstable_by_key(|e| e.file_name());
+
+            entries.into_iter().for_each(|e| {
+                match Image::try_from_path(e.path()).and_then(|image| process_image(image, verbose))
+                {
+                    Ok(out) => {
+                        images.push(out);
+                    }
+                    Err(e) => {
+                        warning!("invalid entry, reason: {:?}", e);
+                    }
+                }
+            });
 
             let headers = if verbose {
                 vec![

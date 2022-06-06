@@ -14,6 +14,7 @@
 - Add `--podman` global option and `podman` boolean configuration option that decides wether Podman runtime should be used for containers.
 - `git` dependency is no longer needed in a build image as **pkger** will now clone the repository by itself and upload it to the container
 - Support for standard proxy environment variables like `http_proxy`, `https_proxy` and `no_proxy` when pulling a repository
+- Output of `list` command is now sorted alphabetically
 
 # 0.7.0
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build
