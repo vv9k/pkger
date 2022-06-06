@@ -10,6 +10,7 @@ use pkger_core::gpg::GpgKey;
 use pkger_core::image::Image;
 use pkger_core::image::{state::DEFAULT_STATE_FILE, ImagesState};
 use pkger_core::log::{error, info, trace, warning, BoxedCollector, Level};
+use pkger_core::proxy::ProxyConfig;
 use pkger_core::recipe;
 use pkger_core::runtime::{self, ConnectionPool};
 use pkger_core::{ErrContext, Error, Result};
@@ -174,6 +175,7 @@ pub struct Application {
     app_dir: TempDir,
     gpg_key: Option<GpgKey>,
     session_id: Uuid,
+    proxy: ProxyConfig,
 }
 
 impl Application {
@@ -215,6 +217,7 @@ impl Application {
             app_dir,
             gpg_key: None,
             session_id: Uuid::new_v4(),
+            proxy: ProxyConfig::from_env(),
         };
         let is_running = app.is_running.clone();
         set_ctrlc_handler(is_running);

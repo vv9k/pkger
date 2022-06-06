@@ -198,6 +198,7 @@ impl Application {
                 is_simple,
                 self.gpg_key.clone(),
                 self.config.ssh.clone(),
+                self.proxy.clone(),
             );
             let id = ctx.id().to_string();
 

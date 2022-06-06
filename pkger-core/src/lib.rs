@@ -12,6 +12,7 @@ pub mod image;
 #[macro_export]
 pub mod log;
 pub mod oneshot;
+pub mod proxy;
 pub mod recipe;
 pub mod runtime;
 pub mod ssh;
