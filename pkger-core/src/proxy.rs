@@ -166,11 +166,13 @@ impl ProxyConfig {
                     NoProxyOption::Ipv4Net(net) => {
                         if net.contains(&addr) {
                             should_proxy = ShouldProxyResult::No;
+                            break;
                         }
                     }
                     NoProxyOption::IpAddr(IpAddr::V4(noproxy_addr)) => {
                         if noproxy_addr == &addr {
                             should_proxy = ShouldProxyResult::No;
+                            break;
                         }
                     }
                     _ => {}
@@ -179,11 +181,13 @@ impl ProxyConfig {
                     NoProxyOption::Ipv6Net(net) => {
                         if net.contains(&addr) {
                             should_proxy = ShouldProxyResult::No;
+                            break;
                         }
                     }
                     NoProxyOption::IpAddr(IpAddr::V6(noproxy_addr)) => {
                         if noproxy_addr == &addr {
                             should_proxy = ShouldProxyResult::No;
+                            break;
                         }
                     }
                     _ => {}
@@ -195,12 +199,14 @@ impl ProxyConfig {
                 NoProxyOption::Domain(domain) if !is_ip => {
                     if domain == host {
                         should_proxy = ShouldProxyResult::No;
+                        break;
                     }
                 }
                 NoProxyOption::WildcardDomain(domain) if !is_ip => {
                     let domain = domain.trim_start_matches('*').trim_start_matches('.');
                     if host.contains(domain) {
                         should_proxy = ShouldProxyResult::No;
+                        break;
                     }
                 }
                 _ => {}
