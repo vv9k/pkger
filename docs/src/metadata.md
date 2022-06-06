@@ -62,7 +62,7 @@ Optional fields shared across all targets.
 
   epoch: "42"
 
-  maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
+  maintainer: "vv9k"
 
 # The website of the package being built
   url: https://github.com/vv9k/pkger

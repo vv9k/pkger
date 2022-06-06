@@ -148,7 +148,7 @@ mod tests {
             revision: None,
             epoch: None,
             architecture: "any".to_string(),
-            maintainer: Some("Wojciech Kępka <wojciech@wkepka.dev>".to_string()),
+            maintainer: Some("vv9k".to_string()),
             description: "crate for DEB/control file generation".to_string(),
             source: Some("package.tar.gz".to_string()),
             section: Some("devel".to_string()),
@@ -176,7 +176,7 @@ Version:        1.0.0-0
 Architecture:   any
 Description:    crate for DEB/control file generation
 Essential:      yes
-Maintainer:     Wojciech Kępka <wojciech@wkepka.dev>
+Maintainer:     vv9k
 Source:         package.tar.gz
 Section:        devel
 Installed-Size: 1Mb
@@ -193,7 +193,7 @@ Enchances:      rustc, cargo
             .source("package.tar.gz")
             .version("1.0.0")
             .architecture("any")
-            .maintainer("Wojciech Kępka <wojciech@wkepka.dev>")
+            .maintainer("vv9k")
             .description("crate for DEB/control file generation")
             .essential(true)
             .installed_size("1Mb")

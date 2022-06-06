@@ -15,7 +15,7 @@ metadata:
   arch: x86_64
   license: MIT
   version: 0.1.0
-  maintainer: "Wojciech Kępka <wojciech@wkepka.dev>"
+  maintainer: "vv9k"
   url: "https://github.com/vv9k/pkger"
   git: "https://github.com/vv9k/pkger.git"
   provides: [ pkger ]

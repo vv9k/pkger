@@ -339,7 +339,6 @@ mod test {
         );
         env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "*.some.test.com");
         let config = ProxyConfig::from_env();
-        println!("{:?}", config);
         assert_eq!(
             ShouldProxyResult::Http,
             config.should_proxy("http://some.more.other.com")

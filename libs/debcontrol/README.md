@@ -24,7 +24,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error + 'static + Sync +
         .source("package.tar.gz")
         .version("1")
         .architecture("any")
-        .maintainer("Wojciech Kępka <wojciech@wkepka.dev>")
+        .maintainer("vv9k")
         .description("crate for DEB/control file generation")
         .essential(true)
         .section("devel")

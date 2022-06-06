@@ -281,7 +281,7 @@ install -m 644 README /docs/README"#;
             .release("1")
             .epoch("42")
             .vendor("Vendor")
-            .packager("Wojciech Kępka <wojciech@wkepka.dev>")
+            .packager("vv9k")
             .copyright("2021 test")
             .build_arch("noarch")
             .exclude_arch("x86_64")
@@ -308,8 +308,6 @@ install -m 644 README /docs/README"#;
             .disable_auto_req_prov()
             .build();
 
-        println!("{}", spec.render());
-
         let expect = RpmSpec {
             name: "rpmspec".to_string(),
             version: "0.1.0".to_string(),
@@ -320,7 +318,7 @@ install -m 644 README /docs/README"#;
             copyright: Some("2021 test".to_string()),
             build_arch: Some("noarch".to_string()),
             exclude_arch: Some("x86_64".to_string()),
-            packager: Some("Wojciech Kępka <wojciech@wkepka.dev>".to_string()),
+            packager: Some("vv9k".to_string()),
             group: Some("group".to_string()),
             icon: Some("rpm.xpm".to_string()),
             summary: Some("short summary".to_string()),
@@ -365,7 +363,7 @@ Epoch:         42
 Vendor:        Vendor
 URL:           https://some.invalid.url
 Copyright:     2021 test
-Packager:      Wojciech Kępka <wojciech@wkepka.dev>
+Packager:      vv9k
 Group:         group
 Icon:          rpm.xpm
 License:       MIT

@@ -162,7 +162,7 @@ mod tests {
         let expect = SourceDebControl {
             package: "debcontrol".to_string(),
             source: "package.tar.gz".to_string(),
-            maintainer: "Wojciech Kępka <wojciech@wkepka.dev>".to_string(),
+            maintainer: "vv9k".to_string(),
             standards_version: "1".to_string(),
             architecture: "any".to_string(),
             description: "crate for DEB/control file generation".to_string(),
@@ -199,7 +199,7 @@ mod tests {
 Source:              package.tar.gz
 Standards-Version:   1
 Architecture:        any
-Maintainer:          Wojciech Kępka <wojciech@wkepka.dev>
+Maintainer:          vv9k
 Description:         crate for DEB/control file generation
 Essential:           yes
 Uploaders:           wojciech@wkepka.dev
@@ -216,7 +216,7 @@ Provides:            debcontrol
             .source("package.tar.gz")
             .standards_version("1")
             .architecture("any")
-            .maintainer("Wojciech Kępka <wojciech@wkepka.dev>")
+            .maintainer("vv9k")
             .description("crate for DEB/control file generation")
             .essential(true)
             .uploaders("wojciech@wkepka.dev")

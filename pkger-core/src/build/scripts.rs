@@ -42,7 +42,7 @@ macro_rules! run_script {
             }
 
             if !cmd.should_run_on($ctx.build.target.build_target()) {
-                debug!("skipping command, shouldn't run on target");
+                debug!($logger => "skipping command, shouldn't run on target");
                 continue;
             }
 
@@ -66,7 +66,7 @@ pub async fn run(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Result<()> {
             logger
         )?;
     } else {
-        info!("no configure steps to run");
+        info!(logger => "no configure steps to run");
     }
 
     let build_script = &ctx.build.recipe.build_script;
@@ -87,7 +87,7 @@ pub async fn run(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Result<()> {
             logger
         )?;
     } else {
-        info!("no install steps to run");
+        info!(logger => "no install steps to run");
     }
 
     Ok(())
