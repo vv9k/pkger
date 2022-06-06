@@ -1,7 +1,7 @@
 use http::Uri;
+use ipnet::{Ipv4Net, Ipv6Net};
+use std::net::{self, IpAddr, ToSocketAddrs};
 use std::{env, str::FromStr};
-use std::net::{self, ToSocketAddrs, IpAddr};
-use ipnet::{Ipv6Net, Ipv4Net};
 
 pub const HTTPS_PROXY_ENV: &str = "https_proxy";
 pub const HTTP_PROXY_ENV: &str = "http_proxy";
@@ -39,7 +39,7 @@ impl FromStr for NoProxyOption {
         if !s.contains('.') {
             return Err(anyhow!("Invalid address"));
         }
-        
+
         Ok(Self::Domain(s.into()))
     }
 }
@@ -48,7 +48,7 @@ impl FromStr for NoProxyOption {
 pub enum ShouldProxyResult {
     Http,
     Https,
-    No
+    No,
 }
 
 #[derive(Clone, Default, Debug)]
@@ -70,10 +70,12 @@ impl ProxyConfig {
         for addr in env::var(NO_PROXY_ENV)
             .ok()
             .or_else(|| env::var(NO_PROXY_ENV.to_ascii_uppercase()).ok())
-            .unwrap_or_default().split(',') {
-                if let Ok(addr) = addr.parse::<NoProxyOption>() {
-                    no_proxy.push(addr);
-                }
+            .unwrap_or_default()
+            .split(',')
+        {
+            if let Ok(addr) = addr.parse::<NoProxyOption>() {
+                no_proxy.push(addr);
+            }
         }
 
         ProxyConfig {
@@ -112,7 +114,7 @@ impl ProxyConfig {
     }
 
     pub fn should_proxy(&self, uri: impl TryInto<Uri>) -> ShouldProxyResult {
-        let uri = if let Ok(uri) = uri.try_into() { 
+        let uri = if let Ok(uri) = uri.try_into() {
             uri
         } else {
             return ShouldProxyResult::No;
@@ -138,8 +140,14 @@ impl ProxyConfig {
 
         let res = host.parse::<net::IpAddr>();
         let is_ip = res.is_ok();
-        let addr = if is_ip { Some(res.unwrap()) } else { 
-            if let Some(addr) = host.to_socket_addrs().ok().and_then(|mut addrs| addrs.next()) {
+        let addr = if is_ip {
+            Some(res.unwrap())
+        } else {
+            if let Some(addr) = host
+                .to_socket_addrs()
+                .ok()
+                .and_then(|mut addrs| addrs.next())
+            {
                 match addr.port() {
                     443 if self.https_proxy.is_some() => should_proxy = ShouldProxyResult::Https,
                     80 if self.http_proxy.is_some() => should_proxy = ShouldProxyResult::Http,
@@ -154,36 +162,32 @@ impl ProxyConfig {
 
         for opt in &self.no_proxy {
             match addr {
-                Some(IpAddr::V4(addr)) => {
-                    match opt {
-                        NoProxyOption::Ipv4Net(net) => {
-                            if net.contains(&addr) {
-                                should_proxy = ShouldProxyResult::No;
-                            }
-                        },
-                        NoProxyOption::IpAddr(IpAddr::V4(noproxy_addr)) => {
-                            if noproxy_addr == &addr {
-                                should_proxy = ShouldProxyResult::No;
-                            }
+                Some(IpAddr::V4(addr)) => match opt {
+                    NoProxyOption::Ipv4Net(net) => {
+                        if net.contains(&addr) {
+                            should_proxy = ShouldProxyResult::No;
                         }
-                        _ => {}
                     }
+                    NoProxyOption::IpAddr(IpAddr::V4(noproxy_addr)) => {
+                        if noproxy_addr == &addr {
+                            should_proxy = ShouldProxyResult::No;
+                        }
+                    }
+                    _ => {}
                 },
-                Some(IpAddr::V6(addr)) => {
-                    match opt {
-                        NoProxyOption::Ipv6Net(net) => {
-                            if net.contains(&addr) {
-                                should_proxy = ShouldProxyResult::No;
-                            }
-                        },
-                        NoProxyOption::IpAddr(IpAddr::V6(noproxy_addr)) => {
-                            if noproxy_addr == &addr {
-                                should_proxy = ShouldProxyResult::No;
-                            }
+                Some(IpAddr::V6(addr)) => match opt {
+                    NoProxyOption::Ipv6Net(net) => {
+                        if net.contains(&addr) {
+                            should_proxy = ShouldProxyResult::No;
                         }
-                        _ => {}
                     }
-                }
+                    NoProxyOption::IpAddr(IpAddr::V6(noproxy_addr)) => {
+                        if noproxy_addr == &addr {
+                            should_proxy = ShouldProxyResult::No;
+                        }
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
 
@@ -203,11 +207,9 @@ impl ProxyConfig {
             }
         }
 
-
         should_proxy
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -221,12 +223,17 @@ mod test {
 
         let config = ProxyConfig::from_env();
         assert_eq!(config.http_proxy(), None);
-        assert_eq!(config.https_proxy(), Some(&"http://proxy.test.com:80".parse().unwrap()));
-        assert_eq!(config.no_proxy(), &[
-            NoProxyOption::Ipv4Net("10.0.0.0/8".parse().unwrap()),
-            NoProxyOption::WildcardDomain(".test.com".into()),
-        ]);
-
+        assert_eq!(
+            config.https_proxy(),
+            Some(&"http://proxy.test.com:80".parse().unwrap())
+        );
+        assert_eq!(
+            config.no_proxy(),
+            &[
+                NoProxyOption::Ipv4Net("10.0.0.0/8".parse().unwrap()),
+                NoProxyOption::WildcardDomain(".test.com".into()),
+            ]
+        );
 
         env::remove_var(HTTPS_PROXY_ENV);
         env::remove_var(NO_PROXY_ENV);
@@ -235,13 +242,22 @@ mod test {
         env::set_var(NO_PROXY_ENV.to_lowercase(), "10.0.0.1,*.test.com,test.com");
 
         let config = ProxyConfig::from_env();
-        assert_eq!(config.https_proxy(), Some(&"http://proxy.test.com:80".parse().unwrap()));
-        assert_eq!(config.https_proxy(), Some(&"http://proxy.test.com:80".parse().unwrap()));
-        assert_eq!(config.no_proxy(), &[
-            NoProxyOption::IpAddr("10.0.0.1".parse().unwrap()),
-            NoProxyOption::WildcardDomain("*.test.com".into()),
-            NoProxyOption::Domain("test.com".into()),
-        ]);
+        assert_eq!(
+            config.https_proxy(),
+            Some(&"http://proxy.test.com:80".parse().unwrap())
+        );
+        assert_eq!(
+            config.https_proxy(),
+            Some(&"http://proxy.test.com:80".parse().unwrap())
+        );
+        assert_eq!(
+            config.no_proxy(),
+            &[
+                NoProxyOption::IpAddr("10.0.0.1".parse().unwrap()),
+                NoProxyOption::WildcardDomain("*.test.com".into()),
+                NoProxyOption::Domain("test.com".into()),
+            ]
+        );
     }
 
     #[test]
@@ -251,15 +267,42 @@ mod test {
         let config = ProxyConfig::from_env();
 
         assert_eq!(ShouldProxyResult::No, config.should_proxy("10.0.0.1:443"));
-        assert_eq!(ShouldProxyResult::Https, config.should_proxy("16.9.9.1:443"));
-        assert_eq!(ShouldProxyResult::Https, config.should_proxy("https://16.9.9.1/test"));
+        assert_eq!(
+            ShouldProxyResult::Https,
+            config.should_proxy("16.9.9.1:443")
+        );
+        assert_eq!(
+            ShouldProxyResult::Https,
+            config.should_proxy("https://16.9.9.1/test")
+        );
         assert_eq!(ShouldProxyResult::No, config.should_proxy("16.9.9.1:80"));
-        assert_eq!(ShouldProxyResult::No, config.should_proxy("http://16.9.9.1"));
-        assert_eq!(ShouldProxyResult::No, config.should_proxy("https://test.com"));
-        assert_eq!(ShouldProxyResult::No, config.should_proxy("https://some.test.com"));
-        assert_eq!(ShouldProxyResult::No, config.should_proxy("https://some.more.test.com"));
-        assert_eq!(ShouldProxyResult::Https, config.should_proxy("https://other.com"));
-        assert_eq!(ShouldProxyResult::Https, config.should_proxy("https://some.other.com"));
-        assert_eq!(ShouldProxyResult::Https, config.should_proxy("https://some.more.other.com"));
+        assert_eq!(
+            ShouldProxyResult::No,
+            config.should_proxy("http://16.9.9.1")
+        );
+        assert_eq!(
+            ShouldProxyResult::No,
+            config.should_proxy("https://test.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::No,
+            config.should_proxy("https://some.test.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::No,
+            config.should_proxy("https://some.more.test.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Https,
+            config.should_proxy("https://other.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Https,
+            config.should_proxy("https://some.other.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Https,
+            config.should_proxy("https://some.more.other.com")
+        );
     }
 }

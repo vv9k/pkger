@@ -11,6 +11,7 @@ use crate::container::ExecOpts;
 use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::log::{debug, info, trace, warning, write_out, BoxedCollector};
+use crate::proxy::ProxyConfig;
 use crate::recipe::{ImageTarget, Recipe, RecipeTarget};
 use crate::runtime::RuntimeConnector;
 use crate::ssh::SshConfig;
@@ -40,6 +41,7 @@ pub struct Context {
     simple: bool,
     gpg_key: Option<GpgKey>,
     ssh: Option<SshConfig>,
+    proxy: ProxyConfig,
 }
 
 impl Context {
@@ -55,6 +57,7 @@ impl Context {
         simple: bool,
         gpg_key: Option<GpgKey>,
         ssh: Option<SshConfig>,
+        proxy: ProxyConfig,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -92,6 +95,7 @@ impl Context {
             simple,
             gpg_key,
             ssh,
+            proxy,
         }
     }
 

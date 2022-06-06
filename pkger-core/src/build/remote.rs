@@ -1,6 +1,7 @@
 use crate::build::container::Context;
 use crate::container::ExecOpts;
 use crate::log::{info, trace, BoxedCollector};
+use crate::proxy::ShouldProxyResult;
 use crate::recipe::GitSource;
 use crate::template;
 use crate::{ErrContext, Result};
@@ -21,8 +22,21 @@ pub async fn fetch_git_source(
     tokio::task::block_in_place(|| {
         let mut repo_builder = git2::build::RepoBuilder::new();
 
-        let proxy_opts = git2::ProxyOptions::new();
-        // #TODO: handle proxy
+        let mut proxy_opts = git2::ProxyOptions::new();
+
+        match ctx.build.proxy.should_proxy(repo.url()) {
+            ShouldProxyResult::Http => {
+                if let Some(url) = ctx.build.proxy.http_proxy() {
+                    proxy_opts.url(&url.to_string());
+                }
+            }
+            ShouldProxyResult::Https => {
+                if let Some(url) = ctx.build.proxy.https_proxy() {
+                    proxy_opts.url(&url.to_string());
+                }
+            }
+            _ => {}
+        }
 
         let mut opts = git2::FetchOptions::new();
         opts.proxy_options(proxy_opts);
@@ -52,7 +66,7 @@ pub async fn fetch_git_source(
 
     ctx.checked_exec(
         &ExecOpts::default().cmd(&format!(
-            "tar xvf {0}/git-repo.tar && rm -f {0}/git-repo.tar",
+            "tar xvf {0}/git-repo.tar && rm -f {0}/git-repo.tar && chown -R root:root .",
             ctx.build.container_bld_dir.display()
         )),
         logger,
