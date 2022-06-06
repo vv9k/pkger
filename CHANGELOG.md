@@ -1,3 +1,11 @@
+#
+- Rename `--docker-uri` option to `--runtime-uri` and make it global (no longer part of build and init command)
+- Rename `docker_uri` configuration option to `runtime_uri`
+- Add `--podman` global option and `podman` boolean configuration option that decides wether Podman runtime should be used for containers.
+- `git` dependency is no longer needed in a build image as **pkger** will now clone the repository by itself and upload it to the container
+- Support for standard proxy environment variables like `http_proxy`, `https_proxy` and `no_proxy` when pulling a repository
+- Output of `list` command is now sorted alphabetically
+
 # 0.8.0
 - Dependencies defined for default images like `pkger-deb` or `pkger-rpm` will be used for custom images using the same output target. This means that all images used for building RPM will use dependencies defined for `pkger-rpm` - cleaner recipes ;)
 - Add a `copy` subcommand that can copy a recipe or an image [#80](https://github.com/vv9k/pkger/pull/80)
@@ -9,12 +17,6 @@
 - Add a way to apply patches only on specified images.
 - Add `--log-dir` flag as well as `log_dir` config setting to specify directory where all output should end up.
 - Remove `--filter` flag and `filter` config setting.
-- Rename `--docker-uri` option to `--runtime-uri` and make it global (no longer part of build and init command)
-- Rename `docker_uri` configuration option to `runtime_uri`
-- Add `--podman` global option and `podman` boolean configuration option that decides wether Podman runtime should be used for containers.
-- `git` dependency is no longer needed in a build image as **pkger** will now clone the repository by itself and upload it to the container
-- Support for standard proxy environment variables like `http_proxy`, `https_proxy` and `no_proxy` when pulling a repository
-- Output of `list` command is now sorted alphabetically
 
 # 0.7.0
 - Add `DEBIAN_FRONTEND=noninteracitve` when doing a DEB build so that when `tzdata` is installed as dependency it won't stop a build
