@@ -224,6 +224,12 @@ mod test {
 
     #[test]
     fn parses_proxy_from_env() {
+        env::remove_var(HTTPS_PROXY_ENV);
+        env::remove_var(HTTP_PROXY_ENV);
+        env::remove_var(NO_PROXY_ENV);
+        env::remove_var(HTTPS_PROXY_ENV.to_ascii_uppercase());
+        env::remove_var(HTTP_PROXY_ENV.to_ascii_uppercase());
+        env::remove_var(NO_PROXY_ENV.to_ascii_uppercase());
         env::set_var(HTTPS_PROXY_ENV, "http://proxy.test.com:80");
         env::set_var(NO_PROXY_ENV, "10.0.0.0/8,.test.com");
 
@@ -243,9 +249,9 @@ mod test {
 
         env::remove_var(HTTPS_PROXY_ENV);
         env::remove_var(NO_PROXY_ENV);
-        env::set_var(HTTPS_PROXY_ENV.to_lowercase(), "http://proxy.test.com:80");
-        env::set_var(HTTP_PROXY_ENV.to_lowercase(), "http://proxy.test.com:80");
-        env::set_var(NO_PROXY_ENV.to_lowercase(), "10.0.0.1,*.test.com,test.com");
+        env::set_var(HTTPS_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
+        env::set_var(HTTP_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
+        env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "10.0.0.1,*.test.com,test.com");
 
         let config = ProxyConfig::from_env();
         assert_eq!(
@@ -268,8 +274,14 @@ mod test {
 
     #[test]
     fn should_proxy() {
-        env::set_var(HTTPS_PROXY_ENV, "http://proxy.test.com:80");
-        env::set_var(NO_PROXY_ENV, "10.0.0.0/8,.test.com");
+        env::remove_var(HTTPS_PROXY_ENV);
+        env::remove_var(HTTP_PROXY_ENV);
+        env::remove_var(NO_PROXY_ENV);
+        env::remove_var(HTTPS_PROXY_ENV.to_ascii_uppercase());
+        env::remove_var(HTTP_PROXY_ENV.to_ascii_uppercase());
+        env::remove_var(NO_PROXY_ENV.to_ascii_uppercase());
+        env::set_var(HTTPS_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
+        env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "10.0.0.0/8,.test.com");
         let config = ProxyConfig::from_env();
 
         assert_eq!(ShouldProxyResult::No, config.should_proxy("10.0.0.1:443"));
@@ -309,6 +321,43 @@ mod test {
         assert_eq!(
             ShouldProxyResult::Https,
             config.should_proxy("https://some.more.other.com")
+        );
+
+        env::set_var(HTTP_PROXY_ENV.to_ascii_uppercase(), "http://proxy.test.com:80");
+        env::set_var(NO_PROXY_ENV.to_ascii_uppercase(), "*.some.test.com");
+        let config = ProxyConfig::from_env();
+        println!("{:?}", config);
+        assert_eq!(
+            ShouldProxyResult::Http,
+            config.should_proxy("http://some.more.other.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Http,
+            config.should_proxy("http://16.9.9.1")
+        );
+        assert_eq!(
+            ShouldProxyResult::Http,
+            config.should_proxy("http://test.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::No,
+            config.should_proxy("http://some.test.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::No,
+            config.should_proxy("http://more.some.test.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Http,
+            config.should_proxy("http://other.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Http,
+            config.should_proxy("http://some.other.com")
+        );
+        assert_eq!(
+            ShouldProxyResult::Http,
+            config.should_proxy("http://some.more.other.com")
         );
     }
 }
