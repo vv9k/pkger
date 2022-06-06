@@ -32,7 +32,7 @@ impl FromStr for NoProxyOption {
         if let Ok(addr) = s.parse::<IpAddr>() {
             return Ok(Self::IpAddr(addr));
         }
-        if s.starts_with(".") || s.starts_with("*") {
+        if s.starts_with('.') || s.starts_with('*') {
             return Ok(Self::WildcardDomain(s.into()));
         }
 
@@ -142,22 +142,20 @@ impl ProxyConfig {
         let is_ip = res.is_ok();
         let addr = if is_ip {
             Some(res.unwrap())
-        } else {
-            if let Some(addr) = host
-                .to_socket_addrs()
-                .ok()
-                .and_then(|mut addrs| addrs.next())
-            {
-                match addr.port() {
-                    443 if self.https_proxy.is_some() => should_proxy = ShouldProxyResult::Https,
-                    80 if self.http_proxy.is_some() => should_proxy = ShouldProxyResult::Http,
-                    _ => {}
-                }
-
-                Some(addr.ip())
-            } else {
-                None
+        } else if let Some(addr) = host
+            .to_socket_addrs()
+            .ok()
+            .and_then(|mut addrs| addrs.next())
+        {
+            match addr.port() {
+                443 if self.https_proxy.is_some() => should_proxy = ShouldProxyResult::Https,
+                80 if self.http_proxy.is_some() => should_proxy = ShouldProxyResult::Http,
+                _ => {}
             }
+
+            Some(addr.ip())
+        } else {
+            None
         };
 
         for opt in &self.no_proxy {
