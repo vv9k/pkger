@@ -39,5 +39,8 @@ lazy_static = "1"
 git2 = "0.14"
 tokio = "1"
 
+http = "0.2"
+ipnet = "2"
+
 [dev-dependencies]
 pretty_assertions = "0.3"
