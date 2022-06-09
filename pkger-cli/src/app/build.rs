@@ -10,17 +10,16 @@ use pkger_core::{err, ErrContext, Error, Result};
 
 use futures::stream::FuturesUnordered;
 use std::convert::TryFrom;
-use std::sync::Arc;
 use tokio::task;
 
 #[derive(Debug, PartialEq)]
 pub enum BuildTask {
     Simple {
-        recipe: Arc<Recipe>,
+        recipe: Recipe,
         target: BuildTarget,
     },
     Custom {
-        recipe: Arc<Recipe>,
+        recipe: Recipe,
         target: ImageTarget,
     },
 }
@@ -42,14 +41,13 @@ impl Application {
                 .load_all(logger)
                 .context("loading recipes")?
                 .into_iter()
-                .map(Arc::new)
                 .collect();
         } else if !opts.recipes.is_empty() {
             for recipe_name in opts.recipes {
                 trace!(logger => "loading recipe '{}'", recipe_name);
-                recipes.push(Arc::new(
+                recipes.push(
                     self.recipes.load(&recipe_name).context("loading recipe")?,
-                ));
+                );
             }
         } else {
             warning!(logger => "no recipes to build");

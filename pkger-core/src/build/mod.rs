@@ -29,7 +29,7 @@ use uuid::Uuid;
 pub struct Context {
     id: String,
     session_id: Uuid,
-    recipe: Arc<Recipe>,
+    recipe: Recipe,
     image: Image,
     runtime: RuntimeConnector,
     container_bld_dir: PathBuf,
@@ -48,7 +48,7 @@ impl Context {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         session_id: &Uuid,
-        recipe: Arc<Recipe>,
+        recipe: Recipe,
         image: Image,
         connector: RuntimeConnector,
         target: ImageTarget,

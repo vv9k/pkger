@@ -94,8 +94,8 @@ fn init_runtime(
     opts: &Opts,
     config: &Configuration,
     logger: &mut BoxedCollector,
-) -> Result<Arc<ConnectionPool>> {
-    Ok(Arc::new(
+) -> Result<ConnectionPool> {
+    Ok(
         // check if docker uri provided as cli arg
         match &opts.runtime_uri {
             Some(uri) => {
@@ -136,7 +136,7 @@ fn init_runtime(
             }
         }
         .context("Failed to initialize docker connection")?,
-    ))
+    )
 }
 
 // ################################################################################
@@ -166,9 +166,9 @@ pub struct AppOutputConfig {
 }
 
 pub struct Application {
-    config: Arc<Configuration>,
-    recipes: Arc<recipe::Loader>,
-    runtime: Arc<ConnectionPool>,
+    config: Configuration,
+    recipes: recipe::Loader,
+    runtime: ConnectionPool,
     images_state: Arc<RwLock<ImagesState>>,
     user_images_dir: PathBuf,
     is_running: Arc<AtomicBool>,
@@ -208,8 +208,8 @@ impl Application {
         let runtime = init_runtime(opts, &config, logger)?;
 
         let app = Application {
-            config: Arc::new(config),
-            recipes: Arc::new(recipes),
+            config,
+            recipes,
             runtime,
             images_state,
             user_images_dir,
