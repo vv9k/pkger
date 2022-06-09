@@ -396,8 +396,22 @@ impl Application {
                     }
                 }
             }
-            RuntimeConnector::Podman(_podman) => {
-                todo!()
+            RuntimeConnector::Podman(podman) => {
+                match runtime::podman::cleanup(
+                    &podman,
+                    SESSION_LABEL_KEY,
+                    self.session_id.to_string(),
+                )
+                .await
+                {
+                    Ok(info) => {
+                        trace!(logger => "successfuly removed containers");
+                        trace!(logger => "{:?}", info);
+                    }
+                    Err(e) => {
+                        error!(logger => "failed to cleanup containers for session {}, reason {:?}", self.session_id, e);
+                    }
+                }
             }
         }
     }
