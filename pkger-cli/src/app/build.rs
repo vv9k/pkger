@@ -9,19 +9,14 @@ use pkger_core::runtime::{self, RuntimeConnector};
 use pkger_core::{err, ErrContext, Error, Result};
 
 use futures::stream::FuturesUnordered;
+use std::collections::{HashMap, VecDeque};
 use std::convert::TryFrom;
 use tokio::task;
 
 #[derive(Debug, PartialEq)]
 pub enum BuildTask {
-    Simple {
-        recipe: Recipe,
-        target: BuildTarget,
-    },
-    Custom {
-        recipe: Recipe,
-        target: ImageTarget,
-    },
+    Simple { recipe: Recipe, target: BuildTarget },
+    Custom { recipe: Recipe, target: ImageTarget },
 }
 
 impl Application {
@@ -45,9 +40,7 @@ impl Application {
         } else if !opts.recipes.is_empty() {
             for recipe_name in opts.recipes {
                 trace!(logger => "loading recipe '{}'", recipe_name);
-                recipes.push(
-                    self.recipes.load(&recipe_name).context("loading recipe")?,
-                );
+                recipes.push(self.recipes.load(&recipe_name).context("loading recipe")?);
             }
         } else {
             warning!(logger => "no recipes to build");
@@ -154,9 +147,69 @@ impl Application {
         logger: &mut BoxedCollector,
     ) -> Result<()> {
         debug!(logger => "processing tasks");
-        let jobs = FuturesUnordered::new();
-        let start = std::time::SystemTime::now();
 
+        let tasks = self.build_task_queue(tasks, logger)?;
+        let results = self.run_tasks(tasks, &output_config, logger).await?;
+
+        let mut task_failed = false;
+
+        // process results
+        results.iter().for_each(|res| match res {
+                JobResult::Failure { id, duration, reason } => {
+                    task_failed = true;
+                    error!(logger => "job {} failed, duration: {}s, reason: {}", id, duration.as_secs_f32(), reason);
+                }
+                JobResult::Success { id, duration, output: out } => {
+                    info!(logger => "job {} succeeded, duration: {}s, output: {}", id, duration.as_secs_f32(), out);
+                }
+            });
+
+        // save image state
+        if self.images_state.read().await.has_changed() {
+            self.save_images_state(logger).await;
+        } else {
+            trace!(logger => "images state unchanged, not saving");
+        }
+
+        self.cleanup(logger).await;
+
+        if task_failed {
+            err!("at least one of the tasks failed")
+        } else {
+            Ok(())
+        }
+    }
+
+    fn collector_for_task(
+        &self,
+        id: &str,
+        output_config: &AppOutputConfig,
+    ) -> Result<BoxedCollector> {
+        let mut collector = if let Some(p) = &output_config.log_dir {
+            log::Config::file(p.join(format!("{}.log", id)))
+        } else if let Some(p) = &self.config.log_dir {
+            log::Config::file(p.join(format!("{}.log", id)))
+        } else {
+            log::Config::stdout()
+        }
+        .as_collector()
+        .context("initializing output collector")?;
+
+        collector.set_level(output_config.level);
+
+        Ok(collector)
+    }
+
+    /// Build a final queue of build tasks
+    fn build_task_queue(
+        &mut self,
+        tasks: Vec<BuildTask>,
+        logger: &mut BoxedCollector,
+    ) -> Result<VecDeque<Context>> {
+        debug!(logger => "building task queue");
+        let mut taskmap: HashMap<String, VecDeque<Context>> = HashMap::new();
+
+        // first a map of tasks for each image is built
         for task in tasks {
             let (recipe, image, target, is_simple) = match task {
                 BuildTask::Custom { recipe, target } => {
@@ -185,6 +238,8 @@ impl Application {
                 }
             };
 
+            let image_name = image.name.clone();
+
             let ctx = Context::new(
                 &self.session_id,
                 recipe,
@@ -199,64 +254,129 @@ impl Application {
                 self.proxy.clone(),
             );
             let id = ctx.id().to_string();
-
-            let mut collector = if let Some(p) = &output_config.log_dir {
-                log::Config::file(p.join(format!("{}.log", id)))
-            } else if let Some(p) = &self.config.log_dir {
-                log::Config::file(p.join(format!("{}.log", id)))
-            } else {
-                log::Config::stdout()
-            }
-            .as_collector()
-            .context("initializing output collector")?;
-
-            collector.set_level(output_config.level);
             info!(logger => "adding job {}", id);
 
-            jobs.push((id, task::spawn(JobCtx::Build(ctx).run(collector))));
+            if let Some(tasks) = taskmap.get_mut(&image_name) {
+                tasks.push_back(ctx);
+            } else {
+                taskmap.insert(image_name, VecDeque::from([ctx]));
+            }
         }
 
-        let mut results = vec![];
+        let mut total = 0;
+        let mut taskmap: Vec<_> = taskmap
+            .into_iter()
+            .map(|(_, v)| {
+                total += v.len();
+                v
+            })
+            .collect();
+        let mut taskdeque = VecDeque::new();
 
-        for (id, mut job) in jobs {
-            tokio::select! {
-                res = &mut job => {
-                    if let Err(e) = res {
-                        error!("failed to join task handle, reason: {:?}", e);
-                        continue;
-                    }
-                    results.push(res.unwrap());
-                }
-                _ = self.is_running() => {
-                    results.push(
-                        JobResult::Failure {
-                            id,
-                            duration: start.elapsed().unwrap_or_default(),
-                            reason: "job cancelled by ctrl-c signal".to_string()
-                        }
-                    );
+        // then the tasks are added one by one from each image so that all target images
+        // will be built first rather than spawning jobs of the same image and duplicating work
+        let mut processed = 0;
+        while processed != total {
+            for image_tasks in &mut taskmap {
+                if let Some(task) = image_tasks.pop_front() {
+                    taskdeque.push_back(task);
+                    processed += 1;
                 }
             }
         }
 
-        let mut task_failed = false;
+        trace!(logger => "final order: {:#?}", taskdeque.iter().map(|c| c.id()).collect::<Vec<_>>());
 
-        results.iter().for_each(|err| match err {
-                JobResult::Failure { id, duration, reason } => {
-                    task_failed = true;
-                    error!(logger => "job {} failed, duration: {}s, reason: {}", id, duration.as_secs_f32(), reason);
-                }
-                JobResult::Success { id, duration, output: out } => {
-                    info!(logger => "job {} succeeded, duration: {}s, output: {}", id, duration.as_secs_f32(), out);
-                }
-            });
+        Ok(taskdeque)
+    }
 
-        if self.images_state.read().await.has_changed() {
-            self.save_images_state(logger).await;
-        } else {
-            trace!(logger => "images state unchanged, not saving");
+    async fn get_num_cpus(&self) -> u64 {
+        let res = match &self.runtime.connect() {
+            RuntimeConnector::Docker(docker) => docker.info().await.ok().map(|info| info.n_cpu),
+            RuntimeConnector::Podman(podman) => podman
+                .info()
+                .await
+                .ok()
+                .and_then(|info| info.host)
+                .and_then(|host| host.cpus)
+                .map(|cpus| cpus as u64),
+        };
+
+        res.unwrap_or(16)
+    }
+
+    async fn run_tasks(
+        &self,
+        mut tasks: VecDeque<Context>,
+        output_config: &AppOutputConfig,
+        logger: &mut BoxedCollector,
+    ) -> Result<Vec<JobResult>> {
+        let mut jobs = FuturesUnordered::new();
+        let mut results = vec![];
+        let max_jobs = self.get_num_cpus().await;
+        let mut running_jobs = 0;
+        let total_jobs = tasks.len();
+        let mut proccessed_jobs = 0;
+        debug!(logger => "cpus: {} (max jobs at once), total jobs to process: {}", max_jobs, total_jobs);
+        let start = std::time::SystemTime::now();
+
+        while proccessed_jobs < total_jobs {
+            while running_jobs < max_jobs {
+                if let Some(task) = tasks.pop_front() {
+                    let collector = self.collector_for_task(task.id(), &output_config)?;
+
+                    info!(logger => "starting job {}/{}, id: {}", proccessed_jobs+1, total_jobs, task.id());
+                    jobs.push((
+                        task.id().to_owned(),
+                        task::spawn(JobCtx::Build(task).run(collector)),
+                        false,
+                    ));
+                    running_jobs += 1;
+                    proccessed_jobs += 1;
+                } else {
+                    break;
+                }
+            }
+            let mut all_finished = true;
+            let mut should_break = false;
+            for (id, job, is_finished) in &mut jobs {
+                if *is_finished {
+                    continue;
+                } else {
+                    all_finished = false;
+                }
+                tokio::select! {
+                    res = job => {
+                        trace!(logger => "job {} finished", id);
+                        running_jobs -= 1;
+                        *is_finished = true;
+                        if let Err(e) = res {
+                            error!(logger => "failed to join task handle, reason: {:?}", e);
+                            continue;
+                        }
+                        results.push(res.unwrap());
+                    }
+                    _ = self.is_running() => {
+                        results.push(
+                            JobResult::Failure {
+                                id: id.clone(),
+                                duration: start.elapsed().unwrap_or_default(),
+                                reason: "job cancelled by ctrl-c signal".to_string()
+                            }
+                        );
+                        should_break = true;
+                    }
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {continue}
+                }
+            }
+            if should_break || all_finished {
+                break;
+            }
         }
 
+        Ok(results)
+    }
+    async fn cleanup(&self, logger: &mut BoxedCollector) {
         let runtime = self.runtime.connect();
         match runtime {
             RuntimeConnector::Docker(docker) => {
@@ -279,12 +399,6 @@ impl Application {
             RuntimeConnector::Podman(_podman) => {
                 todo!()
             }
-        }
-
-        if task_failed {
-            err!("at least one of the tasks failed")
-        } else {
-            Ok(())
         }
     }
 }
