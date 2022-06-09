@@ -320,7 +320,7 @@ impl Application {
         debug!(logger => "cpus: {} (max jobs at once), total jobs to process: {}", max_jobs, total_jobs);
         let start = std::time::SystemTime::now();
 
-        while proccessed_jobs < total_jobs {
+        while proccessed_jobs <= total_jobs {
             while running_jobs < max_jobs {
                 if let Some(task) = tasks.pop_front() {
                     let collector = self.collector_for_task(task.id(), &output_config)?;
