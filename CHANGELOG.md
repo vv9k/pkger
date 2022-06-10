@@ -1,4 +1,4 @@
-#
+# 0.9.0
 - Rename `--docker-uri` option to `--runtime-uri` and make it global (no longer part of build and init command)
 - Rename `docker_uri` configuration option to `runtime_uri`
 - Add `--podman` global option and `podman` boolean configuration option that decides wether Podman runtime should be used for containers.
