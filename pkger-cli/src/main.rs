@@ -144,6 +144,9 @@ async fn main() -> Result<()> {
         logger.set_level(log::Level::Warn);
     }
 
+    trace!(logger => "{:#?}", opts);
+    trace!(logger => "{:#?}", config);
+
     let mut app =
         match Application::new(config, &opts, &mut logger).context("failed to initialize pkger") {
             Ok(app) => app,

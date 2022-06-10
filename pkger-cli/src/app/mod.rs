@@ -203,8 +203,6 @@ impl Application {
             },
         ));
 
-        trace!(logger => "{:?}", images_state);
-
         let runtime = init_runtime(opts, &config, logger)?;
 
         let app = Application {
