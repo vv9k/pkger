@@ -128,6 +128,7 @@ pub enum ListObject {
     Recipes,
     Packages {
         #[clap(short, long)]
+        #[clap(multiple_values = true)]
         images: Option<Vec<String>>,
     },
 }
@@ -164,11 +165,13 @@ pub struct BuildOpts {
     /// Recipes to build. If empty all recipes in the `recipes_dir` directory will be built.
     pub recipes: Vec<String>,
     #[clap(short, long)]
+    #[clap(multiple_values = true)]
     /// A list of targets to build like `rpm deb pkg`. All images needed to build each recipe for
     /// each target will be created on the go. When this flag is provided all custom images and
     /// image targets defined in recipes will be ignored.
     pub simple: Option<Vec<String>>,
     #[clap(short, long)]
+    #[clap(multiple_values = true)]
     /// Specify the images on which to build the recipes. Only those recipes that have one or more
     /// of the images provided as this argument are going to get built. This flag is ignored when
     /// `targets` is specified.
@@ -216,6 +219,7 @@ pub struct GenRecipeOpts {
     /// Whether to install default dependencies before build
     pub skip_default_deps: Option<bool>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Directories to exclude when creating the package
     pub exclude: Option<Vec<String>>,
     #[clap(long)]
@@ -230,16 +234,21 @@ pub struct GenRecipeOpts {
     pub epoch: Option<String>,
 
     #[clap(long)]
+    #[clap(multiple_values = true)]
     pub build_depends: Option<Vec<String>>,
 
     #[clap(long)]
+    #[clap(multiple_values = true)]
     pub depends: Option<Vec<String>>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     pub conflicts: Option<Vec<String>>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     pub provides: Option<Vec<String>>,
 
     #[clap(long)]
+    #[clap(multiple_values = true)]
     pub patches: Option<Vec<String>>,
 
     #[clap(long)]
@@ -248,6 +257,7 @@ pub struct GenRecipeOpts {
     pub env: Option<String>,
 
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// A list of packages that this packages replaces. Applies to DEB and PKG
     pub replaces: Option<Vec<String>>,
 
@@ -266,23 +276,29 @@ pub struct GenRecipeOpts {
     pub essential: Option<bool>,
 
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Only applies to DEB build
     pub pre_depends: Option<Vec<String>>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Only applies to DEB build
     pub recommends: Option<Vec<String>>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Only applies to DEB build
     pub suggests: Option<Vec<String>>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Only applies to DEB build
     pub breaks: Option<Vec<String>>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Only applies to DEB build
     pub enchances: Option<Vec<String>>,
 
     // Only RPM
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// Only applies to RPM
     pub obsoletes: Option<Vec<String>>,
     #[clap(long)]
@@ -303,6 +319,7 @@ pub struct GenRecipeOpts {
     /// The name of the .install script to be included in the package. Only applies to PKG
     pub install_script: Option<String>,
     #[clap(long)]
+    #[clap(multiple_values = true)]
     /// A list of files that can contain user-made changes and should be preserved during upgrade
     /// or removal of a package. Only applies to PKG
     pub backup_files: Option<Vec<String>>,
