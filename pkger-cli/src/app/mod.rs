@@ -95,11 +95,22 @@ fn init_runtime(
     config: &Configuration,
     logger: &mut BoxedCollector,
 ) -> Result<ConnectionPool> {
-    Ok(
-        // check if docker uri provided as cli arg
-        match &opts.runtime_uri {
-            Some(uri) => {
-                trace!(logger => "using runtime uri from opts, uri: {}", uri);
+    // check if docker uri provided as cli arg
+    let res = match &opts.runtime_uri {
+        Some(uri) => {
+            trace!(logger => "using runtime uri from opts, uri: {}", uri);
+            if opts.podman || config.podman {
+                trace!(logger => "using podman runtime");
+                ConnectionPool::podman(uri)
+            } else {
+                trace!(logger => "using docker runtime");
+                ConnectionPool::docker(uri)
+            }
+        }
+        None => {
+            // otherwise check if available as config parameter
+            if let Some(uri) = &config.runtime_uri {
+                trace!(logger => "using docker uri from config, uri {}", uri);
                 if opts.podman || config.podman {
                     trace!(logger => "using podman runtime");
                     ConnectionPool::podman(uri)
@@ -107,36 +118,24 @@ fn init_runtime(
                     trace!(logger => "using docker runtime");
                     ConnectionPool::docker(uri)
                 }
-            }
-            None => {
-                // otherwise check if available as config parameter
-                if let Some(uri) = &config.runtime_uri {
-                    trace!(logger => "using docker uri from config, uri {}", uri);
-                    if opts.podman || config.podman {
-                        trace!(logger => "using podman runtime");
-                        ConnectionPool::podman(uri)
-                    } else {
-                        trace!(logger => "using docker runtime");
-                        ConnectionPool::docker(uri)
-                    }
+            } else {
+                trace!(logger => "using default docker uri");
+                if opts.podman || config.podman {
+                    trace!(logger => "using podman runtime");
+                    ConnectionPool::podman(runtime::podman::PODMAN_SOCK)
                 } else {
-                    trace!(logger => "using default docker uri");
-                    if opts.podman || config.podman {
-                        trace!(logger => "using podman runtime");
-                        ConnectionPool::podman(runtime::podman::PODMAN_SOCK)
+                    trace!(logger => "using docker runtime");
+                    if std::path::PathBuf::from(runtime::docker::DOCKER_SOCK).exists() {
+                        ConnectionPool::docker(runtime::docker::DOCKER_SOCK)
                     } else {
-                        trace!(logger => "using docker runtime");
-                        if std::path::PathBuf::from(runtime::docker::DOCKER_SOCK).exists() {
-                            ConnectionPool::docker(runtime::docker::DOCKER_SOCK)
-                        } else {
-                            ConnectionPool::docker(runtime::docker::DOCKER_SOCK_SECONDARY)
-                        }
+                        ConnectionPool::docker(runtime::docker::DOCKER_SOCK_SECONDARY)
                     }
                 }
             }
         }
-        .context("Failed to initialize docker connection")?,
-    )
+    };
+
+    res.context("Failed to initialize docker connection")
 }
 
 // ################################################################################

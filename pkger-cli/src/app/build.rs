@@ -323,7 +323,7 @@ impl Application {
         while proccessed_jobs <= total_jobs {
             while running_jobs < max_jobs {
                 if let Some(task) = tasks.pop_front() {
-                    let collector = self.collector_for_task(task.id(), &output_config)?;
+                    let collector = self.collector_for_task(task.id(), output_config)?;
 
                     info!(logger => "starting job {}/{}, id: {}", proccessed_jobs+1, total_jobs, task.id());
                     jobs.push((
