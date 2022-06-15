@@ -87,14 +87,5 @@ pub async fn collect(
     let patches_archive = ctx.build.container_tmp_dir.join("patches.tar");
     remote::fetch_fs_source(ctx, &to_copy, &patches_archive, logger).await?;
 
-    ctx.checked_exec(
-        &ExecOpts::default().cmd(&format!(
-            "tar xf {} -C {}",
-            patches_archive.display(),
-            patch_dir.display()
-        )),
-        logger,
-    )
-    .await
-    .map(|_| out)
+    Ok(out)
 }
