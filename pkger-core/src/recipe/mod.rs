@@ -310,6 +310,8 @@ impl Recipe {
             } else {
                 builder = builder.summary(&self.metadata.description);
             }
+        } else {
+                builder = builder.summary(&self.metadata.description);
         }
         if let Some(group) = &self.metadata.group {
             builder = builder.group(group);

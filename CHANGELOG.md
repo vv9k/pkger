@@ -8,6 +8,7 @@
 - Cleanup build spawning logic. There is now a maximum number of builds which is number of cpus of docker/podman host.
 - Add ability to specify multiple sources
 - Fix uploading local file/directory sources
+- Add RPM description as summary when summary not provided
 
 # 0.8.0
 - Dependencies defined for default images like `pkger-deb` or `pkger-rpm` will be used for custom images using the same output target. This means that all images used for building RPM will use dependencies defined for `pkger-rpm` - cleaner recipes ;)
