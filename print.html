@@ -268,6 +268,13 @@ archive like <code>.tar.gz</code> or <code>.tar.xz</code> or <code>.zip</code> i
 <a href="./env.html#pkger-variables"><code>$PKGER_BLD_DIR</code></a>, otherwise the file will be copied to the directory untouched.</p>
 <pre><code class="language-yaml">  source: &quot;&quot; # remote source or file system location
 
+  # can also specify multiple sources:
+
+  source:
+    - 'http://some.website.com/file.tar.gz'
+    - some_dir   # relative path will be prefixed with recipe directory
+    - /some/absolute/path # can be a directory or a file
+
   git: https://github.com/vv9k/pkger.git # will default to branch = &quot;master&quot;
 
   # or specify a branch like this:
