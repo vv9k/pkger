@@ -20,6 +20,14 @@ pub mod template;
 
 pub use anyhow::{anyhow, Context as ErrContext, Error, Result};
 
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+pub fn unix_timestamp() -> Duration {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+}
+
 #[macro_export]
 macro_rules! err {
     ($it:ident) => {

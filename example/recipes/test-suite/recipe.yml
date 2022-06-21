@@ -5,6 +5,10 @@ metadata:
   license: MIT
   version: 0.2.0
   skip_default_deps: true
+  source:
+    - some_dir
+    - some_file.txt
+    - https://raw.githubusercontent.com/vv9k/pkger/master/LICENSE
   exclude:
     - share
     - info
@@ -89,6 +93,17 @@ build:
       cmd: >-
         if [ ! -f '/tmp/pkger_group' ]; then echo 'File /tmp/pkger_group should
         exist on image both rocky and debian'; exit 1; fi
+    # assure the file exists on both images
+    - cmd: ls -l $PKGER_BLD_DIR
+    - cmd: >-
+        if [[ $(cat $PKGER_BLD_DIR/some_file.txt) =~ hello! ]]; then exit 0; else
+        echo "Test file $PKGER_BLD_DIR/some_file.txt has invalid content"; exit 1; fi
+    - cmd: >-
+        if [[ $(cat $PKGER_BLD_DIR/some_dir/some_file2.txt) =~ hello2! ]]; then exit 0; else
+        echo "Test file $PKGER_BLD_DIR/some_dir/some_file2.txt has invalid content"; exit 1; fi
+    - cmd: >-
+        if [[ $(cat $PKGER_BLD_DIR/LICENSE) =~ "MIT License" ]]; then exit 0; else
+        echo "Test file $PKGER_BLD_DIR/LICENSE has invalid content"; exit 1; fi
 install:
   steps:
     - cmd: >-

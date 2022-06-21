@@ -11,7 +11,7 @@ use podman_api::{
     opts::{ContainerLogsOpts, ContainerPruneFilter, ContainerPruneOpts},
     Podman,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str;
 
 #[cfg(unix)]
@@ -197,6 +197,46 @@ impl Container for PodmanContainer {
         .await
         .map(|_| ())
         .context("failed to extract archive with with files")
+    }
+
+    async fn upload_archive(
+        &self,
+        tarball: Vec<u8>,
+        destination: &Path,
+        archive_name: &str,
+        logger: &mut BoxedCollector,
+    ) -> Result<PathBuf> {
+        trace!(logger => "upload archive");
+        let tar_path = destination.join(archive_name);
+
+        self.inner()
+            .copy_file_into(&tar_path, &tarball)
+            .await
+            .map(|_| tar_path)
+            .context("failed to copy archive with files to container")
+    }
+
+    async fn upload_and_extract_archive(
+        &self,
+        tarball: Vec<u8>,
+        destination: &Path,
+        archive_name: &str,
+        logger: &mut BoxedCollector,
+    ) -> Result<()> {
+        let tar_path = self
+            .upload_archive(tarball, destination, archive_name, logger)
+            .await?;
+        trace!("extract archive with files");
+
+        self.exec(
+            &ExecOpts::default()
+                .cmd(&format!("tar -xf {0} && rm -f {0}", tar_path.display()))
+                .working_dir(destination),
+            logger,
+        )
+        .await
+        .map(|_| ())
+        .context("failed to extract archive with files to container")
     }
 }
 

@@ -3,7 +3,7 @@ use crate::recipe::Env;
 use crate::Result;
 
 use async_trait::async_trait;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str;
 
 /// Length of significant characters of a container ID.
@@ -312,6 +312,20 @@ pub trait Container {
         &self,
         files: Vec<(&Path, &'files [u8])>,
         destination: &Path,
+        logger: &mut BoxedCollector,
+    ) -> Result<()>;
+    async fn upload_archive(
+        &self,
+        tarball: Vec<u8>,
+        destination: &Path,
+        archive_name: &str,
+        logger: &mut BoxedCollector,
+    ) -> Result<PathBuf>;
+    async fn upload_and_extract_archive(
+        &self,
+        tarball: Vec<u8>,
+        destination: &Path,
+        archive_name: &str,
         logger: &mut BoxedCollector,
     ) -> Result<()>;
 }

@@ -1,7 +1,7 @@
 use crate::archive::{create_tarball, unpack_tarball};
 use crate::container::{truncate, Container, CreateOpts, ExecOpts, Output};
 use crate::log::{debug, error, info, trace, BoxedCollector};
-use crate::{ErrContext, Result};
+use crate::{unix_timestamp, ErrContext, Result};
 
 use async_trait::async_trait;
 use docker_api::{
@@ -12,7 +12,8 @@ use docker_api::{
     Docker, Exec,
 };
 use futures::{StreamExt, TryStreamExt};
-use std::path::Path;
+
+use std::path::{Path, PathBuf};
 use std::str;
 
 #[cfg(unix)]
@@ -176,23 +177,54 @@ impl Container for DockerContainer {
     ) -> Result<()> {
         let tar = create_tarball(files.into_iter(), logger)
             .context("failed creating a tarball with files")?;
-        let tar_path = destination.join("archive.tgz");
+
+        self.upload_and_extract_archive(
+            tar,
+            destination,
+            &format!("archive-{}", unix_timestamp().as_secs()),
+            logger,
+        )
+        .await
+    }
+
+    async fn upload_archive(
+        &self,
+        tarball: Vec<u8>,
+        destination: &Path,
+        archive_name: &str,
+        logger: &mut BoxedCollector,
+    ) -> Result<PathBuf> {
+        trace!(logger => "upload archive");
+        let tar_path = destination.join(archive_name);
 
         self.inner()
-            .copy_file_into(&tar_path, &tar)
+            .copy_file_into(&tar_path, &tarball)
             .await
-            .context("failed to copy archive with files to container")?;
+            .map(|_| tar_path)
+            .context("failed to copy archive with files to container")
+    }
 
+    async fn upload_and_extract_archive(
+        &self,
+        tarball: Vec<u8>,
+        destination: &Path,
+        archive_name: &str,
+        logger: &mut BoxedCollector,
+    ) -> Result<()> {
+        let tar_path = self
+            .upload_archive(tarball, destination, archive_name, logger)
+            .await?;
         trace!("extract archive with files");
+
         self.exec(
             &ExecOpts::default()
-                .cmd(&format!("tar -xf {}", tar_path.display()))
+                .cmd(&format!("tar -xvf {0} && rm -f {0}", tar_path.display()))
                 .working_dir(destination),
             logger,
         )
         .await
         .map(|_| ())
-        .context("failed to extract archive with with files")
+        .context("failed to extract archive with files to container")
     }
 }
 

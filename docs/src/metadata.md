@@ -39,6 +39,13 @@ archive like `.tar.gz` or `.tar.xz` or `.zip` it will be directly extracted to
 ```yaml
   source: "" # remote source or file system location
 
+  # can also specify multiple sources:
+
+  source:
+    - 'http://some.website.com/file.tar.gz'
+    - some_dir   # relative path will be prefixed with recipe directory
+    - /some/absolute/path # can be a directory or a file
+
   git: https://github.com/vv9k/pkger.git # will default to branch = "master"
 
   # or specify a branch like this:

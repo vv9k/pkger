@@ -247,6 +247,7 @@ impl Application {
                 self.runtime.connect(),
                 target,
                 self.config.output_dir.as_path(),
+                self.config.recipes_dir.as_path(),
                 self.images_state.clone(),
                 is_simple,
                 self.gpg_key.clone(),

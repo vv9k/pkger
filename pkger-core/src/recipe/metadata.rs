@@ -57,9 +57,10 @@ pub struct MetadataRep {
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arch: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default = "null")]
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
     /// http/https or file system source pointing to a tar.gz or tar.xz package
-    pub source: Option<String>,
+    pub source: YamlValue,
     #[serde(default = "null")]
     #[serde(skip_serializing_if = "YamlValue::is_null")]
     /// Git repository as source
@@ -299,7 +300,7 @@ pub struct Metadata {
     /// The URL of the web site for this package
     pub url: Option<String>,
     /// http/https or file system source pointing to a tar.gz or tar.xz package
-    pub source: Option<String>,
+    pub source: Vec<String>,
     /// Git repository as source
     pub git: Option<GitSource>,
     /// Whether default dependencies should be installed before the build
@@ -346,6 +347,23 @@ impl TryFrom<MetadataRep> for Metadata {
     type Error = Error;
 
     fn try_from(rep: MetadataRep) -> Result<Self> {
+        let source = if rep.source.is_sequence() {
+            rep.source
+                .as_sequence()
+                .map(|s| {
+                    s.into_iter()
+                        .map(|v| v.as_str().unwrap_or_default().to_string())
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else if rep.source.is_string() {
+            rep.source
+                .as_str()
+                .map(|s| vec![s.to_string()])
+                .unwrap_or_default()
+        } else {
+            vec![]
+        };
         Ok(Self {
             name: rep.name,
             version: rep.version,
@@ -360,7 +378,7 @@ impl TryFrom<MetadataRep> for Metadata {
                 .unwrap_or_else(|| BuildArch::All),
             maintainer: rep.maintainer,
             url: rep.url,
-            source: rep.source,
+            source,
             git: GitSource::try_from(rep.git).ok(),
             skip_default_deps: rep.skip_default_deps,
             exclude: rep.exclude,

@@ -207,8 +207,8 @@ pub struct GenRecipeOpts {
     #[clap(long)]
     pub arch: Option<String>,
     #[clap(long)]
-    /// http/https or file system source pointing to a tar archive or some other file
-    pub source: Option<String>,
+    /// http/https or file system source/sources pointing to a tar archive or some other file
+    pub source: Option<Vec<String>>,
     #[clap(long)]
     /// Git repository as source
     pub git_url: Option<String>,

@@ -4,9 +4,8 @@ use crate::log::{info, trace, BoxedCollector};
 use crate::proxy::ShouldProxyResult;
 use crate::recipe::GitSource;
 use crate::template;
-use crate::{ErrContext, Result};
+use crate::{unix_timestamp, ErrContext, Result};
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
 pub async fn fetch_git_source(
@@ -55,24 +54,12 @@ pub async fn fetch_git_source(
         .context("failed to build tar archive of git repo")?;
     tar.finish()?;
     let tar_file = tar.into_inner()?;
+    let tar_name = format!("git-repo-{}.tar", unix_timestamp().as_secs());
 
     ctx.container
-        .upload_files(
-            vec![(PathBuf::from("./git-repo.tar").as_path(), &tar_file)],
-            &ctx.build.container_bld_dir,
-            logger,
-        )
-        .await?;
-
-    ctx.checked_exec(
-        &ExecOpts::default().cmd(&format!(
-            "tar xvf {0}/git-repo.tar && rm -f {0}/git-repo.tar && chown -R root:root .",
-            ctx.build.container_bld_dir.display()
-        )),
-        logger,
-    )
-    .await
-    .map(|_| ())
+        .upload_and_extract_archive(tar_file, &ctx.build.container_bld_dir, &tar_name, logger)
+        .await
+        .context("failed to upload git repo")
 }
 
 pub async fn fetch_http_source(
@@ -101,43 +88,59 @@ pub async fn fetch_fs_source(
 ) -> Result<()> {
     info!(logger => "fetching files to {}", dest.display());
 
-    let mut entries = Vec::new();
-    for f in files {
-        trace!(logger => "adding file {} to archive", f.display());
-        let filename = f
-            .file_name()
-            .map(|s| PathBuf::from(format!("./{}", s.to_string_lossy())))
-            .unwrap_or_default();
-        entries.push((filename, fs::read(f)?));
+    let tar_file = vec![];
+    let mut tar = tar::Builder::new(tar_file);
+
+    for path in files {
+        if path.is_dir() {
+            trace!(logger => "adding entry {} to archive", path.display());
+            let dir_name = path.file_name().unwrap_or_default();
+            tar.append_dir_all(format!("./{}", dir_name.to_string_lossy()), path)
+                .context("failed adding directory to archive")?;
+        } else if path.is_file() {
+            trace!(logger => "adding file {} to archive", path.display());
+            let mut file = std::fs::File::open(path).context("failed to open file to add to archive")?;
+            let file_name = path.file_name().unwrap_or_default();
+            tar.append_file(&format!("./{}", file_name.to_string_lossy()), &mut file)
+                .context("failed adding file to archive")?;
+        }
     }
 
-    ctx.container
-        .upload_files(
-            entries.iter().map(|(p, b)| (p.as_path(), &b[..])).collect(),
-            dest,
-            logger,
-        )
-        .await?;
+    tar.finish()?;
+    let tar_file = tar.into_inner()?;
 
-    Ok(())
+    let tar_name = format!("fs-source-{}.tar", unix_timestamp().as_secs());
+
+    ctx.container
+        .upload_and_extract_archive(tar_file, &dest, &tar_name, logger)
+        .await
 }
 
 pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Result<()> {
     if let Some(repo) = &ctx.build.recipe.metadata.git {
         fetch_git_source(ctx, repo, logger).await?;
-    } else if let Some(source) = &ctx.build.recipe.metadata.source {
-        let source = template::render(source, ctx.vars.inner());
-        if source.starts_with("http") {
-            fetch_http_source(ctx, source.as_str(), &ctx.build.container_tmp_dir, logger).await?;
-        } else {
-            let src_path = PathBuf::from(source);
-            fetch_fs_source(
-                ctx,
-                &[src_path.as_path()],
-                &ctx.build.container_tmp_dir,
-                logger,
-            )
-            .await?;
+    } else if !ctx.build.recipe.metadata.source.is_empty() {
+        for source in &ctx.build.recipe.metadata.source {
+            if source.starts_with("http") {
+                fetch_http_source(ctx, &source, &ctx.build.container_tmp_dir, logger).await?;
+            } else {
+                let p = PathBuf::from(source);
+                let source = if p.is_absolute() {
+                    p
+                } else {
+                    ctx.build
+                        .recipe_dir
+                        .join(&ctx.build.recipe.metadata.name)
+                        .join(template::render(source, ctx.vars.inner()))
+                };
+                fetch_fs_source(
+                    ctx,
+                    &[source.as_path()],
+                    &ctx.build.container_bld_dir,
+                    logger,
+                )
+                .await?;
+            }
         }
         ctx.checked_exec(
             &ExecOpts::default()
@@ -145,6 +148,7 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
                     r#"
                         for file in *;
                         do
+                            [ -f "$file" ] || continue
                             if [[ $file =~ (.*[.]tar.*|.*[.](tgz|tbz|txz|tlz|tsz|taz|tz)) ]]
                             then
                                 tar xvf $file -C {0}
@@ -162,6 +166,8 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
             logger,
         )
         .await?;
+    } else {
+        trace!(logger => "no sources to fetch");
     }
     Ok(())
 }

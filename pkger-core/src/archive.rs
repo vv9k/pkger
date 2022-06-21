@@ -67,7 +67,7 @@ where
     E: Iterator<Item = (P, &'archive [u8])>,
     P: AsRef<Path>,
 {
-    debug!(logger => "creating a tar archive)");
+    debug!(logger => "creating a tar archive");
 
     let archive_buf = Vec::new();
     let mut archive = tar::Builder::new(archive_buf);

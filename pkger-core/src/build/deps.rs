@@ -51,13 +51,22 @@ pub fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashS
         }
     }
 
-    if let Some(src) = &recipe.metadata.source {
+    let mut is_http = false;
+    let mut is_zip = false;
+
+    for src in &recipe.metadata.source {
         if src.starts_with("http") {
-            deps.insert("curl");
+            is_http = true;
         }
         if src.ends_with(".zip") {
-            deps.insert("zip");
+            is_zip = true;
         }
+    }
+    if is_http {
+        deps.insert("curl");
+    }
+    if is_zip {
+        deps.insert("zip");
     }
 
     if recipe.metadata.patches.is_some() {

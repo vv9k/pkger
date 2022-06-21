@@ -94,7 +94,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>, logger: &mut BoxedCollector) -> RecipeRe
         maintainer: opts.maintainer,
         url: opts.url,
         arch: opts.arch,
-        source: opts.source,
+        source: serde_yaml::to_value(opts.source).unwrap_or_default(),
         git,
         skip_default_deps: opts.skip_default_deps,
         exclude: opts.exclude,
