@@ -351,7 +351,7 @@ impl TryFrom<MetadataRep> for Metadata {
             rep.source
                 .as_sequence()
                 .map(|s| {
-                    s.into_iter()
+                    s.iter()
                         .map(|v| v.as_str().unwrap_or_default().to_string())
                         .collect()
                 })

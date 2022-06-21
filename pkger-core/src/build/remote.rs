@@ -99,7 +99,8 @@ pub async fn fetch_fs_source(
                 .context("failed adding directory to archive")?;
         } else if path.is_file() {
             trace!(logger => "adding file {} to archive", path.display());
-            let mut file = std::fs::File::open(path).context("failed to open file to add to archive")?;
+            let mut file =
+                std::fs::File::open(path).context("failed to open file to add to archive")?;
             let file_name = path.file_name().unwrap_or_default();
             tar.append_file(&format!("./{}", file_name.to_string_lossy()), &mut file)
                 .context("failed adding file to archive")?;
@@ -112,7 +113,7 @@ pub async fn fetch_fs_source(
     let tar_name = format!("fs-source-{}.tar", unix_timestamp().as_secs());
 
     ctx.container
-        .upload_and_extract_archive(tar_file, &dest, &tar_name, logger)
+        .upload_and_extract_archive(tar_file, dest, &tar_name, logger)
         .await
 }
 
@@ -122,7 +123,7 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
     } else if !ctx.build.recipe.metadata.source.is_empty() {
         for source in &ctx.build.recipe.metadata.source {
             if source.starts_with("http") {
-                fetch_http_source(ctx, &source, &ctx.build.container_tmp_dir, logger).await?;
+                fetch_http_source(ctx, source, &ctx.build.container_tmp_dir, logger).await?;
             } else {
                 let p = PathBuf::from(source);
                 let source = if p.is_absolute() {
