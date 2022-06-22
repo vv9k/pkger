@@ -154,8 +154,9 @@ pub async fn create_cache(
 r#"FROM {}
 ENV DEBIAN_FRONTEND noninteractive
 {}
-RUN {} {}
-RUN {} {} {}"#,
+RUN {} {} && \
+    {} {} {}
+"#,
                 tag,
                 if pkg_mngr.should_clean_cache() { format!("RUN {} {}", pkg_mngr_name, pkg_mngr.clean_cache().join(" "))} else { String::new() },
                 pkg_mngr_name, pkg_mngr.update_repos_args().join(" "),

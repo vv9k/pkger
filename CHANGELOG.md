@@ -9,6 +9,7 @@
 - Add ability to specify multiple sources
 - Fix uploading local file/directory sources
 - Add RPM description as summary when summary not provided
+- Update repositories and install dependencies in the same step so that the update layer doesn't get cached. It caused problems when a new package was added to a repository but not seen when trying to install the dependencies
 
 # 0.8.0
 - Dependencies defined for default images like `pkger-deb` or `pkger-rpm` will be used for custom images using the same output target. This means that all images used for building RPM will use dependencies defined for `pkger-rpm` - cleaner recipes ;)
