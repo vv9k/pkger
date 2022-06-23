@@ -87,6 +87,15 @@ pub enum Command {
         /// An object to copy like `image` or `recipe`.
         object: CopyObject,
     },
+    /// Remove images or recipes
+    Remove {
+        #[clap(subcommand)]
+        /// An object to remove like `image` or `recipe`.
+        object: RemoveObject,
+        #[clap(short, long)]
+        /// Should there be any output like errors
+        quiet: bool,
+    },
     /// Initializes required directories and a configuration file at specified or default locations.
     Init(InitOpts),
     /// Prints completions for the specified shell
@@ -157,6 +166,20 @@ pub enum NewObject {
     Image {
         /// The name of the image to create.
         name: String,
+    },
+}
+
+#[derive(Debug, Parser)]
+pub enum RemoveObject {
+    /// Remove recipes
+    Recipes {
+        /// One or more recipes to delete.
+        names: Vec<String>,
+    },
+    /// Remove images
+    Images {
+        /// One or more images to delete.
+        names: Vec<String>,
     },
 }
 

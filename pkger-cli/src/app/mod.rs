@@ -4,7 +4,7 @@ use crate::completions;
 use crate::config::Configuration;
 use crate::gen;
 use crate::metadata::PackageMetadata;
-use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts};
+use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts, RemoveObject};
 use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::Image;
@@ -264,6 +264,7 @@ impl Application {
             Command::Edit { object } => self.edit(object),
             Command::New { object } => self.create(object, logger),
             Command::Copy { object } => self.copy(object),
+            Command::Remove { object, quiet } => self.remove(object, quiet, logger),
             Command::PrintCompletions(opts) => {
                 completions::print(&opts);
                 Ok(())
@@ -692,6 +693,31 @@ impl Application {
         } else {
             return err!("images directory not defined in configuration");
         }
+    }
+
+    fn remove(&self, object: RemoveObject, quiet: bool, logger: &mut BoxedCollector) -> Result<()> {
+        let (names, base_dir, object) = match object {
+            RemoveObject::Images { names } => (names, &self.user_images_dir, "images"),
+            RemoveObject::Recipes { names } => (names, &self.config.recipes_dir, "recipes"),
+        };
+        if names.is_empty() {
+            if !quiet {
+                warning!(logger => "no {} to remove", object);
+            }
+            return Ok(());
+        }
+        for name in names {
+            let object_path = base_dir.join(name);
+            if let Err(e) = fs::remove_dir_all(&object_path) {
+                if !quiet {
+                    error!(logger => "failed to remove `{}`: {:?}", object_path.display(), e);
+                }
+            } else if !quiet {
+                info!(logger => "successfully removed `{}`", object_path.display());
+            }
+        }
+
+        Ok(())
     }
 
     async fn save_images_state(&self, logger: &mut BoxedCollector) {
