@@ -152,6 +152,20 @@ containing a <code>Dockerfile</code> as an image. The name of the directory will
 <p><strong>pkger</strong> will detect 3 images - <em>arch</em>, <em>rocky</em> and <em>debian</em>.</p>
 <p>Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
 dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.</p>
+<p>You can declare a new image with a subcommand. It will automatically create a directory in <code>images_dir</code>
+containing an empty <code>Dockerfile</code>.</p>
+<pre><code class="language-shell">$ pkger new image &lt;NAME&gt;
+</code></pre>
+<p>There is also a way to remove images. The <code>remove</code> subcommand erases the whole directory of an image if
+such exists:</p>
+<pre><code class="language-shell">$ pkger remove images &lt;NAMES&gt;...
+</code></pre>
+<p>To see existing images use:</p>
+<pre><code class="language-shell">$ pkger list images
+
+# for more detailed output
+$ pkger list -v images
+</code></pre>
 
                     </main>
 
