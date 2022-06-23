@@ -30,6 +30,7 @@ build: ./target/release/$(PROJECT)
 .PHONY: test
 test:
 	cargo t --all-targets --all-features
+	cargo r -- -c example/conf.yml build test-package test-suite
 
 
 .PHONY: fmt
