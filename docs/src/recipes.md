@@ -48,3 +48,25 @@ install:
     - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
 
 ```
+
+You can declare a new recipe with a subcommand. It will automatically create a directory in `recipes_dir`
+containing a `recipe.yml` with the generated YAML recipe:
+
+```shell
+$ pkger new recipe [OPTIONS] <NAME>
+```
+
+There is also a way to remove recipes. The `remove` subcommand erases the whole directory of a recipe if
+such exists:
+
+```shell
+$ pkger remove recipes <NAMES>...
+```
+
+To see existing recipes use:
+```shell
+$ pkger list recipes
+
+# for more detailed output
+$ pkger list -v recipes
+```

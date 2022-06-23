@@ -21,3 +21,26 @@ images
 
 Images with dependencies installed will be cached for each recipe-target combo to reduce the number of times the
 dependencies have to be pulled from remote sources. This saves a lot of space, time and bandwith.
+
+
+You can declare a new image with a subcommand. It will automatically create a directory in `images_dir`
+containing an empty `Dockerfile`.
+
+```shell
+$ pkger new image <NAME>
+```
+
+There is also a way to remove images. The `remove` subcommand erases the whole directory of an image if
+such exists:
+
+```shell
+$ pkger remove images <NAMES>...
+```
+
+To see existing images use:
+```shell
+$ pkger list images
+
+# for more detailed output
+$ pkger list -v images
+```
