@@ -34,11 +34,44 @@ fn null() -> YamlValue {
     YamlValue::Null
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
+pub struct Versions(Vec<String>);
+
+impl Versions {
+    pub fn has_version(&self, version: impl AsRef<str>) -> bool {
+        self.0.iter().any(|v| v.as_str() == version.as_ref())
+    }
+
+    pub fn versions(&self) -> &[String] {
+        &self.0
+    }
+}
+
+impl TryFrom<YamlValue> for Versions {
+    type Error = Error;
+
+    fn try_from(value: YamlValue) -> Result<Self, Self::Error> {
+        match value {
+            YamlValue::String(version) => Ok(Self(vec![version])),
+            YamlValue::Sequence(versions) => {
+                let mut versions_parsed = vec![];
+                for version in versions {
+                    if version.is_string() {
+                        versions_parsed.push(version.as_str().unwrap().to_string());
+                    }
+                }
+                Ok(Self(versions_parsed))
+            }
+            versions => Err(anyhow!("invalid versions format `{:?}`", versions)),
+        }
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct MetadataRep {
     // Required
     pub name: String,
-    pub version: String,
+    pub version: YamlValue,
     pub description: String,
     pub license: String,
 
@@ -289,7 +322,7 @@ pub struct RpmInfo {
 pub struct Metadata {
     // General
     pub name: String,
-    pub version: String,
+    pub version: Versions,
     pub description: String,
     pub license: String,
     pub arch: BuildArch,
@@ -366,7 +399,7 @@ impl TryFrom<MetadataRep> for Metadata {
         };
         Ok(Self {
             name: rep.name,
-            version: rep.version,
+            version: Versions::try_from(rep.version)?,
             description: rep.description,
             license: rep.license,
             all_images: rep.all_images,

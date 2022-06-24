@@ -22,6 +22,10 @@ pub async fn spawn<'ctx>(
     info!(logger => "initializing container context");
     trace!(logger => "{:?}", image_state);
 
+    if !ctx.recipe.metadata.version.has_version(&ctx.build_version) {
+        return err!("invalid recipe version {}", ctx.build_version);
+    }
+
     let mut volumes = Vec::new();
 
     let mut env = ctx.recipe.env.clone();
@@ -30,7 +34,7 @@ pub async fn spawn<'ctx>(
     env.insert("PKGER_OS", image_state.os.name());
     env.insert("PKGER_OS_VERSION", image_state.os.version());
     env.insert("RECIPE", &ctx.recipe.metadata.name);
-    env.insert("RECIPE_VERSION", &ctx.recipe.metadata.version);
+    env.insert("RECIPE_VERSION", &ctx.build_version);
     env.insert("RECIPE_RELEASE", ctx.recipe.metadata.release());
 
     if let Some(ssh) = &ctx.ssh {

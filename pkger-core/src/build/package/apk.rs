@@ -10,7 +10,7 @@ pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
         "{}-{}-r{}{}",
         &ctx.build.recipe.metadata.name,
-        &ctx.build.recipe.metadata.version,
+        &ctx.build.build_version,
         &ctx.build.recipe.metadata.release(),
         if extension { ".apk" } else { "" },
     )
@@ -65,7 +65,13 @@ pub(crate) async fn build(
     let apkbuild = ctx
         .build
         .recipe
-        .as_apkbuild(&image_state.image, &sources, &bld_dir, logger)
+        .as_apkbuild(
+            &image_state.image,
+            &sources,
+            &bld_dir,
+            &ctx.build.build_version,
+            logger,
+        )
         .render();
     debug!(logger => "{}", apkbuild);
 

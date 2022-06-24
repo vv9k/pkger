@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 pub struct Command {
     pub cmd: String,
     pub images: Option<Vec<String>>,
+    pub versions: Option<Vec<String>>,
     pub rpm: Option<bool>,
     pub deb: Option<bool>,
     pub pkg: Option<bool>,
@@ -27,6 +28,7 @@ impl From<&str> for Command {
         Self {
             cmd: s.to_string(),
             images: None,
+            versions: None,
             rpm: None,
             deb: None,
             pkg: None,
@@ -40,7 +42,8 @@ impl Command {
     pub fn has_target_specified(&self) -> bool {
         self.rpm.is_some() || self.deb.is_some() || self.pkg.is_some() || self.gzip.is_some()
     }
-    pub fn should_run_on(&self, target: &BuildTarget) -> bool {
+
+    pub fn should_run_on_target(&self, target: &BuildTarget) -> bool {
         if !self.has_target_specified() {
             return true;
         }
@@ -53,6 +56,13 @@ impl Command {
         }
         .unwrap_or_default()
     }
+
+    pub fn should_run_on_version(&self, version: impl AsRef<str>) -> bool {
+        self.versions
+            .as_ref()
+            .map(|versions| versions.iter().any(|v| v.as_str() == version.as_ref()))
+            .unwrap_or_default()
+    }
 }
 
 #[cfg(test)]
@@ -61,25 +71,25 @@ mod tests {
     #[test]
     fn should_run_on_works() {
         let mut cmd = Command::from("echo 123");
-        assert!(cmd.should_run_on(&BuildTarget::Deb));
-        assert!(cmd.should_run_on(&BuildTarget::Rpm));
-        assert!(cmd.should_run_on(&BuildTarget::Pkg));
-        assert!(cmd.should_run_on(&BuildTarget::Gzip));
-        assert!(cmd.should_run_on(&BuildTarget::Apk));
+        assert!(cmd.should_run_on_target(&BuildTarget::Deb));
+        assert!(cmd.should_run_on_target(&BuildTarget::Rpm));
+        assert!(cmd.should_run_on_target(&BuildTarget::Pkg));
+        assert!(cmd.should_run_on_target(&BuildTarget::Gzip));
+        assert!(cmd.should_run_on_target(&BuildTarget::Apk));
         cmd.rpm = Some(true);
-        assert!(cmd.should_run_on(&BuildTarget::Rpm));
-        assert!(!cmd.should_run_on(&BuildTarget::Gzip));
-        assert!(!cmd.should_run_on(&BuildTarget::Pkg));
-        assert!(!cmd.should_run_on(&BuildTarget::Deb));
-        assert!(!cmd.should_run_on(&BuildTarget::Apk));
+        assert!(cmd.should_run_on_target(&BuildTarget::Rpm));
+        assert!(!cmd.should_run_on_target(&BuildTarget::Gzip));
+        assert!(!cmd.should_run_on_target(&BuildTarget::Pkg));
+        assert!(!cmd.should_run_on_target(&BuildTarget::Deb));
+        assert!(!cmd.should_run_on_target(&BuildTarget::Apk));
         cmd.deb = Some(true);
         cmd.pkg = Some(true);
         cmd.gzip = Some(true);
         cmd.apk = Some(true);
-        assert!(cmd.should_run_on(&BuildTarget::Rpm));
-        assert!(cmd.should_run_on(&BuildTarget::Gzip));
-        assert!(cmd.should_run_on(&BuildTarget::Pkg));
-        assert!(cmd.should_run_on(&BuildTarget::Deb));
-        assert!(cmd.should_run_on(&BuildTarget::Apk));
+        assert!(cmd.should_run_on_target(&BuildTarget::Rpm));
+        assert!(cmd.should_run_on_target(&BuildTarget::Gzip));
+        assert!(cmd.should_run_on_target(&BuildTarget::Pkg));
+        assert!(cmd.should_run_on_target(&BuildTarget::Deb));
+        assert!(cmd.should_run_on_target(&BuildTarget::Apk));
     }
 }

@@ -12,7 +12,7 @@ pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
         "{}-{}-{}.{}{}",
         &ctx.build.recipe.metadata.name,
-        &ctx.build.recipe.metadata.version,
+        &ctx.build.build_version,
         &ctx.build.recipe.metadata.release(),
         ctx.build.recipe.metadata.arch.rpm_name(),
         if extension { ".rpm" } else { "" },
@@ -98,7 +98,13 @@ pub(crate) async fn build(
     trace!(logger => "source files: {:?}", files);
 
     let spec = recipe
-        .as_rpm_spec(&[source_tar], &files[..], &image_state.image, logger)
+        .as_rpm_spec(
+            &[source_tar],
+            &files[..],
+            &image_state.image,
+            &ctx.build.build_version,
+            logger,
+        )
         .render();
 
     let spec_file = [&recipe.metadata.name, ".spec"].join("");
@@ -141,7 +147,7 @@ pub(crate) async fn build(
                 .join(format!(
                     "{}-{}-{}.src.rpm",
                     &recipe.metadata.name,
-                    &recipe.metadata.version,
+                    &ctx.build.build_version,
                     recipe.metadata.release()
                 ))
                 .display(),

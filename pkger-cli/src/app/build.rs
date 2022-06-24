@@ -15,8 +15,16 @@ use tokio::task;
 
 #[derive(Debug, PartialEq)]
 pub enum BuildTask {
-    Simple { recipe: Recipe, target: BuildTarget },
-    Custom { recipe: Recipe, target: ImageTarget },
+    Simple {
+        recipe: Recipe,
+        target: BuildTarget,
+        version: String,
+    },
+    Custom {
+        recipe: Recipe,
+        target: ImageTarget,
+        version: String,
+    },
 }
 
 impl Application {
@@ -28,19 +36,39 @@ impl Application {
         debug!(logger => "processing build opts");
 
         let mut tasks = Vec::new();
-        let mut recipes = Vec::new();
+        let mut recipes_to_build = Vec::new();
 
         if opts.all {
-            recipes = self
+            recipes_to_build = self
                 .recipes
                 .load_all(logger)
                 .context("loading recipes")?
                 .into_iter()
+                .map(|r| {
+                    let versions = r.metadata.version.versions().to_vec();
+                    (r, versions)
+                })
                 .collect();
         } else if !opts.recipes.is_empty() {
             for recipe_name in opts.recipes {
-                trace!(logger => "loading recipe '{}'", recipe_name);
-                recipes.push(self.recipes.load(&recipe_name).context("loading recipe")?);
+                if recipe_name.contains("==") {
+                    let mut elems = recipe_name.split("==");
+                    let recipe = elems.next().unwrap();
+                    if let Some(version) = elems.next() {
+                        trace!(logger => "loading recipe '{}', version = {}", recipe, version);
+                        recipes_to_build.push((
+                            self.recipes.load(recipe).context("loading recipe")?,
+                            vec![version.to_string()],
+                        ));
+                    } else {
+                        return err!("invalid syntax for recipe - `{}`", recipe_name);
+                    }
+                } else {
+                    trace!(logger => "loading recipe '{}'", recipe_name);
+                    let recipe = self.recipes.load(&recipe_name).context("loading recipe")?;
+                    let versions_to_build = recipe.metadata.version.versions().to_vec();
+                    recipes_to_build.push((recipe, versions_to_build));
+                }
             }
         } else {
             warning!(logger => "no recipes to build");
@@ -50,7 +78,7 @@ impl Application {
         }
 
         macro_rules! add_task_if_target_found {
-            ($target:ident, $recipe:ident, $self:ident, $tasks:ident) => {
+            ($target:ident, $recipe:ident, $self:ident, $tasks:ident, $version:ident) => {
                 if let Some(target) = $self
                     .config
                     .images
@@ -60,6 +88,7 @@ impl Application {
                     $tasks.push(BuildTask::Custom {
                         recipe: $recipe.clone(),
                         target: target.clone(),
+                        version: $version.clone(),
                     });
                 } else {
                     warning!(logger => "image '{}' not found in configuration", $target);
@@ -69,17 +98,22 @@ impl Application {
 
         if opts.all {
             debug!(logger => "building all recipes for all targets");
-            for recipe in &recipes {
+            for (recipe, versions_to_build) in &recipes_to_build {
                 if recipe.metadata.all_images {
                     for image in &self.config.images {
-                        tasks.push(BuildTask::Custom {
-                            target: image.clone(),
-                            recipe: recipe.clone(),
-                        });
+                        for version in versions_to_build {
+                            tasks.push(BuildTask::Custom {
+                                target: image.clone(),
+                                recipe: recipe.clone(),
+                                version: version.clone(),
+                            });
+                        }
                     }
                 } else if !recipe.images().is_empty() {
                     for target_image in recipe.images() {
-                        add_task_if_target_found!(target_image, recipe, self, tasks);
+                        for version in versions_to_build {
+                            add_task_if_target_found!(target_image, recipe, self, tasks, version);
+                        }
                     }
                 } else {
                     warning!(logger => "recipe '{}' has no image targets, skipping", recipe.metadata.name);
@@ -88,27 +122,34 @@ impl Application {
         } else if let Some(targets) = &opts.simple {
             debug!(logger => "building only specified recipes for simple targets");
             for target in targets {
-                for recipe in &recipes {
+                for (recipe, versions_to_build) in &recipes_to_build {
                     let target = BuildTarget::try_from(target.as_str())?;
-                    tasks.push(BuildTask::Simple {
-                        recipe: recipe.clone(),
-                        target,
-                    })
+                    for version in versions_to_build {
+                        tasks.push(BuildTask::Simple {
+                            recipe: recipe.clone(),
+                            target,
+                            version: version.to_string(),
+                        })
+                    }
                 }
             }
         } else if let Some(opt_images) = &opts.images {
             debug!(logger => "building only specified recipes for specified images");
-            for recipe in &recipes {
+            for (recipe, versions_to_build) in &recipes_to_build {
                 if recipe.metadata.all_images {
                     for image in opt_images {
-                        add_task_if_target_found!(image, recipe, self, tasks);
+                        for version in versions_to_build {
+                            add_task_if_target_found!(image, recipe, self, tasks, version);
+                        }
                     }
                 } else if !recipe.images().is_empty() {
                     for image in opt_images {
                         // first we check if the recipe contains the image
                         if recipe.images().iter().any(|target| target == image) {
                             // then we fetch the target from configuration images
-                            add_task_if_target_found!(image, recipe, self, tasks);
+                            for version in versions_to_build {
+                                add_task_if_target_found!(image, recipe, self, tasks, version);
+                            }
                         } else {
                             warning!(logger => "image '{}' not found in recipe '{}' targets", image, recipe.metadata.name);
                         }
@@ -119,17 +160,22 @@ impl Application {
             }
         } else {
             trace!(logger => "building only specified recipes for all targets");
-            for recipe in &recipes {
+            for (recipe, versions_to_build) in &recipes_to_build {
                 if recipe.metadata.all_images {
                     for image in &self.config.images {
-                        tasks.push(BuildTask::Custom {
-                            target: image.clone(),
-                            recipe: recipe.clone(),
-                        });
+                        for version in versions_to_build {
+                            tasks.push(BuildTask::Custom {
+                                target: image.clone(),
+                                recipe: recipe.clone(),
+                                version: version.clone(),
+                            });
+                        }
                     }
                 } else if !recipe.images().is_empty() {
                     for target_image in recipe.images() {
-                        add_task_if_target_found!(target_image, recipe, self, tasks);
+                        for version in versions_to_build {
+                            add_task_if_target_found!(target_image, recipe, self, tasks, version);
+                        }
                     }
                 } else {
                     warning!(logger => "recipe {} has no image targets, skipping", recipe.metadata.name);
@@ -211,15 +257,23 @@ impl Application {
 
         // first a map of tasks for each image is built
         for task in tasks {
-            let (recipe, image, target, is_simple) = match task {
-                BuildTask::Custom { recipe, target } => {
+            let (recipe, image, target, version, is_simple) = match task {
+                BuildTask::Custom {
+                    recipe,
+                    target,
+                    version,
+                } => {
                     let image = Image::new(
                         target.image.clone(),
                         self.user_images_dir.join(&target.image),
                     );
-                    (recipe, image, target, false)
+                    (recipe, image, target, version, false)
                 }
-                BuildTask::Simple { recipe, target } => {
+                BuildTask::Simple {
+                    recipe,
+                    target,
+                    version,
+                } => {
                     let image = Image::try_get_or_new_simple(
                         &self.app_dir.path().join("images"),
                         target,
@@ -233,6 +287,7 @@ impl Application {
                         recipe,
                         image,
                         ImageTarget::new(name, target, None::<&str>),
+                        version,
                         true,
                     )
                 }
@@ -253,6 +308,7 @@ impl Application {
                 self.gpg_key.clone(),
                 self.config.ssh.clone(),
                 self.proxy.clone(),
+                version,
             );
             let id = ctx.id().to_string();
             info!(logger => "adding job {}", id);
