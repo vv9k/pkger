@@ -50,11 +50,24 @@ was specified.
 build:
   steps:
     - cmd: $HOME/.cargo/bin/cargo build --release .
-    - images = ["debian"]
+    - images: [ debian ]
       cmd: echo 'hello from Debian' # will only be executed on image `debian`
+
     - cmd: echo 'will only run on images with target == `rpm`'
       rpm: true
     # same applies to other targets
+      pkg: false
+      apk: false
+      deb: false
+      gzip: falze
+
+
+    - cmd: echo 'only on version 0.2.0'
+      versions: [ 0.2.0 ]
+    # fields can also be combined
+    - cmd: echo 'only on debian version 0.2.0'
+      versions: [ 0.2.0 ]
+      images: [ debian ]
 ]
 ```
 
