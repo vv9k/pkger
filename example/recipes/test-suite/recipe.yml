@@ -3,7 +3,9 @@ metadata:
   description: pkger testing suite
   arch: x86_64
   license: MIT
-  version: 0.2.0
+  version: 
+  - 0.2.0
+  - 0.3.0
   skip_default_deps: true
   source:
     - some_dir
@@ -64,14 +66,36 @@ build:
         echo RECIPE=$RECIPE;
         if [[ $RECIPE =~ test-suite ]]; then exit 0; else
         echo 'Environment variable RECIPE is not set properly'; exit 1; fi
+
     - cmd: >-
         echo RECIPE_VERSION=$RECIPE_VERSION;
-        if [[ $RECIPE_VERSION =~ 0.2.0 ]]; then exit 0; else
+        if [[ $RECIPE_VERSION =~ 0.[23].0 ]]; then exit 0; else
         echo 'Environment variable RECIPE_VERSION is not set properly'; exit 1; fi
+    - versions: [ 0.2.0 ]
+      cmd: echo "from_0.2.0" > /tmp/only_version_0.2.0
+    - versions: [ 0.3.0 ]
+      cmd: echo "from_0.3.0" > /tmp/only_version_0.3.0
+    - versions: [ 0.2.0 ]
+      cmd: >-
+        if [ ! -f '/tmp/only_version_0.2.0' ]; then echo 'File /tmp/only_version_0.2.0 should
+        exist on build version 0.2.0'; exit 1; fi
+    - versions: [ 0.2.0 ]
+      cmd: >-
+        if [ -f '/tmp/only_version_0.3.0' ]; then echo 'File /tmp/only_version_0.3.0 shouldnt
+        exist on build version 0.2.0'; exit 1; fi
+    - versions: [ 0.3.0 ]
+      cmd: >-
+        if [ ! -f '/tmp/only_version_0.3.0' ]; then echo 'File /tmp/only_version_0.3.0 should
+        exist on build version 0.3.0'; exit 1; fi
+    - versions: [ 0.3.0 ]
+      cmd: >-
+        if [ -f '/tmp/only_version_0.2.0' ]; then echo 'File /tmp/only_version_0.2.0 shouldnt
+        exist on build version 0.3.0'; exit 1; fi
     - cmd: >-
         echo RECIPE_RELEASE=$RECIPE_RELEASE;
         if [[ $RECIPE_RELEASE =~ 0 ]]; then exit 0; else
         echo 'Environment variable RECIPE_RELEASE is not set properly'; exit 1; fi
+
     - cmd: echo 'Testing pkger command syntax'
     # test if pkger commands work correctly
     - images: ["rocky"]
