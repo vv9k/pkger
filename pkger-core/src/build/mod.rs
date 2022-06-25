@@ -43,6 +43,7 @@ pub struct Context {
     gpg_key: Option<GpgKey>,
     ssh: Option<SshConfig>,
     proxy: ProxyConfig,
+    build_version: String,
 }
 
 impl Context {
@@ -60,14 +61,15 @@ impl Context {
         gpg_key: Option<GpgKey>,
         ssh: Option<SshConfig>,
         proxy: ProxyConfig,
+        build_version: String,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
         let id = format!(
-            "pkger-{}-{}-{}",
-            &recipe.metadata.name, &target.image, &timestamp,
+            "pkger-{}-{}-{}-{}",
+            &recipe.metadata.name, &target.image, build_version, &timestamp,
         );
         let container_bld_dir = PathBuf::from(format!(
             "/tmp/{}-build-{}",
@@ -99,6 +101,7 @@ impl Context {
             gpg_key,
             ssh,
             proxy,
+            build_version,
         }
     }
 
@@ -137,6 +140,7 @@ impl Context {
 pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathBuf> {
     info!(logger => "starting build, id = {}, recipe = {}, image = {}, target = {}", ctx.id, ctx.recipe.metadata.name, ctx.target.image(), ctx.target.build_target().as_ref());
     logger.append_scope(ctx.recipe.metadata.name.clone());
+    logger.append_scope(ctx.build_version.clone());
     logger.append_scope(ctx.target.image().to_string());
     let image_state = image::build(ctx, logger)
         .await

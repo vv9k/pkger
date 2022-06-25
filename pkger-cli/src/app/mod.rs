@@ -458,6 +458,8 @@ impl Application {
                         recipe
                             .metadata
                             .version
+                            .versions()
+                            .join(" ")
                             .cell()
                             .left()
                             .color(Color::BrightYellow),

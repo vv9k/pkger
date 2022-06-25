@@ -173,6 +173,7 @@ impl Recipe {
         &self,
         image: &str,
         installed_size: Option<&str>,
+        version: &str,
         logger: &mut BoxedCollector,
     ) -> BinaryDebControl {
         let name = if self.metadata.name.contains('_') {
@@ -183,7 +184,7 @@ impl Recipe {
         };
 
         let mut builder = DebControlBuilder::binary_package_builder(&name)
-            .version(&self.metadata.version)
+            .version(version)
             .revision(self.metadata.release())
             .description(&self.metadata.description)
             .architecture(self.metadata.arch.deb_name());
@@ -252,6 +253,7 @@ impl Recipe {
         sources: &[String],
         files: &[String],
         image: &str,
+        version: &str,
         _logger: &mut BoxedCollector,
     ) -> RpmSpec {
         let install_script = sources
@@ -267,7 +269,7 @@ impl Recipe {
             .build_arch(self.metadata.arch.rpm_name())
             .description(&self.metadata.description)
             .license(&self.metadata.license)
-            .version(&self.metadata.version)
+            .version(version)
             .release(self.metadata.release())
             .add_files_entries(files)
             .add_sources_entries(sources)
@@ -343,6 +345,7 @@ impl Recipe {
         image: &str,
         sources: &[String],
         checksums: &[String],
+        version: &str,
         _logger: &mut BoxedCollector,
     ) -> PkgBuild {
         let package_func = sources.iter().fold(String::new(), |mut s, src| {
@@ -352,7 +355,7 @@ impl Recipe {
 
         let mut builder = PkgBuild::builder()
             .pkgname(&self.metadata.name)
-            .pkgver(&self.metadata.version)
+            .pkgver(version)
             .pkgdesc(&self.metadata.description)
             .add_license_entries(vec![&self.metadata.license])
             .add_arch_entries(vec![self.metadata.arch.pkg_name().to_string()])
@@ -386,6 +389,7 @@ impl Recipe {
         image: &str,
         sources: &[String],
         builddir: &Path,
+        version: &str,
         _logger: &mut BoxedCollector,
     ) -> ApkBuild {
         let package_func =
@@ -398,7 +402,7 @@ impl Recipe {
 
         let mut builder = ApkBuild::builder()
             .pkgname(&self.metadata.name)
-            .pkgver(&self.metadata.version)
+            .pkgver(version)
             .pkgdesc(&self.metadata.description)
             .add_license_entries(vec![&self.metadata.license])
             .add_arch_entries(vec![self.metadata.arch.apk_name().to_string()])

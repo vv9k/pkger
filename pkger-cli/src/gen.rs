@@ -85,7 +85,8 @@ pub fn recipe(opts: Box<GenRecipeOpts>, logger: &mut BoxedCollector) -> RecipeRe
 
     let metadata = MetadataRep {
         name: opts.name,
-        version: opts.version.unwrap_or_else(|| "1.0.0".to_string()),
+        version: serde_yaml::to_value(opts.version.unwrap_or_else(|| "1.0.0".to_string()))
+            .unwrap_or_default(),
         description: opts.description.unwrap_or_else(|| "missing".to_string()),
         license: opts.license.unwrap_or_else(|| "missing".to_string()),
         all_images: false,

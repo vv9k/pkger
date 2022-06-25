@@ -41,8 +41,14 @@ macro_rules! run_script {
                 }
             }
 
-            if !cmd.should_run_on($ctx.build.target.build_target()) {
-                debug!($logger => "skipping command, shouldn't run on target");
+            let target = $ctx.build.target.build_target();
+            if !cmd.should_run_on_target(target) {
+                trace!($logger => "skipping command, shouldn't run on target {:?}", target);
+                continue;
+            }
+
+            if !cmd.should_run_on_version(&$ctx.build.build_version) {
+                trace!($logger => "skipping command, shouldn't run on version {}", $ctx.build.build_version);
                 continue;
             }
 

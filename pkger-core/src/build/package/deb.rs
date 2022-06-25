@@ -11,7 +11,7 @@ pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
         "{}-{}-{}.{}{}",
         &ctx.build.recipe.metadata.name,
-        &ctx.build.recipe.metadata.version,
+        &ctx.build.build_version,
         ctx.build.recipe.metadata.release(),
         ctx.build.recipe.metadata.arch.deb_name(),
         if extension { ".deb" } else { "" },
@@ -55,7 +55,7 @@ pub async fn build(
     let control = ctx
         .build
         .recipe
-        .as_deb_control(&image_state.image, size, logger)
+        .as_deb_control(&image_state.image, size, &ctx.build.build_version, logger)
         .render();
     debug!(logger => "{}", control);
 

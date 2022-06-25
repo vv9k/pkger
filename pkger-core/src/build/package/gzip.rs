@@ -9,7 +9,7 @@ pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
         "{}-{}.{}",
         &ctx.build.recipe.metadata.name,
-        &ctx.build.recipe.metadata.version,
+        &ctx.build.build_version,
         if extension { ".tar.gz" } else { "" },
     )
 }

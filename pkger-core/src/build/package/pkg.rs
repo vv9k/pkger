@@ -10,7 +10,7 @@ pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
     format!(
         "{}-{}-{}-{}{}",
         &ctx.build.recipe.metadata.name,
-        &ctx.build.recipe.metadata.version,
+        &ctx.build.build_version,
         &ctx.build.recipe.metadata.release(),
         ctx.build.recipe.metadata.arch.pkg_name(),
         if extension { ".pkg" } else { "" },
@@ -81,7 +81,13 @@ pub(crate) async fn build(
     let pkgbuild = ctx
         .build
         .recipe
-        .as_pkgbuild(&image_state.image, &sources, &checksums, logger)
+        .as_pkgbuild(
+            &image_state.image,
+            &sources,
+            &checksums,
+            &ctx.build.build_version,
+            logger,
+        )
         .render();
     debug!(logger => "{}", pkgbuild);
 
