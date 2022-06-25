@@ -58,10 +58,10 @@ impl Command {
     }
 
     pub fn should_run_on_version(&self, version: impl AsRef<str>) -> bool {
-        self.versions
-            .as_ref()
-            .map(|versions| versions.iter().any(|v| v.as_str() == version.as_ref()))
-            .unwrap_or_default()
+        match &self.versions {
+            None => true,
+            Some(versions) => versions.iter().any(|v| v.as_str() == version.as_ref()),
+        }
     }
 }
 
