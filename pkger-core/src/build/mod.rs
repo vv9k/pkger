@@ -202,6 +202,7 @@ pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathB
 
     logger.pop_scope();
     logger.pop_scope();
+    logger.pop_scope();
 
     Ok(package)
 }
