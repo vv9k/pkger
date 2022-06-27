@@ -17,6 +17,7 @@ pub mod recipe;
 pub mod runtime;
 pub mod ssh;
 pub mod template;
+pub mod deb;
 
 pub use anyhow::{anyhow, Context as ErrContext, Error, Result};
 

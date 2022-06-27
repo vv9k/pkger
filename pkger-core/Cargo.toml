@@ -6,7 +6,7 @@ authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
 license = "MIT"
 
 [dependencies]
-deb-control = { path = "../libs/debcontrol" }
+debbuild = { path = "../libs/debbuild" }
 rpmspec = { path = "../libs/rpmspec" }
 pkgbuild = { path = "../libs/pkgbuild" }
 apkbuild = { path = "../libs/apkbuild" }

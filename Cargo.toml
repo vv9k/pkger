@@ -5,7 +5,7 @@ members = [
     "pkger-core",
     "libs/pkgspec",
     "libs/rpmspec",
-    "libs/debcontrol",
+    "libs/debbuild",
     "libs/pkgbuild",
     "libs/apkbuild"
 ]

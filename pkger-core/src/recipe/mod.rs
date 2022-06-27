@@ -15,7 +15,7 @@ use crate::{err, Error, Result};
 
 use anyhow::Context;
 use apkbuild::ApkBuild;
-use deb_control::{binary::BinaryDebControl, DebControlBuilder};
+use debbuild::{binary::BinaryDebControl, DebControlBuilder};
 use pkgbuild::PkgBuild;
 use rpmspec::RpmSpec;
 use serde::{Deserialize, Serialize};
