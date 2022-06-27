@@ -1,143 +1,150 @@
 use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
+use crate::build::package::Package;
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
 
+use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
-pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
-    format!(
-        "{}-{}-{}.{}{}",
-        &ctx.build.recipe.metadata.name,
-        &ctx.build.build_version,
-        ctx.build.recipe.metadata.release(),
-        ctx.build.recipe.metadata.arch.deb_name(),
-        if extension { ".deb" } else { "" },
-    )
-}
+pub struct Deb;
 
-/// Creates a final DEB packages and saves it to `output_dir`
-pub async fn build(
-    ctx: &Context<'_>,
-    image_state: &ImageState,
-    output_dir: &Path,
-    logger: &mut BoxedCollector,
-) -> Result<PathBuf> {
-    let package_name = package_name(ctx, false);
+#[async_trait]
+impl Package for Deb {
+    fn name(ctx: &Context<'_>, extension: bool) -> String {
+        format!(
+            "{}-{}-{}.{}{}",
+            &ctx.build.recipe.metadata.name,
+            &ctx.build.build_version,
+            ctx.build.recipe.metadata.release(),
+            ctx.build.recipe.metadata.arch.deb_name(),
+            if extension { ".deb" } else { "" },
+        )
+    }
 
-    info!(logger => "building DEB package {}", package_name);
+    /// Creates a final DEB package and saves it to `output_dir`
+    async fn build(
+        ctx: &Context<'_>,
+        image_state: &ImageState,
+        output_dir: &Path,
+        logger: &mut BoxedCollector,
+    ) -> Result<PathBuf> {
+        let package_name = Self::name(ctx, false);
 
-    let debbld_dir = PathBuf::from("/root/debbuild");
-    let tmp_dir = debbld_dir.join("tmp");
-    let base_dir = debbld_dir.join(&package_name);
-    let deb_dir = base_dir.join("DEBIAN");
-    let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
+        info!(logger => "building DEB package {}", package_name);
 
-    ctx.create_dirs(&dirs[..], logger)
-        .await
-        .context("failed to create dirs")?;
+        let debbld_dir = PathBuf::from("/root/debbuild");
+        let tmp_dir = debbld_dir.join("tmp");
+        let base_dir = debbld_dir.join(&package_name);
+        let deb_dir = base_dir.join("DEBIAN");
+        let dirs = [deb_dir.as_path(), tmp_dir.as_path()];
 
-    let size_out = ctx
-        .checked_exec(
+        ctx.create_dirs(&dirs[..], logger)
+            .await
+            .context("failed to create dirs")?;
+
+        let size_out = ctx
+            .checked_exec(
+                &ExecOpts::default()
+                    .cmd("du -s .")
+                    .working_dir(&ctx.build.container_out_dir),
+                logger,
+            )
+            .await
+            .context("failed to check size of package files")?
+            .stdout
+            .join("");
+        let size = size_out.split_ascii_whitespace().next();
+
+        let control = ctx
+            .build
+            .recipe
+            .as_deb_control(&image_state.image, size, &ctx.build.build_version, logger)
+            .render();
+        debug!(logger => "{}", control);
+
+        // Upload install scripts
+        if let Some(deb) = &ctx.build.recipe.metadata.deb {
+            let mut scripts = vec![];
+            let postinst_path = PathBuf::from("./postinst");
+            if let Some(postinst) = &deb.postinst_script {
+                scripts.push((postinst_path.as_path(), postinst.as_bytes()));
+            }
+            if !scripts.is_empty() {
+                let scripts_paths: String = scripts
+                    .iter()
+                    .map(|s| s.0.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                ctx.container
+                    .upload_files(scripts, &deb_dir, logger)
+                    .await
+                    .context("failed to upload install scripts to container")?;
+
+                ctx.checked_exec(
+                    &ExecOpts::default()
+                        .cmd(&format!("chmod 0755 {}", scripts_paths))
+                        .working_dir(&deb_dir),
+                    logger,
+                )
+                .await
+                .context("failed to change ownership of build scripts")?;
+            }
+        }
+
+        ctx.container
+            .upload_files(
+                vec![(PathBuf::from("./control").as_path(), control.as_bytes())],
+                &deb_dir,
+                logger,
+            )
+            .await
+            .context("failed to upload control file to container")?;
+
+        trace!(logger => "copy source files to build dir");
+        ctx.checked_exec(
             &ExecOpts::default()
-                .cmd("du -s .")
+                .cmd(&format!("cp -rv . {}", base_dir.display()))
                 .working_dir(&ctx.build.container_out_dir),
             logger,
         )
         .await
-        .context("failed to check size of package files")?
-        .stdout
-        .join("");
-    let size = size_out.split_ascii_whitespace().next();
+        .context("failed to copy source files to build directory")?;
 
-    let control = ctx
-        .build
-        .recipe
-        .as_deb_control(&image_state.image, size, &ctx.build.build_version, logger)
-        .render();
-    debug!(logger => "{}", control);
+        let dpkg_deb_opts = if image_state.os.version().parse::<u8>().unwrap_or_default() < 10 {
+            "--build"
+        } else {
+            "--build --root-owner-group"
+        };
 
-    // Upload install scripts
-    if let Some(deb) = &ctx.build.recipe.metadata.deb {
-        let mut scripts = vec![];
-        let postinst_path = PathBuf::from("./postinst");
-        if let Some(postinst) = &deb.postinst_script {
-            scripts.push((postinst_path.as_path(), postinst.as_bytes()));
-        }
-        if !scripts.is_empty() {
-            let scripts_paths: String = scripts
-                .iter()
-                .map(|s| s.0.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" ");
-
-            ctx.container
-                .upload_files(scripts, &deb_dir, logger)
-                .await
-                .context("failed to upload install scripts to container")?;
-
-            ctx.checked_exec(
-                &ExecOpts::default()
-                    .cmd(&format!("chmod 0755 {}", scripts_paths))
-                    .working_dir(&deb_dir),
-                logger,
-            )
-            .await
-            .context("failed to change ownership of build scripts")?;
-        }
-    }
-
-    ctx.container
-        .upload_files(
-            vec![(PathBuf::from("./control").as_path(), control.as_bytes())],
-            &deb_dir,
+        ctx.checked_exec(
+            &ExecOpts::default().cmd(&format!(
+                "dpkg-deb {} {}",
+                dpkg_deb_opts,
+                base_dir.display()
+            )),
             logger,
         )
         .await
-        .context("failed to upload control file to container")?;
+        .context("failed to build deb package")?;
 
-    trace!(logger => "copy source files to build dir");
-    ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!("cp -rv . {}", base_dir.display()))
-            .working_dir(&ctx.build.container_out_dir),
-        logger,
-    )
-    .await
-    .context("failed to copy source files to build directory")?;
+        let deb_name = [&package_name, ".deb"].join("");
+        let package_file = debbld_dir.join(&deb_name);
 
-    let dpkg_deb_opts = if image_state.os.version().parse::<u8>().unwrap_or_default() < 10 {
-        "--build"
-    } else {
-        "--build --root-owner-group"
-    };
+        sign_package(ctx, &package_file, logger).await?;
 
-    ctx.checked_exec(
-        &ExecOpts::default().cmd(&format!(
-            "dpkg-deb {} {}",
-            dpkg_deb_opts,
-            base_dir.display()
-        )),
-        logger,
-    )
-    .await
-    .context("failed to build deb package")?;
-
-    let deb_name = [&package_name, ".deb"].join("");
-    let package_file = debbld_dir.join(&deb_name);
-
-    sign_package(ctx, &package_file, logger).await?;
-
-    ctx.container
-        .download_files(&package_file, output_dir, logger)
-        .await
-        .map(|_| output_dir.join(deb_name))
-        .context("failed to download finished package")
+        ctx.container
+            .download_files(&package_file, output_dir, logger)
+            .await
+            .map(|_| output_dir.join(deb_name))
+            .context("failed to download finished package")
+    }
 }
 
-pub(crate) async fn sign_package(
+pub async fn sign_package(
     ctx: &Context<'_>,
     package: &Path,
     logger: &mut BoxedCollector,

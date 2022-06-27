@@ -1,224 +1,231 @@
 use crate::build::container::Context;
+use crate::build::package::Package;
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
 use crate::{ErrContext, Result};
 
+use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
-pub fn package_name(ctx: &Context<'_>, extension: bool) -> String {
-    format!(
-        "{}-{}-r{}{}",
-        &ctx.build.recipe.metadata.name,
-        &ctx.build.build_version,
-        &ctx.build.recipe.metadata.release(),
-        if extension { ".apk" } else { "" },
-    )
-}
+pub struct Apk;
 
-/// Creates a final APK package and saves it to `output_dir`
-pub(crate) async fn build(
-    ctx: &Context<'_>,
-    image_state: &ImageState,
-    output_dir: &Path,
-    logger: &mut BoxedCollector,
-) -> Result<PathBuf> {
-    let package_name = package_name(ctx, false);
-
-    info!(logger => "building APK package {}", package_name);
-
-    let tmp_dir: PathBuf = ["/tmp", &package_name].into_iter().collect();
-    let src_dir = tmp_dir.join("src");
-    let bld_dir = tmp_dir.join("bld");
-
-    let source_tar_name = [&package_name, ".tar.gz"].join("");
-    let source_tar_path = bld_dir.join(&source_tar_name);
-
-    let dirs = [tmp_dir.as_path(), bld_dir.as_path(), src_dir.as_path()];
-
-    ctx.create_dirs(&dirs[..], logger)
-        .await
-        .context("failed to create dirs")?;
-
-    trace!(logger => "copy source files to temporary location");
-    ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!("cp -rv . {}", src_dir.display()))
-            .working_dir(&ctx.build.container_out_dir),
-        logger,
-    )
-    .await
-    .context("failed to copy source files to temp directory")?;
-
-    trace!(logger => "prepare archived source files");
-    ctx.checked_exec(
-        &ExecOpts::default()
-            .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
-            .working_dir(src_dir.as_path()),
-        logger,
-    )
-    .await?;
-
-    let sources = vec![source_tar_name];
-    static BUILD_USER: &str = "builduser";
-
-    let apkbuild = ctx
-        .build
-        .recipe
-        .as_apkbuild(
-            &image_state.image,
-            &sources,
-            &bld_dir,
+#[async_trait]
+impl Package for Apk {
+    fn name(ctx: &Context<'_>, extension: bool) -> String {
+        format!(
+            "{}-{}-r{}{}",
+            &ctx.build.recipe.metadata.name,
             &ctx.build.build_version,
-            logger,
+            &ctx.build.recipe.metadata.release(),
+            if extension { ".apk" } else { "" },
         )
-        .render();
-    debug!(logger => "{}", apkbuild);
+    }
 
-    ctx.container
-        .upload_files(
-            vec![(PathBuf::from("APKBUILD").as_path(), apkbuild.as_bytes())],
-            &bld_dir,
+    /// Creates a final APK package and saves it to `output_dir`
+    async fn build(
+        ctx: &Context<'_>,
+        image_state: &ImageState,
+        output_dir: &Path,
+        logger: &mut BoxedCollector,
+    ) -> Result<PathBuf> {
+        let package_name = Self::name(ctx, false);
+
+        info!(logger => "building APK package {}", package_name);
+
+        let tmp_dir: PathBuf = ["/tmp", &package_name].into_iter().collect();
+        let src_dir = tmp_dir.join("src");
+        let bld_dir = tmp_dir.join("bld");
+
+        let source_tar_name = [&package_name, ".tar.gz"].join("");
+        let source_tar_path = bld_dir.join(&source_tar_name);
+
+        let dirs = [tmp_dir.as_path(), bld_dir.as_path(), src_dir.as_path()];
+
+        ctx.create_dirs(&dirs[..], logger)
+            .await
+            .context("failed to create dirs")?;
+
+        trace!(logger => "copy source files to temporary location");
+        ctx.checked_exec(
+            &ExecOpts::default()
+                .cmd(&format!("cp -rv . {}", src_dir.display()))
+                .working_dir(&ctx.build.container_out_dir),
             logger,
         )
         .await
-        .context("failed to upload APKBUILD to container")?;
+        .context("failed to copy source files to temp directory")?;
 
-    trace!(logger => "create build user");
+        trace!(logger => "prepare archived source files");
+        ctx.checked_exec(
+            &ExecOpts::default()
+                .cmd(&format!("tar -zcvf {} .", source_tar_path.display()))
+                .working_dir(src_dir.as_path()),
+            logger,
+        )
+        .await?;
 
-    let home_dir: PathBuf = ["/home", BUILD_USER].into_iter().collect();
-    let abuild_dir = home_dir.join(".abuild");
+        let sources = vec![source_tar_name];
+        static BUILD_USER: &str = "builduser";
 
-    ctx.script_exec(
-        [
-            (
-                ExecOpts::new().cmd(&format!("adduser -D {}", BUILD_USER)),
-                Some("failed to create a build user"),
-            ),
-            (
-                ExecOpts::new().cmd(&format!("passwd -d {}", BUILD_USER)),
-                Some("failed to set password of build user"),
-            ),
-            (
-                ExecOpts::new().cmd(&format!("mkdir {}", abuild_dir.display())),
-                None,
-            ),
-        ],
-        logger,
-    )
-    .await?;
+        let apkbuild = ctx
+            .build
+            .recipe
+            .as_apkbuild(
+                &image_state.image,
+                &sources,
+                &bld_dir,
+                &ctx.build.build_version,
+                logger,
+            )
+            .render();
+        debug!(logger => "{}", apkbuild);
 
-    const SIGNING_KEY: &str = "apk-signing-key";
-    let key_path = abuild_dir.join(SIGNING_KEY);
-    let uploaded_key = if let Some(key_location) = ctx
-        .build
-        .recipe
-        .metadata
-        .apk
-        .as_ref()
-        .and_then(|apk| apk.private_key.as_deref())
-    {
-        if let Ok(key) = std::fs::read(&key_location) {
-            info!("uploading signing key");
-            trace!(logger => "key location: {}", key_location.display());
-            ctx.container
-                .upload_files(
-                    [(PathBuf::from(SIGNING_KEY).as_path(), key.as_slice())].to_vec(),
-                    &abuild_dir,
-                    logger,
-                )
-                .await
-                .context("failed to upload signing key")?;
-            ctx.checked_exec(
-                &ExecOpts::new().cmd(&format!("chmod 600 {}", key_path.display())),
+        ctx.container
+            .upload_files(
+                vec![(PathBuf::from("APKBUILD").as_path(), apkbuild.as_bytes())],
+                &bld_dir,
                 logger,
             )
             .await
-            .context("failed to change mode of signing key")?;
-            true
+            .context("failed to upload APKBUILD to container")?;
+
+        trace!(logger => "create build user");
+
+        let home_dir: PathBuf = ["/home", BUILD_USER].into_iter().collect();
+        let abuild_dir = home_dir.join(".abuild");
+
+        ctx.script_exec(
+            [
+                (
+                    ExecOpts::new().cmd(&format!("adduser -D {}", BUILD_USER)),
+                    Some("failed to create a build user"),
+                ),
+                (
+                    ExecOpts::new().cmd(&format!("passwd -d {}", BUILD_USER)),
+                    Some("failed to set password of build user"),
+                ),
+                (
+                    ExecOpts::new().cmd(&format!("mkdir {}", abuild_dir.display())),
+                    None,
+                ),
+            ],
+            logger,
+        )
+        .await?;
+
+        const SIGNING_KEY: &str = "apk-signing-key";
+        let key_path = abuild_dir.join(SIGNING_KEY);
+        let uploaded_key = if let Some(key_location) = ctx
+            .build
+            .recipe
+            .metadata
+            .apk
+            .as_ref()
+            .and_then(|apk| apk.private_key.as_deref())
+        {
+            if let Ok(key) = std::fs::read(&key_location) {
+                info!("uploading signing key");
+                trace!(logger => "key location: {}", key_location.display());
+                ctx.container
+                    .upload_files(
+                        [(PathBuf::from(SIGNING_KEY).as_path(), key.as_slice())].to_vec(),
+                        &abuild_dir,
+                        logger,
+                    )
+                    .await
+                    .context("failed to upload signing key")?;
+                ctx.checked_exec(
+                    &ExecOpts::new().cmd(&format!("chmod 600 {}", key_path.display())),
+                    logger,
+                )
+                .await
+                .context("failed to change mode of signing key")?;
+                true
+            } else {
+                false
+            }
         } else {
             false
+        };
+
+        ctx.script_exec(
+            [
+                (
+                    ExecOpts::new().cmd(&format!(
+                        "chown -Rv {0}:{0} {1} {2}",
+                        BUILD_USER,
+                        bld_dir.display(),
+                        abuild_dir.display()
+                    )),
+                    Some("failed to change ownership of the build directory"),
+                ),
+                (
+                    ExecOpts::new()
+                        .cmd("chmod 644 APKBUILD")
+                        .working_dir(&bld_dir),
+                    Some("failed to change mode of APKBUILD"),
+                ),
+            ],
+            logger,
+        )
+        .await?;
+
+        if !uploaded_key {
+            ctx.checked_exec(
+                &ExecOpts::new()
+                    .cmd("abuild-keygen -an")
+                    .working_dir(&bld_dir)
+                    .user(BUILD_USER),
+                logger,
+            )
+            .await?;
+        } else {
+            ctx.checked_exec(
+                &ExecOpts::new()
+                    .cmd(&format!(
+                        "echo PACKAGER_PRIVKEY=\"{}\" >> abuild.conf",
+                        key_path.display()
+                    ))
+                    .working_dir(&abuild_dir)
+                    .user(BUILD_USER),
+                logger,
+            )
+            .await?;
         }
-    } else {
-        false
-    };
 
-    ctx.script_exec(
-        [
-            (
-                ExecOpts::new().cmd(&format!(
-                    "chown -Rv {0}:{0} {1} {2}",
-                    BUILD_USER,
-                    bld_dir.display(),
-                    abuild_dir.display()
-                )),
-                Some("failed to change ownership of the build directory"),
-            ),
-            (
-                ExecOpts::new()
-                    .cmd("chmod 644 APKBUILD")
-                    .working_dir(&bld_dir),
-                Some("failed to change mode of APKBUILD"),
-            ),
-        ],
-        logger,
-    )
-    .await?;
-
-    if !uploaded_key {
-        ctx.checked_exec(
-            &ExecOpts::new()
-                .cmd("abuild-keygen -an")
-                .working_dir(&bld_dir)
-                .user(BUILD_USER),
+        ctx.script_exec(
+            [
+                (
+                    ExecOpts::new()
+                        .cmd("abuild checksum")
+                        .working_dir(&bld_dir)
+                        .user(BUILD_USER),
+                    Some("failed to calculate checksum"),
+                ),
+                (
+                    ExecOpts::new()
+                        .cmd("abuild")
+                        .working_dir(&bld_dir)
+                        .user(BUILD_USER),
+                    Some("failed to run abuild"),
+                ),
+            ],
             logger,
         )
         .await?;
-    } else {
-        ctx.checked_exec(
-            &ExecOpts::new()
-                .cmd(&format!(
-                    "echo PACKAGER_PRIVKEY=\"{}\" >> abuild.conf",
-                    key_path.display()
-                ))
-                .working_dir(&abuild_dir)
-                .user(BUILD_USER),
-            logger,
-        )
-        .await?;
+
+        let apk = format!("{}.apk", package_name);
+        let mut apk_path = home_dir.clone();
+        apk_path.push("packages");
+        apk_path.push(&package_name);
+        apk_path.push(ctx.build.recipe.metadata.arch.apk_name());
+        apk_path.push(&apk);
+
+        ctx.container
+            .download_files(&apk_path, output_dir, logger)
+            .await
+            .map(|_| output_dir.join(apk))
+            .context("failed to download finished package")
     }
-
-    ctx.script_exec(
-        [
-            (
-                ExecOpts::new()
-                    .cmd("abuild checksum")
-                    .working_dir(&bld_dir)
-                    .user(BUILD_USER),
-                Some("failed to calculate checksum"),
-            ),
-            (
-                ExecOpts::new()
-                    .cmd("abuild")
-                    .working_dir(&bld_dir)
-                    .user(BUILD_USER),
-                Some("failed to run abuild"),
-            ),
-        ],
-        logger,
-    )
-    .await?;
-
-    let apk = format!("{}.apk", package_name);
-    let mut apk_path = home_dir.clone();
-    apk_path.push("packages");
-    apk_path.push(&package_name);
-    apk_path.push(ctx.build.recipe.metadata.arch.apk_name());
-    apk_path.push(&apk);
-
-    ctx.container
-        .download_files(&apk_path, output_dir, logger)
-        .await
-        .map(|_| output_dir.join(apk))
-        .context("failed to download finished package")
 }
