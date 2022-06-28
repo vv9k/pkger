@@ -71,13 +71,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
       - name: Test
-        run: cargo test
-      - name: Run the test suite
-        run: cargo run -- -t -c example/conf.yml build test-suite
-      - name: Build the test package
-        run: cargo run -- -t -c example/conf.yml build test-package
-      - name: Build simple APK and PKG
-        run: cargo run -- -t -c example/conf.yml build -s apk -s pkg -- test-package
+        run: make test
       - name: Verify DEB package
         run: |
           sudo dpkg -i example/output/debian/test-package-0.1.0-0.amd64.deb

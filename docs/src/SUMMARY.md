@@ -10,6 +10,7 @@
     - [APK](./apk.md)
   - [Scripts](./scripts.md)
   - [Env](./env.md)
+  - [Inheritance](./inheritance.md)
 - [Images](./images.md)
 - [Build a package](./usage.md)
 - [Signing packages](./signing.md)  

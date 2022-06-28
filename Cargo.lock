@@ -729,6 +729,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
+name = "merge-yaml-hash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "131ffba49fbd93920ad876e2851bd6c854f4d956c22c464e50214ed8ccc8554e"
+dependencies = [
+ "linked-hash-map",
+ "yaml-rust",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -947,6 +957,7 @@ dependencies = [
  "http",
  "ipnet",
  "lazy_static",
+ "merge-yaml-hash",
  "pkgbuild",
  "podman-api",
  "pretty_assertions",

@@ -26,13 +26,19 @@ impl Loader {
         })
     }
 
-    pub fn load(&self, recipe: &str) -> Result<Recipe> {
+    pub fn load_rep(&self, recipe: &str) -> Result<RecipeRep> {
         let base_path = self.path.join(recipe);
         let mut path = base_path.join("recipe.yml");
         if !path.exists() {
             path = base_path.join("recipe.yaml");
         }
-        RecipeRep::load(path).and_then(|rep| Recipe::new(rep, base_path))
+        RecipeRep::load(path)
+    }
+
+    pub fn load(&self, recipe: &str) -> Result<Recipe> {
+        let base_path = self.path.join(recipe);
+        self.load_rep(recipe)
+            .and_then(|rep| Recipe::new(rep, base_path))
     }
 
     pub fn list(&self) -> Result<Vec<String>> {

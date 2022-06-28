@@ -1,0 +1,12 @@
+---
+from: base-package
+metadata:
+  name: child-package1
+  version: 0.2.0
+  description: pkger child package testing recipe inheritance from base-package
+install:
+  shell: /bin/bash
+  steps:
+    - cmd: >-
+        if [[ $(cat ${RECIPE}_${RECIPE_VERSION}) =~ 123 ]]; then exit 0; else
+        echo "Test file ${RECIPE}_${RECIPE_VERSION} has invalid content"; exit 1; fi

@@ -14,12 +14,19 @@ use serde::{Deserialize, Serialize};
 /// { cmd = "echo 321", rpm = true } # execute only when building rpm target
 pub struct Command {
     pub cmd: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub versions: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rpm: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deb: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pkg: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gzip: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub apk: Option<bool>,
 }
 
