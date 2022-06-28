@@ -15,7 +15,7 @@ pub use metadata::{
 pub use target::RecipeTarget;
 
 use crate::log::{warning, BoxedCollector};
-use crate::{Error, Result};
+use crate::{err, ErrContext, Error, Result};
 
 use apkbuild::ApkBuild;
 use debbuild::{binary::BinaryDebControl, DebControlBuilder};
@@ -25,8 +25,8 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Mapping;
 use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use merge_yaml_hash::MergeYamlHash;
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
 
@@ -41,16 +41,60 @@ pub struct Recipe {
 }
 
 impl Recipe {
-    pub fn new(rep: RecipeRep, recipe_dir: PathBuf) -> Result<Self> {
+    pub fn new(mut rep: RecipeRep, recipe_dir: PathBuf) -> Result<Self> {
+        let is_inherited = match (&rep.metadata, &rep.build, &rep.from) {
+            (Some(_), None, None) | (None, Some(_), None) | (None, None, None)
+                |
+            (None, None, Some(_))
+            | (None, Some(_), Some(_))
+                => {
+                return err!("invalid recipe, must either contain a `metadata` section with a name and a 'from' reference to other recipe or `metadata` and `build` section");
+            }
+            (Some(metadata), _, Some(_)) if metadata.name.is_none() => {
+                return err!("invalid recipe, must either contain a `metadata` section with a name and a 'from' reference to other recipe or `metadata` and `build` section");
+            },
+            (Some(_), Some(_), None) => false,
+            | (Some(_), None, Some(_))
+            | (Some(_), Some(_), Some(_)) => true,
+        };
+
+        match (&rep.metadata, is_inherited) {
+            (Some(metadata), false) if metadata.description.is_none() => {
+                return err!("invalid recipe, it's a base recipe and has no description specified");
+            },
+            (Some(metadata), false) if metadata.license.is_none() => {
+                return err!("invalid recipe, it's a base recipe and has no license specified");
+            },
+            _ => {}
+        }
+
+        if is_inherited {
+            if let Some(dir) = recipe_dir.parent() {
+                let loader = Loader::new(dir)?;
+                let base_rep = loader
+                    .load_rep(rep.from.as_ref().unwrap())
+                    .context("failed to load base recipe")?;
+                rep = rep.merge(base_rep).context("failed to merge recipes")?;
+            } else {
+                return err!("failed to determine recipes directory");
+            }
+        }
+
         Ok(Self {
-            metadata: Metadata::try_from(rep.metadata)?,
+            metadata: Metadata::try_from(
+                rep.metadata
+                    .ok_or_else(|| Error::msg("invalid recipe, `metadata` section required"))?,
+            )?,
             env: Env::from(rep.env),
             configure_script: if let Some(script) = rep.configure {
                 Some(ConfigureScript::try_from(script)?)
             } else {
                 None
             },
-            build_script: BuildScript::try_from(rep.build)?,
+            build_script: BuildScript::try_from(
+                rep.build
+                    .ok_or_else(|| Error::msg("invalid recipe, `build` section required"))?,
+            )?,
             install_script: if let Some(script) = rep.install {
                 Some(InstallScript::try_from(script)?)
             } else {
@@ -59,6 +103,7 @@ impl Recipe {
             recipe_dir,
         })
     }
+
 
     #[inline]
     pub fn images(&self) -> &[String] {
@@ -111,7 +156,6 @@ impl Recipe {
         if let Some(installed_size) = installed_size {
             builder = builder.installed_size(installed_size)
         }
-
         if let Some(deb) = &self.metadata.deb {
             if let Some(priority) = &deb.priority {
                 builder = builder.priority(priority);
@@ -324,10 +368,17 @@ impl Recipe {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct RecipeRep {
-    pub metadata: MetadataRep,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<MetadataRep>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<Mapping>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub configure: Option<ConfigureRep>,
-    pub build: BuildRep,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build: Option<BuildRep>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub install: Option<InstallRep>,
 }
 
@@ -338,6 +389,17 @@ impl RecipeRep {
 
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         Self::from_yaml_bytes(&fs::read(&path)?)
+    }
+
+    pub(crate) fn merge(self, base_rep: RecipeRep) -> Result<RecipeRep> {
+        let base_value = serde_yaml::to_string(&base_rep).context("failed to serialize base recipe")?;
+        let rep_value = serde_yaml::to_string(&self).context("failed to serialize recipe")?;
+
+        let mut merged = MergeYamlHash::new();
+        merged.merge(&base_value);
+        merged.merge(&rep_value);
+
+        serde_yaml::from_str(&merged.to_string()).context("failed to deserialize merged recipe")
     }
 }
 
@@ -383,10 +445,12 @@ macro_rules! impl_step_rep {
             }
         }
 
-        #[derive(Clone, Deserialize, Serialize, Debug, Default)]
+        #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq)]
         pub struct $ty_rep {
             pub steps: Vec<Command>,
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub working_dir: Option<PathBuf>,
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub shell: Option<String>,
         }
     };
@@ -401,11 +465,14 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    const TEST_RECIPE: &[u8] = include_bytes!("../../../example/recipes/test-suite/recipe.yml");
+    const TEST_SUITE_RECIPE: &[u8] = include_bytes!("../../../example/recipes/test-suite/recipe.yml");
+    const BASE_RECIPE: &[u8] = include_bytes!("../../../example/recipes/base-package/recipe.yml");
+    const CHILD1_RECIPE: &[u8] = include_bytes!("../../../example/recipes/child-package1/recipe.yml");
+    const CHILD2_RECIPE: &[u8] = include_bytes!("../../../example/recipes/child-package2/recipe.yml");
 
     #[test]
     fn parses_recipe_from_rep() {
-        let rep = RecipeRep::from_yaml_bytes(TEST_RECIPE).unwrap();
+        let rep = RecipeRep::from_yaml_bytes(TEST_SUITE_RECIPE).unwrap();
         let parsed = Recipe::new(rep.clone(), PathBuf::new()).unwrap();
 
         let rep_config = rep.configure.unwrap();
@@ -413,12 +480,71 @@ mod tests {
         assert_eq!(config.working_dir, rep_config.working_dir);
         assert_eq!(config.shell, rep_config.shell);
 
-        assert_eq!(parsed.build_script.working_dir, rep.build.working_dir);
-        assert_eq!(parsed.build_script.shell, rep.build.shell);
+        let build = rep.build.unwrap();
+        assert_eq!(parsed.build_script.working_dir, build.working_dir);
+        assert_eq!(parsed.build_script.shell, build.shell);
 
         let rep_install = rep.install.unwrap();
         let install = parsed.install_script.unwrap();
         assert_eq!(install.working_dir, rep_install.working_dir);
         assert_eq!(install.shell, rep_install.shell);
+    }
+
+    #[test]
+    fn merges_base_recipe_with_child() {
+        let base_rep = RecipeRep::from_yaml_bytes(BASE_RECIPE).unwrap();
+        let base_metadata = base_rep.metadata.clone().unwrap();
+
+        let child1_rep = RecipeRep::from_yaml_bytes(CHILD1_RECIPE).unwrap();
+        let child1_rep_merged = child1_rep.clone().merge(base_rep.clone()).unwrap();
+        let metadata_before = child1_rep.metadata.unwrap();
+        let metadata_merged = child1_rep_merged.metadata.unwrap();
+
+        assert_eq!(metadata_merged.name, metadata_before.name);
+        assert_eq!(metadata_merged.version, metadata_before.version);
+        assert_eq!(metadata_merged.description, metadata_before.description);
+        assert_eq!(metadata_merged.license, base_metadata.license);
+        assert_eq!(metadata_merged.images, base_metadata.images);
+        assert_eq!(child1_rep_merged.build, base_rep.build);
+        assert_eq!(child1_rep_merged.build, base_rep.build);
+
+        let child2_rep = RecipeRep::from_yaml_bytes(CHILD2_RECIPE).unwrap();
+        let child2_rep_merged = child2_rep.clone().merge(base_rep.clone()).unwrap();
+        let metadata_before = child2_rep.metadata.unwrap();
+        let metadata_merged = child2_rep_merged.metadata.unwrap();
+
+        assert_eq!(metadata_merged.name, metadata_before.name);
+        assert_eq!(metadata_merged.version, metadata_before.version);
+        assert_eq!(metadata_merged.description, metadata_before.description);
+        assert_eq!(metadata_merged.license, base_metadata.license);
+        assert_eq!(metadata_merged.images, base_metadata.images);
+        assert_eq!(child2_rep_merged.build.as_ref().map(|b| b.steps.clone()), child2_rep.build.as_ref().map(|b| b.steps.clone()));
+        assert_eq!(child2_rep_merged.build.as_ref().map(|b| b.working_dir.clone()), base_rep.build.as_ref().map(|b| b.working_dir.clone()));
+    }
+
+    #[test]
+    fn invalid_recipes() {
+        let recipe = r#"
+from: base
+build:
+  steps: []"#;
+        let recipe: serde_yaml::Value = serde_yaml::from_str(recipe).unwrap();
+
+        let rep = RecipeRep::from_yaml_bytes(&serde_yaml::to_vec(&recipe).unwrap()).unwrap();
+        let res = Recipe::new(rep, PathBuf::new());
+        println!("\n\n\n\n\n\n\n{:?}", res);
+        assert!(res.is_err());
+        let recipe = r#"
+from: base
+metadata:
+  version: "1.2.3"
+build:
+  steps: []"#;
+        let recipe: serde_yaml::Value = serde_yaml::from_str(recipe).unwrap();
+
+        let rep = RecipeRep::from_yaml_bytes(&serde_yaml::to_vec(&recipe).unwrap()).unwrap();
+        let res = Recipe::new(rep, PathBuf::new());
+        println!("\n\n\n\n\n\n\n{:?}", res);
+        assert!(res.is_err());
     }
 }

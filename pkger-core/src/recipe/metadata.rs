@@ -70,10 +70,14 @@ impl TryFrom<YamlValue> for Versions {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct MetadataRep {
     // Required
-    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "YamlValue::is_null")]
     pub version: YamlValue,
-    pub description: String,
-    pub license: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
 
     #[serde(default)]
     /// If specified all images will apply to this metadata and `images` will be ignored.
@@ -398,10 +402,10 @@ impl TryFrom<MetadataRep> for Metadata {
             vec![]
         };
         Ok(Self {
-            name: rep.name,
+            name: rep.name.ok_or_else(|| Error::msg("expected recipe name"))?,
             version: Versions::try_from(rep.version)?,
-            description: rep.description,
-            license: rep.license,
+            description: rep.description.ok_or_else(|| Error::msg("expected recipe description"))?,
+            license: rep.license.ok_or_else(|| Error::msg("expected recipe license"))?,
             all_images: rep.all_images,
             images: rep.images,
 
