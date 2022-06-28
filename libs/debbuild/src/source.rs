@@ -1,4 +1,6 @@
+#![allow(dead_code)]
 use pkgspec::SpecStruct;
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -152,6 +154,266 @@ Essential:           {}
     }
 }
 
+pub struct Rules {
+    clean: Rule,
+    binary: Rule,
+    binary_arch: Rule,
+    binary_indep: Rule,
+    build: Rule,
+    build_arch: Rule,
+    build_indep: Rule,
+    patch: Option<Rule>,
+}
+
+impl Rules {
+    pub fn builder() -> RulesBuilder {
+        RulesBuilder::default()
+    }
+    pub fn render(&self) -> String {
+        let mut out = "#!/usr/bin/make -f\n\n".to_string();
+
+        self.clean.render(&mut out);
+        self.binary.render(&mut out);
+        self.binary_arch.render(&mut out);
+        self.binary_indep.render(&mut out);
+        self.build.render(&mut out);
+        self.build_arch.render(&mut out);
+        self.build_indep.render(&mut out);
+        if let Some(patch) = &self.patch {
+            patch.render(&mut out);
+        }
+
+        out
+    }
+}
+
+#[derive(PartialEq, Debug, Copy, Clone, Eq, Hash)]
+pub enum RulesTarget {
+    Clean,
+    Binary,
+    BinaryArch,
+    BinaryIndep,
+    Build,
+    BuildArch,
+    BuildIndep,
+    Patch,
+    None,
+}
+
+impl RulesTarget {
+    pub fn name(&self) -> &'static str {
+        use RulesTarget::*;
+        match self {
+            Clean => "clean",
+            Binary => "binary",
+            BinaryArch => "binary-arch",
+            BinaryIndep => "binary-indep",
+            Build => "build",
+            BuildArch => "build-arch",
+            BuildIndep => "build-indep",
+            Patch => "patch",
+            None => "",
+        }
+    }
+}
+
+impl Default for RulesTarget {
+    fn default() -> Self {
+        RulesTarget::None
+    }
+}
+
+#[derive(Default)]
+pub struct Rule {
+    dependencies: Vec<String>,
+    script: Option<String>,
+    target: RulesTarget,
+}
+
+impl Rule {
+    fn set_script(&mut self, script: impl Into<String>) {
+        self.script = Some(script.into());
+    }
+
+    fn push_dependency(&mut self, dependency: impl Into<String>) {
+        self.dependencies.push(dependency.into());
+    }
+
+    fn set_target(&mut self, target: RulesTarget) {
+        self.target = target;
+    }
+
+    pub fn render(&self, out: &mut String) {
+        if self.target.name().is_empty() {
+            return;
+        }
+        out.push('\n');
+        out.push_str(self.target.name());
+        out.push_str(": ");
+        for dep in &self.dependencies {
+            out.push_str(dep);
+            out.push(' ');
+        }
+        out.push('\n');
+        if let Some(script) = &self.script {
+            let lines = script.lines();
+            if lines.clone().count() > 1 {
+                for line in lines {
+                    out.push('\t');
+                    out.push_str(line);
+                    out.push('\n');
+                }
+            } else {
+                out.push('\t');
+                out.push_str(script);
+                out.push('\n');
+            }
+        }
+    }
+}
+
+impl Default for RulesBuilder {
+    fn default() -> Self {
+        RulesBuilder {
+            rules: [
+                RulesTarget::Clean,
+                RulesTarget::Binary,
+                RulesTarget::BinaryArch,
+                RulesTarget::BinaryIndep,
+                RulesTarget::Build,
+                RulesTarget::BuildArch,
+                RulesTarget::BuildIndep,
+            ]
+            .into_iter()
+            .map(|k| (k, Rule::default()))
+            .collect(),
+        }
+    }
+}
+
+pub struct RulesBuilder {
+    rules: HashMap<RulesTarget, Rule>,
+}
+
+impl RulesBuilder {
+    pub fn finish_building(mut self) -> Rules {
+        Rules {
+            clean: self.rules.remove(&RulesTarget::Clean).unwrap_or_default(),
+            binary: self.rules.remove(&RulesTarget::Binary).unwrap_or_default(),
+            binary_arch: self
+                .rules
+                .remove(&RulesTarget::BinaryArch)
+                .unwrap_or_default(),
+            binary_indep: self
+                .rules
+                .remove(&RulesTarget::BinaryIndep)
+                .unwrap_or_default(),
+            build: self.rules.remove(&RulesTarget::Build).unwrap(),
+            build_arch: self
+                .rules
+                .remove(&RulesTarget::BuildArch)
+                .unwrap_or_default(),
+            build_indep: self
+                .rules
+                .remove(&RulesTarget::BuildIndep)
+                .unwrap_or_default(),
+            patch: self.rules.remove(&RulesTarget::Patch),
+        }
+    }
+
+    fn set_script(mut self, script: impl Into<String>, target: RulesTarget) -> Self {
+        let script = script.into();
+        if let Some(rule) = self.rules.get_mut(&target) {
+            rule.set_script(script);
+            rule.set_target(target);
+        } else {
+            let mut rule = Rule::default();
+            rule.set_script(script);
+            rule.set_target(target);
+            self.rules.insert(target, rule);
+        }
+        self
+    }
+
+    fn push_dependency(mut self, dependency: impl Into<String>, target: RulesTarget) -> Self {
+        let dep = dependency.into();
+        if let Some(rule) = self.rules.get_mut(&target) {
+            rule.push_dependency(dep);
+            rule.set_target(target);
+        } else {
+            let mut rule = Rule::default();
+            rule.push_dependency(dep);
+            rule.set_target(target);
+            self.rules.insert(target, rule);
+        }
+        self
+    }
+
+    pub fn clean_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::Clean)
+    }
+
+    pub fn binary_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::Binary)
+    }
+
+    pub fn binary_arch_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::BinaryArch)
+    }
+
+    pub fn binary_indep_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::BinaryIndep)
+    }
+
+    pub fn build_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::Build)
+    }
+
+    pub fn build_arch_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::BinaryArch)
+    }
+
+    pub fn build_indep_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::BinaryIndep)
+    }
+
+    pub fn patch_script(self, script: impl Into<String>) -> Self {
+        self.set_script(script, RulesTarget::Patch)
+    }
+
+    pub fn clean_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::Clean)
+    }
+
+    pub fn binary_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::Binary)
+    }
+
+    pub fn binary_arch_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::BinaryArch)
+    }
+
+    pub fn binary_indep_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::BinaryIndep)
+    }
+
+    pub fn build_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::Build)
+    }
+
+    pub fn build_arch_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::BuildArch)
+    }
+
+    pub fn build_indep_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::BuildIndep)
+    }
+
+    pub fn patch_dependency(self, dependency: impl Into<String>) -> Self {
+        self.push_dependency(dependency, RulesTarget::Patch)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,5 +496,37 @@ Provides:            debcontrol
 
         assert_eq!(expect, got);
         assert_eq!(OUT, got.render());
+    }
+
+    #[test]
+    fn builds_and_renders_rules() {
+        let rules = Rules::builder()
+            .build_script("make $@")
+            .clean_script("make clean\nuserdel testuser\nrm -rf /tmp/test")
+            .build_dependency("patch")
+            .build_indep_dependency("build")
+            .build_arch_dependency("build")
+            .build_arch_dependency("build-indep")
+            .finish_building();
+
+        const OUT: &str = r#"#!/usr/bin/make -f
+
+
+clean: 
+	make clean
+	userdel testuser
+	rm -rf /tmp/test
+
+build: patch 
+	make $@
+
+build-arch: build build-indep 
+
+build-indep: build 
+"#;
+
+        let rendered = rules.render();
+
+        assert_eq!(OUT, rendered);
     }
 }
