@@ -25,7 +25,7 @@ impl Loader {
             path: path.to_path_buf(),
         })
     }
-    
+
     pub fn load_rep(&self, recipe: &str) -> Result<RecipeRep> {
         let base_path = self.path.join(recipe);
         let mut path = base_path.join("recipe.yml");
@@ -37,7 +37,8 @@ impl Loader {
 
     pub fn load(&self, recipe: &str) -> Result<Recipe> {
         let base_path = self.path.join(recipe);
-        self.load_rep(recipe).and_then(|rep| Recipe::new(rep, base_path))
+        self.load_rep(recipe)
+            .and_then(|rep| Recipe::new(rep, base_path))
     }
 
     pub fn list(&self) -> Result<Vec<String>> {

@@ -19,6 +19,7 @@ use crate::{err, ErrContext, Error, Result};
 
 use apkbuild::ApkBuild;
 use debbuild::{binary::BinaryDebControl, DebControlBuilder};
+use merge_yaml_hash::MergeYamlHash;
 use pkgbuild::PkgBuild;
 use rpmspec::RpmSpec;
 use serde::{Deserialize, Serialize};
@@ -26,7 +27,6 @@ use serde_yaml::Mapping;
 use std::convert::TryFrom;
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
-use merge_yaml_hash::MergeYamlHash;
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
 
@@ -43,28 +43,27 @@ pub struct Recipe {
 impl Recipe {
     pub fn new(mut rep: RecipeRep, recipe_dir: PathBuf) -> Result<Self> {
         let is_inherited = match (&rep.metadata, &rep.build, &rep.from) {
-            (Some(_), None, None) | (None, Some(_), None) | (None, None, None)
-                |
-            (None, None, Some(_))
-            | (None, Some(_), Some(_))
-                => {
+            (Some(_), None, None)
+            | (None, Some(_), None)
+            | (None, None, None)
+            | (None, None, Some(_))
+            | (None, Some(_), Some(_)) => {
                 return err!("invalid recipe, must either contain a `metadata` section with a name and a 'from' reference to other recipe or `metadata` and `build` section");
             }
             (Some(metadata), _, Some(_)) if metadata.name.is_none() => {
                 return err!("invalid recipe, must either contain a `metadata` section with a name and a 'from' reference to other recipe or `metadata` and `build` section");
-            },
+            }
             (Some(_), Some(_), None) => false,
-            | (Some(_), None, Some(_))
-            | (Some(_), Some(_), Some(_)) => true,
+            (Some(_), None, Some(_)) | (Some(_), Some(_), Some(_)) => true,
         };
 
         match (&rep.metadata, is_inherited) {
             (Some(metadata), false) if metadata.description.is_none() => {
                 return err!("invalid recipe, it's a base recipe and has no description specified");
-            },
+            }
             (Some(metadata), false) if metadata.license.is_none() => {
                 return err!("invalid recipe, it's a base recipe and has no license specified");
-            },
+            }
             _ => {}
         }
 
@@ -103,7 +102,6 @@ impl Recipe {
             recipe_dir,
         })
     }
-
 
     #[inline]
     pub fn images(&self) -> &[String] {
@@ -392,7 +390,8 @@ impl RecipeRep {
     }
 
     pub(crate) fn merge(self, base_rep: RecipeRep) -> Result<RecipeRep> {
-        let base_value = serde_yaml::to_string(&base_rep).context("failed to serialize base recipe")?;
+        let base_value =
+            serde_yaml::to_string(&base_rep).context("failed to serialize base recipe")?;
         let rep_value = serde_yaml::to_string(&self).context("failed to serialize recipe")?;
 
         let mut merged = MergeYamlHash::new();
@@ -465,10 +464,13 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    const TEST_SUITE_RECIPE: &[u8] = include_bytes!("../../../example/recipes/test-suite/recipe.yml");
+    const TEST_SUITE_RECIPE: &[u8] =
+        include_bytes!("../../../example/recipes/test-suite/recipe.yml");
     const BASE_RECIPE: &[u8] = include_bytes!("../../../example/recipes/base-package/recipe.yml");
-    const CHILD1_RECIPE: &[u8] = include_bytes!("../../../example/recipes/child-package1/recipe.yml");
-    const CHILD2_RECIPE: &[u8] = include_bytes!("../../../example/recipes/child-package2/recipe.yml");
+    const CHILD1_RECIPE: &[u8] =
+        include_bytes!("../../../example/recipes/child-package1/recipe.yml");
+    const CHILD2_RECIPE: &[u8] =
+        include_bytes!("../../../example/recipes/child-package2/recipe.yml");
 
     #[test]
     fn parses_recipe_from_rep() {
@@ -518,8 +520,17 @@ mod tests {
         assert_eq!(metadata_merged.description, metadata_before.description);
         assert_eq!(metadata_merged.license, base_metadata.license);
         assert_eq!(metadata_merged.images, base_metadata.images);
-        assert_eq!(child2_rep_merged.build.as_ref().map(|b| b.steps.clone()), child2_rep.build.as_ref().map(|b| b.steps.clone()));
-        assert_eq!(child2_rep_merged.build.as_ref().map(|b| b.working_dir.clone()), base_rep.build.as_ref().map(|b| b.working_dir.clone()));
+        assert_eq!(
+            child2_rep_merged.build.as_ref().map(|b| b.steps.clone()),
+            child2_rep.build.as_ref().map(|b| b.steps.clone())
+        );
+        assert_eq!(
+            child2_rep_merged
+                .build
+                .as_ref()
+                .map(|b| b.working_dir.clone()),
+            base_rep.build.as_ref().map(|b| b.working_dir.clone())
+        );
     }
 
     #[test]

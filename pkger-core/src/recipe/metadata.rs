@@ -404,8 +404,12 @@ impl TryFrom<MetadataRep> for Metadata {
         Ok(Self {
             name: rep.name.ok_or_else(|| Error::msg("expected recipe name"))?,
             version: Versions::try_from(rep.version)?,
-            description: rep.description.ok_or_else(|| Error::msg("expected recipe description"))?,
-            license: rep.license.ok_or_else(|| Error::msg("expected recipe license"))?,
+            description: rep
+                .description
+                .ok_or_else(|| Error::msg("expected recipe description"))?,
+            license: rep
+                .license
+                .ok_or_else(|| Error::msg("expected recipe license"))?,
             all_images: rep.all_images,
             images: rep.images,
 
