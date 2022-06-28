@@ -11,5 +11,5 @@ install:
   shell: /bin/bash
   steps:
     - cmd: >-
-        if [ ! -f ${RECIPE}_${RECIPE_VERSION}) ]; then exit 0; else
+        if [ ! -f ${RECIPE}_${RECIPE_VERSION} ]; then exit 0; else
         echo "Test file ${RECIPE}_${RECIPE_VERSION} should not exist on child-package2"; exit 1; fi
