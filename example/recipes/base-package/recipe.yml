@@ -1,0 +1,12 @@
+---
+metadata:
+  name: base-package
+  version: 0.1.0
+  description: pkger base package testing recipe inheritance
+  arch: x86_64
+  license: MIT
+  images: [ rocky, debian ]
+build:
+  working_dir: $PKGER_OUT_DIR
+  steps:
+    - cmd: echo 123 >> ${RECIPE}_${RECIPE_VERSION}
