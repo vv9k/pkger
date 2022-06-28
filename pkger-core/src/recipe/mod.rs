@@ -1,19 +1,22 @@
 mod cmd;
 mod envs;
+mod loader;
 mod metadata;
+mod target;
 
 pub use cmd::Command;
 pub use envs::Env;
+pub use loader::Loader;
 pub use metadata::{
     deserialize_images, BuildArch, BuildTarget, DebInfo, DebRep, Dependencies, Distro, GitSource,
     ImageTarget, Metadata, MetadataRep, Os, PackageManager, Patch, Patches, PkgInfo, PkgRep,
     RpmInfo, RpmRep,
 };
+pub use target::RecipeTarget;
 
-use crate::log::{debug, trace, warning, BoxedCollector};
-use crate::{err, Error, Result};
+use crate::log::{warning, BoxedCollector};
+use crate::{Error, Result};
 
-use anyhow::Context;
 use apkbuild::ApkBuild;
 use debbuild::{binary::BinaryDebControl, DebControlBuilder};
 use pkgbuild::PkgBuild;
@@ -26,111 +29,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
-
-#[derive(Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
-pub struct RecipeTarget {
-    name: String,
-    image_target: ImageTarget,
-}
-
-impl RecipeTarget {
-    pub fn new(name: String, image_target: ImageTarget) -> Self {
-        Self { name, image_target }
-    }
-
-    pub fn build_target(&self) -> &BuildTarget {
-        &self.image_target.build_target
-    }
-
-    pub fn recipe(&self) -> &str {
-        &self.name
-    }
-
-    pub fn image(&self) -> &str {
-        &self.image_target.image
-    }
-
-    pub fn image_os(&self) -> &Option<Os> {
-        &self.image_target.os
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Loader {
-    path: PathBuf,
-}
-
-impl Loader {
-    /// Initializes a recipe loader without loading any recipes. The provided `path` must be a directory
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = path.as_ref();
-        let metadata = fs::metadata(path)
-            .context(format!("failed to verify recipe path `{}`", path.display()))?;
-
-        if !metadata.is_dir() {
-            return err!("recipes path is not a directory");
-        }
-
-        Ok(Loader {
-            path: path.to_path_buf(),
-        })
-    }
-
-    pub fn load(&self, recipe: &str) -> Result<Recipe> {
-        let base_path = self.path.join(recipe);
-        let mut path = base_path.join("recipe.yml");
-        if !path.exists() {
-            path = base_path.join("recipe.yaml");
-        }
-        RecipeRep::load(path).and_then(|rep| Recipe::new(rep, base_path))
-    }
-
-    pub fn list(&self) -> Result<Vec<String>> {
-        fs::read_dir(&self.path)
-            .map(|entries| {
-                entries
-                    .filter_map(|entry| {
-                        entry
-                            .ok()
-                            .filter(|e| e.file_type().map(|e| e.is_dir()).unwrap_or(false))
-                            .map(|e| e.file_name().to_string_lossy().to_string())
-                    })
-                    .collect()
-            })
-            .context("failed to list recipes")
-    }
-
-    /// Loads all recipes in the underlying directory
-    pub fn load_all(&self, logger: &mut BoxedCollector) -> Result<Vec<Recipe>> {
-        let path = self.path.as_path();
-
-        debug!(logger => "loading reicipes from '{}'", path.display());
-
-        let mut recipes = Vec::new();
-
-        for entry in fs::read_dir(path)? {
-            match entry {
-                Ok(entry) => {
-                    let filename = entry.file_name().to_string_lossy().to_string();
-                    let path = entry.path();
-                    match RecipeRep::try_from(entry).map(|rep| Recipe::new(rep, path)) {
-                        Ok(result) => {
-                            let recipe = result?;
-                            trace!(logger => "{:?}", recipe);
-                            recipes.push(recipe);
-                        }
-                        Err(e) => {
-                            warning!(logger => "failed to read recipe from '{}', reason: {:?}", filename, e);
-                        }
-                    }
-                }
-                Err(e) => warning!(logger => "invalid entry, reason: {:?}", e),
-            }
-        }
-
-        Ok(recipes)
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Recipe {

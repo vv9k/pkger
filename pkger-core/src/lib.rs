@@ -7,6 +7,7 @@ extern crate lazy_static;
 pub mod archive;
 pub mod build;
 pub mod container;
+pub mod deb;
 pub mod gpg;
 pub mod image;
 #[macro_export]
@@ -17,7 +18,6 @@ pub mod recipe;
 pub mod runtime;
 pub mod ssh;
 pub mod template;
-pub mod deb;
 
 pub use anyhow::{anyhow, Context as ErrContext, Error, Result};
 
