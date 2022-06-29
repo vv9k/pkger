@@ -243,7 +243,7 @@ impl Application {
                         Level::Info
                     },
                     log_dir: opts.log_dir,
-                    no_color: opts.no_color,
+                    no_color: opts.no_color || self.config.no_color,
                 };
 
                 self.process_tasks(tasks, output_config, logger).await?;

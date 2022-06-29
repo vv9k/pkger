@@ -15,6 +15,7 @@ pub struct Configuration {
     pub log_dir: Option<PathBuf>,
     pub runtime_uri: Option<String>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub podman: bool,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
@@ -25,6 +26,13 @@ pub struct Configuration {
     #[serde(skip_deserializing)]
     pub path: PathBuf,
     pub custom_simple_images: Option<CustomImagesDefinition>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub no_color: bool,
+}
+
+fn default<T: Default + PartialEq>(t: &T) -> bool {
+    *t == Default::default()
 }
 
 impl Configuration {

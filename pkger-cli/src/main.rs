@@ -79,6 +79,7 @@ async fn main() -> Result<()> {
             images: vec![],
             path: config_path,
             custom_simple_images: None,
+            no_color: false,
         };
 
         if cfg.path.exists() {
@@ -127,7 +128,9 @@ async fn main() -> Result<()> {
     } else {
         log::Config::stdout()
     };
-    if opts.no_color {
+
+    let disable_color = opts.no_color || config.no_color;
+    if disable_color {
         logger_config = logger_config.no_color(true);
         if let Ok(mut log) = log::GLOBAL_OUTPUT_COLLECTOR.try_write() {
             log.set_override(false);

@@ -19,6 +19,9 @@ runtime_uri: "unix:///var/run/docker.sock"
 # Decides wether `runtime_uri` should be treated as Podman runtime. If false (default) Docker will be used
 podman: false
 
+# Disable colored output globally
+no_color: true
+
 ssh:
   # this will make the ssh auth socket available to the container so that it can use private keys from the host.
   forward_agent: true
