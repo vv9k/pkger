@@ -4,7 +4,9 @@ use crate::completions;
 use crate::config::Configuration;
 use crate::gen;
 use crate::metadata::{self, PackageMetadata};
-use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts, RemoveObject, CheckObject};
+use crate::opts::{
+    CheckObject, Command, CopyObject, EditObject, ListObject, NewObject, Opts, RemoveObject,
+};
 use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::Image;
@@ -754,28 +756,26 @@ impl Application {
 
     async fn check(&self, object: CheckObject, logger: &mut BoxedCollector) -> Result<()> {
         match object {
-            CheckObject::Connection => {
-                match self.runtime.connect() {
-                    runtime::RuntimeConnector::Docker(docker) => {
-                        match docker.ping().await.context("failed to ping Docker") {
-                            Ok(_) => {
-                                info!(logger => "connection to runtime OK.");
-                                Ok(())
-                            },
-                            Err(e) => err!("connection failed, reason = {:?}", e)
+            CheckObject::Connection => match self.runtime.connect() {
+                runtime::RuntimeConnector::Docker(docker) => {
+                    match docker.ping().await.context("failed to ping Docker") {
+                        Ok(_) => {
+                            info!(logger => "connection to runtime OK.");
+                            Ok(())
                         }
-                    },
-                    runtime::RuntimeConnector::Podman(podman) => {
-                        match podman.ping().await.context("failed to ping Podman") {
-                            Ok(_) => {
-                                info!(logger => "connection to runtime OK.");
-                                Ok(())
-                            },
-                            Err(e) => err!("connection failed, reason = {:?}", e)
-                        }
+                        Err(e) => err!("connection failed, reason = {:?}", e),
                     }
                 }
-            }
+                runtime::RuntimeConnector::Podman(podman) => {
+                    match podman.ping().await.context("failed to ping Podman") {
+                        Ok(_) => {
+                            info!(logger => "connection to runtime OK.");
+                            Ok(())
+                        }
+                        Err(e) => err!("connection failed, reason = {:?}", e),
+                    }
+                }
+            },
         }
     }
 

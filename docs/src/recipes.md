@@ -61,11 +61,18 @@ such exists:
 
 ```shell
 $ pkger remove recipes <NAMES>...
+
+# or shorhand
+# or shorhand 'rm' for 'remove' and 'rcp' for 'recipes'
+$ pkger rm rcp <NAMES>...
 ```
 
 To see existing recipes use:
 ```shell
 $ pkger list recipes
+
+# or shorhand 'ls' for 'list' and 'rcp' for 'recipes'
+$ pkger ls rcp <NAMES>...
 
 # for more detailed output
 $ pkger list -v recipes

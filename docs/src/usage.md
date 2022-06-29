@@ -37,6 +37,9 @@ For this to have any effect the recipes have to have image targets defined (more
 #### Build a recipe for all supported images:
 ```shell
 pkger build recipe
+
+# or shorthand 'b' for 'build'
+pkger b recipe
 ```
 
 #### Build all recipes for all supported images

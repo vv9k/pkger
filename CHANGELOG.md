@@ -18,6 +18,7 @@
 - Add `--output-dir` flag to `build` subcommand to override output directory for this build
 - Add `no_color` config option to disable color output globally in configuration
 - Add `check connection` subcommand that verifies the connection to the container runtime
+- Add aliases for most common subcommands like `rm` for `remove`, `ls` for `list`, `b` for `build` and so on
 
 # 0.8.0
 - Dependencies defined for default images like `pkger-deb` or `pkger-rpm` will be used for custom images using the same output target. This means that all images used for building RPM will use dependencies defined for `pkger-rpm` - cleaner recipes ;)

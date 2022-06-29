@@ -18,4 +18,8 @@ $ pkger edit recipe pkger-simple
 To edit the configuration file run:
 ```
 $ pkger edit config
+
+
+# or shorhand 'e' for 'edit'
+$ pkger e <object>
 ```

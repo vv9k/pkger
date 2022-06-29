@@ -35,12 +35,19 @@ such exists:
 
 ```shell
 $ pkger remove images <NAMES>...
+
+# or shorhand 'rm' for 'remove' and 'img' for 'images'
+$ pkger rm img <NAMES>...
 ```
 
 To see existing images use:
 ```shell
 $ pkger list images
 
+# or shorhand 'ls' for 'list' and 'img' for 'images'
+$ pkger ls img
+
 # for more detailed output
 $ pkger list -v images
 ```
+
