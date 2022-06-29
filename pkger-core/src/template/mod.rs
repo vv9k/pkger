@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-mod parser;
+mod lexer;
 
 #[derive(Debug, PartialEq)]
 pub struct Variable<'text> {
@@ -38,7 +38,7 @@ where
     T: AsRef<str>,
     V: AsRef<str>,
 {
-    let mut parser = parser::Parser::new(text.as_ref());
+    let mut parser = lexer::Lexer::new(text.as_ref());
     let mut rendered = String::new();
 
     loop {

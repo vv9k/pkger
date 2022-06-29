@@ -1,11 +1,11 @@
 use crate::template::{Token, Variable};
 
-pub struct Parser<'text> {
+pub struct Lexer<'text> {
     text: &'text str,
     pos: usize,
 }
 
-impl<'text> Parser<'text> {
+impl<'text> Lexer<'text> {
     pub fn new(text: &'text str) -> Self {
         Self { text, pos: 0 }
     }
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn simple_case() {
         let text = "this is my super ${ cool } text.";
-        let mut parser = Parser::new(text);
+        let mut parser = Lexer::new(text);
         assert_eq!(parser.next_token(), Token::Text("this is my super "));
         assert_eq!(
             parser.next_token(),
@@ -151,7 +151,7 @@ mod tests {
         let text = r#"this is a ${much} more ${ complex } case.
         It includes multiple ${lines} and ${ variables }."#;
 
-        let mut parser = Parser::new(text);
+        let mut parser = Lexer::new(text);
         assert_eq!(parser.next_token(), Token::Text("this is a "));
         assert_eq!(
             parser.next_token(),
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn corner_cases() {
         let text = "this ${should be just text$}${123this_is-CorrecT }${}";
-        let mut parser = Parser::new(text);
+        let mut parser = Lexer::new(text);
         assert_eq!(parser.next_token(), Token::Text("this "));
         assert_eq!(parser.next_token(), Token::Text("${should"));
         assert_eq!(parser.next_token(), Token::Text(" be just text"));
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn no_braces() {
         let text = "this is my super $COOL_ $} text.";
-        let mut parser = Parser::new(text);
+        let mut parser = Lexer::new(text);
         assert_eq!(parser.next_token(), Token::Text("this is my super "));
         assert_eq!(
             parser.next_token(),
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn empty_text() {
         let text = "";
-        let mut parser = Parser::new(text);
+        let mut parser = Lexer::new(text);
         assert_eq!(parser.next_token(), Token::EOF);
     }
 }
