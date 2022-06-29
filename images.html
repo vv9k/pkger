@@ -159,9 +159,15 @@ containing an empty <code>Dockerfile</code>.</p>
 <p>There is also a way to remove images. The <code>remove</code> subcommand erases the whole directory of an image if
 such exists:</p>
 <pre><code class="language-shell">$ pkger remove images &lt;NAMES&gt;...
+
+# or shorhand 'rm' for 'remove' and 'img' for 'images'
+$ pkger rm img &lt;NAMES&gt;...
 </code></pre>
 <p>To see existing images use:</p>
 <pre><code class="language-shell">$ pkger list images
+
+# or shorhand 'ls' for 'list' and 'img' for 'images'
+$ pkger ls img
 
 # for more detailed output
 $ pkger list -v images

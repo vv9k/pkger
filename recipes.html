@@ -186,9 +186,16 @@ containing a <code>recipe.yml</code> with the generated YAML recipe:</p>
 <p>There is also a way to remove recipes. The <code>remove</code> subcommand erases the whole directory of a recipe if
 such exists:</p>
 <pre><code class="language-shell">$ pkger remove recipes &lt;NAMES&gt;...
+
+# or shorhand
+# or shorhand 'rm' for 'remove' and 'rcp' for 'recipes'
+$ pkger rm rcp &lt;NAMES&gt;...
 </code></pre>
 <p>To see existing recipes use:</p>
 <pre><code class="language-shell">$ pkger list recipes
+
+# or shorhand 'ls' for 'list' and 'rcp' for 'recipes'
+$ pkger ls rcp &lt;NAMES&gt;...
 
 # for more detailed output
 $ pkger list -v recipes

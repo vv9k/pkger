@@ -253,9 +253,16 @@ containing a <code>recipe.yml</code> with the generated YAML recipe:</p>
 <p>There is also a way to remove recipes. The <code>remove</code> subcommand erases the whole directory of a recipe if
 such exists:</p>
 <pre><code class="language-shell">$ pkger remove recipes &lt;NAMES&gt;...
+
+# or shorhand
+# or shorhand 'rm' for 'remove' and 'rcp' for 'recipes'
+$ pkger rm rcp &lt;NAMES&gt;...
 </code></pre>
 <p>To see existing recipes use:</p>
 <pre><code class="language-shell">$ pkger list recipes
+
+# or shorhand 'ls' for 'list' and 'rcp' for 'recipes'
+$ pkger ls rcp &lt;NAMES&gt;...
 
 # for more detailed output
 $ pkger list -v recipes
@@ -606,9 +613,15 @@ containing an empty <code>Dockerfile</code>.</p>
 <p>There is also a way to remove images. The <code>remove</code> subcommand erases the whole directory of an image if
 such exists:</p>
 <pre><code class="language-shell">$ pkger remove images &lt;NAMES&gt;...
+
+# or shorhand 'rm' for 'remove' and 'img' for 'images'
+$ pkger rm img &lt;NAMES&gt;...
 </code></pre>
 <p>To see existing images use:</p>
 <pre><code class="language-shell">$ pkger list images
+
+# or shorhand 'ls' for 'list' and 'img' for 'images'
+$ pkger ls img
 
 # for more detailed output
 $ pkger list -v images
@@ -640,6 +653,9 @@ $ pkger list -v images
 <h3 id="examples"><a class="header" href="#examples">Examples</a></h3>
 <h4 id="build-a-recipe-for-all-supported-images"><a class="header" href="#build-a-recipe-for-all-supported-images">Build a recipe for all supported images:</a></h4>
 <pre><code class="language-shell">pkger build recipe
+
+# or shorthand 'b' for 'build'
+pkger b recipe
 </code></pre>
 <h4 id="build-all-recipes-for-all-supported-images"><a class="header" href="#build-all-recipes-for-all-supported-images">Build all recipes for all supported images</a></h4>
 <pre><code class="language-shell">pkger build --all
@@ -686,6 +702,10 @@ $ pkger edit recipe pkger-simple
 </code></pre>
 <p>To edit the configuration file run:</p>
 <pre><code>$ pkger edit config
+
+
+# or shorhand 'e' for 'edit'
+$ pkger e &lt;object&gt;
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="shell-completions"><a class="header" href="#shell-completions">Shell completions</a></h1>
 <p><strong>pkger</strong> provides a subcommand to print shell completions. Supported shells are: <em>bash</em>, <em>zsh</em>, <em>fish</em>, <em>powershell</em>, <em>elvish</em>.</p>
