@@ -38,6 +38,11 @@ impl Application {
         let mut tasks = Vec::new();
         let mut recipes_to_build = Vec::new();
 
+        if let Some(output_dir) = opts.output_dir {
+            debug!(logger => "overriding output directory for this build, output_dir = {}", output_dir.display());
+            self.config.output_dir = output_dir;
+        }
+
         if opts.all {
             recipes_to_build = self
                 .recipes

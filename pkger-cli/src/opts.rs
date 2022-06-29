@@ -211,6 +211,10 @@ pub struct BuildOpts {
     /// Disable signing packages. This option only has effect when signing is enabled in
     /// the configuration.
     pub no_sign: bool,
+
+    #[clap(short, long)]
+    /// Override output directory specified in the configuration
+    pub output_dir: Option<PathBuf>
 }
 
 #[derive(Debug, Parser)]
