@@ -468,7 +468,10 @@ impl Application {
                         recipe.metadata.license.cell().left().color(Color::White),
                         recipe.metadata.description.cell().left(),
                     ]),
-                    Err(e) => warning!("failed to load recipe {}, reason: {:?}", name, e),
+                    Err(e) if verbose => {
+                        warning!("failed to load recipe {}, reason: {:?}", name, e)
+                    }
+                    _ => {}
                 }
             }
             let table = table.into_table().with_headers(vec![
@@ -672,13 +675,19 @@ impl Application {
         if let Some(dir) = &self.config.images_dir {
             let mut entries: Vec<_> = fs::read_dir(&dir)
                 .context("failed to read images directory")?
-                .filter(|e| {
-                    if let Err(e) = e {
+                .filter(|e| match e {
+                    Ok(e) => {
+                        if let Ok(ty) = e.file_type() {
+                            ty.is_dir()
+                        } else {
+                            false
+                        }
+                    }
+                    Err(e) if verbose => {
                         warning!("invalid entry, reason: {:?}", e);
                         false
-                    } else {
-                        true
                     }
+                    _ => false,
                 })
                 .map(|e| e.unwrap())
                 .collect();
@@ -691,9 +700,10 @@ impl Application {
                     Ok(out) => {
                         images.push(out);
                     }
-                    Err(e) => {
+                    Err(e) if verbose => {
                         warning!("invalid entry, reason: {:?}", e);
                     }
+                    _ => {}
                 }
             });
 
