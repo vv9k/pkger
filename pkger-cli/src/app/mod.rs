@@ -4,7 +4,7 @@ use crate::completions;
 use crate::config::Configuration;
 use crate::gen;
 use crate::metadata::{self, PackageMetadata};
-use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts, RemoveObject};
+use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts, RemoveObject, CheckObject};
 use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::gpg::GpgKey;
 use pkger_core::image::Image;
@@ -271,6 +271,7 @@ impl Application {
                 completions::print(&opts);
                 Ok(())
             }
+            Command::Check { object } => self.check(object, logger).await,
         }
     }
 
@@ -749,6 +750,33 @@ impl Application {
         }
 
         Ok(())
+    }
+
+    async fn check(&self, object: CheckObject, logger: &mut BoxedCollector) -> Result<()> {
+        match object {
+            CheckObject::Connection => {
+                match self.runtime.connect() {
+                    runtime::RuntimeConnector::Docker(docker) => {
+                        match docker.ping().await.context("failed to ping Docker") {
+                            Ok(_) => {
+                                info!(logger => "connection to runtime OK.");
+                                Ok(())
+                            },
+                            Err(e) => err!("connection failed, reason = {:?}", e)
+                        }
+                    },
+                    runtime::RuntimeConnector::Podman(podman) => {
+                        match podman.ping().await.context("failed to ping Podman") {
+                            Ok(_) => {
+                                info!(logger => "connection to runtime OK.");
+                                Ok(())
+                            },
+                            Err(e) => err!("connection failed, reason = {:?}", e)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     async fn save_images_state(&self, logger: &mut BoxedCollector) {

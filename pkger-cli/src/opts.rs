@@ -103,6 +103,12 @@ pub enum Command {
     Init(InitOpts),
     /// Prints completions for the specified shell
     PrintCompletions(CompletionsOpts),
+    /// Run various checks to verify health of the setup
+    Check {
+        #[clap(subcommand)]
+        /// An object to check
+        object: CheckObject
+    }
 }
 
 #[derive(Debug, Parser)]
@@ -125,6 +131,12 @@ pub struct InitOpts {
     #[clap(long)]
     /// The value of the `Name` field of the GPG key `gpg_key`.
     pub gpg_name: Option<String>,
+}
+
+#[derive(Debug, Parser)]
+pub enum CheckObject {
+    /// Verify the connection to the container runtime daemon.
+    Connection,
 }
 
 #[derive(Debug, Parser)]
