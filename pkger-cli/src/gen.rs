@@ -89,7 +89,7 @@ pub fn recipe(opts: Box<GenRecipeOpts>, logger: &mut BoxedCollector) -> RecipeRe
             .unwrap_or_default(),
         description: opts.description.or_else(|| Some("missing".to_string())),
         license: opts.license.or_else(|| Some("missing".to_string())),
-        all_images: false,
+        all_images: None,
         images: vec![],
 
         maintainer: opts.maintainer,

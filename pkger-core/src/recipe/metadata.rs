@@ -79,9 +79,9 @@ pub struct MetadataRep {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub license: Option<String>,
 
-    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// If specified all images will apply to this metadata and `images` will be ignored.
-    pub all_images: bool,
+    pub all_images: Option<bool>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub images: Vec<String>,
@@ -410,7 +410,7 @@ impl TryFrom<MetadataRep> for Metadata {
             license: rep
                 .license
                 .ok_or_else(|| Error::msg("expected recipe license"))?,
-            all_images: rep.all_images,
+            all_images: rep.all_images.unwrap_or_default(),
             images: rep.images,
 
             arch: rep
