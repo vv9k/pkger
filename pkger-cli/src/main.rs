@@ -120,13 +120,19 @@ async fn main() -> Result<()> {
     }
     let config = result.unwrap();
 
-    let logger_config = if let Some(p) = &opts.log_dir {
+    let mut logger_config = if let Some(p) = &opts.log_dir {
         log::Config::file(p.join(format!("pkger-{}.log", timestamp)))
     } else if let Some(p) = &config.log_dir {
         log::Config::file(p.join(format!("pkger-{}.log", timestamp)))
     } else {
         log::Config::stdout()
     };
+    if opts.no_color {
+        logger_config = logger_config.no_color(true);
+        if let Ok(mut log) = log::GLOBAL_OUTPUT_COLLECTOR.try_write() {
+            log.set_override(false);
+        }
+    }
 
     let mut logger = match logger_config
         .as_collector()

@@ -7,6 +7,8 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
+pub use colored::control;
+
 pub type BoxedCollector = Box<dyn OutputCollector + Send + Sync>;
 
 lazy_static! {
@@ -33,12 +35,14 @@ lazy_static! {
 pub struct Config {
     location: OutputLocation,
     level: Level,
+    no_color: bool,
 }
 impl Config {
     pub fn file<P: AsRef<Path>>(path: P) -> Self {
         Self {
             location: OutputLocation::File(path.as_ref().to_path_buf()),
             level: Level::default(),
+            no_color: true,
         }
     }
 
@@ -46,7 +50,13 @@ impl Config {
         Self {
             location: OutputLocation::Stdout,
             level: Level::default(),
+            no_color: false,
         }
+    }
+
+    pub fn no_color(mut self, no_color: bool) -> Self {
+        self.no_color = no_color;
+        self
     }
 
     pub fn level(mut self, level: Level) -> Self {
@@ -56,8 +66,16 @@ impl Config {
 
     pub fn as_collector(self) -> std::io::Result<BoxedCollector> {
         match self.location {
-            OutputLocation::File(path) => Ok(Box::new(Logger::file(path, Some(self.level))?)),
-            OutputLocation::Stdout => Ok(Box::new(Logger::stdout(Some(self.level)))),
+            OutputLocation::File(path) => {
+                let mut logger = Logger::file(path, Some(self.level))?;
+                logger.set_no_color(self.no_color);
+                Ok(Box::new(logger))
+            }
+            OutputLocation::Stdout => {
+                let mut logger = Logger::stdout(Some(self.level));
+                logger.set_no_color(self.no_color);
+                Ok(Box::new(logger))
+            }
         }
     }
 }
@@ -123,7 +141,7 @@ impl<'args> Arguments<'args> {
     }
 }
 
-pub trait OutputCollector: Writer + Leveled + Scoped {}
+pub trait OutputCollector: Writer + Leveled + Scoped + Colored {}
 
 pub trait Writer {
     fn write_out(&mut self, args: Arguments<'_>) -> io::Result<()>;
@@ -138,46 +156,54 @@ pub trait Scoped {
     fn pop_scope(&mut self);
 }
 
+pub trait Colored {
+    fn set_override(&mut self, should_color: bool);
+}
+
 pub struct Logger<'l> {
     level: Level,
     handle: Box<dyn std::io::Write + Send + Sync + 'l>,
     scopes: VecDeque<String>,
     timestamp: bool,
-    should_colorize: bool,
+    no_color: bool,
 }
 
 impl<'l> Logger<'l> {
     pub fn new(
         handle: impl std::io::Write + Send + Sync + 'l,
         level: Option<Level>,
-        colorize: bool,
+        no_color: bool,
     ) -> Self {
         Self {
             level: level.unwrap_or_default(),
             handle: Box::new(handle),
             scopes: VecDeque::new(),
             timestamp: true,
-            should_colorize: colorize,
+            no_color,
         }
     }
 
     pub fn stdout(level: Option<Level>) -> Self {
-        Self::new(std::io::stdout(), level, true)
+        Self::new(std::io::stdout(), level, false)
     }
 
     pub fn file(path: impl AsRef<Path>, level: Option<Level>) -> io::Result<Self> {
         Ok(Self::new(
             File::open(path.as_ref()).or_else(|_| File::create(path.as_ref()))?,
             level,
-            false,
+            true,
         ))
+    }
+
+    pub fn set_no_color(&mut self, no_color: bool) {
+        self.no_color = no_color;
     }
 
     fn verify_should_colorize(&self) {
         let control = &colored::control::SHOULD_COLORIZE;
-        if control.should_colorize() && !self.should_colorize {
+        if control.should_colorize() && self.no_color {
             control.set_override(false);
-        } else if !control.should_colorize() && self.should_colorize {
+        } else if !control.should_colorize() && !self.no_color {
             control.set_override(true);
         }
     }
@@ -234,6 +260,12 @@ impl<'l> Scoped for Logger<'l> {
 
     fn pop_scope(&mut self) {
         self.scopes.pop_back();
+    }
+}
+
+impl<'l> Colored for Logger<'l> {
+    fn set_override(&mut self, should_color: bool) {
+        self.no_color = !should_color;
     }
 }
 

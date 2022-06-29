@@ -43,6 +43,9 @@ pub struct Opts {
     #[clap(short, long)]
     /// If provided pkger will try to use podman instead of docker as a container runtime.
     pub podman: bool,
+
+    #[clap(long)]
+    pub no_color: bool,
 }
 
 impl Opts {

@@ -238,6 +238,7 @@ impl Application {
         } else {
             log::Config::stdout()
         }
+        .no_color(output_config.no_color)
         .as_collector()
         .context("initializing output collector")?;
 

@@ -162,6 +162,7 @@ impl std::future::Future for IsRunning {
 pub struct AppOutputConfig {
     pub level: Level,
     pub log_dir: Option<PathBuf>,
+    pub no_color: bool,
 }
 
 pub struct Application {
@@ -242,6 +243,7 @@ impl Application {
                         Level::Info
                     },
                     log_dir: opts.log_dir,
+                    no_color: opts.no_color,
                 };
 
                 self.process_tasks(tasks, output_config, logger).await?;
