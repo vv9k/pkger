@@ -53,11 +53,14 @@ impl TryFrom<YamlValue> for Versions {
     fn try_from(value: YamlValue) -> Result<Self, Self::Error> {
         match value {
             YamlValue::String(version) => Ok(Self(vec![version])),
+            YamlValue::Number(version) => Ok(Self(vec![version.to_string()])),
             YamlValue::Sequence(versions) => {
                 let mut versions_parsed = vec![];
                 for version in versions {
-                    if version.is_string() {
-                        versions_parsed.push(version.as_str().unwrap().to_string());
+                    match version {
+                        YamlValue::String(version) => versions_parsed.push(version),
+                        YamlValue::Number(version) => versions_parsed.push(version.to_string()),
+                        _ => {}
                     }
                 }
                 Ok(Self(versions_parsed))
