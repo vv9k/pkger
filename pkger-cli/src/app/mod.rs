@@ -3,7 +3,7 @@ mod build;
 use crate::completions;
 use crate::config::Configuration;
 use crate::gen;
-use crate::metadata::PackageMetadata;
+use crate::metadata::{self, PackageMetadata};
 use crate::opts::{Command, CopyObject, EditObject, ListObject, NewObject, Opts, RemoveObject};
 use crate::table::{Cell, IntoCell, IntoTable};
 use pkger_core::gpg::GpgKey;
@@ -494,9 +494,12 @@ impl Application {
     fn list_packages(&self, images_filter: Option<Vec<String>>, verbose: bool) -> Result<()> {
         let mut table = vec![];
         let images = fs::read_dir(&self.config.output_dir)?.filter_map(|e| match e {
-            Ok(e) => Some(e.path()),
+            Ok(e) if e.file_type().map(|ty| ty.is_dir()).unwrap_or_default() => Some(e.path()),
+            Ok(_) => None, // Skip non directory entries
             Err(e) => {
-                warning!("invalid entry, reason: {:?}", e);
+                if verbose {
+                    warning!("invalid entry, reason: {:?}", e);
+                }
                 None
             }
         });
@@ -528,15 +531,21 @@ impl Application {
             match fs::read_dir(&image) {
                 Ok(packages) => {
                     let mut packages: Vec<_> = packages
-                        .filter(|p| {
-                            if let Err(e) = p {
+                        .filter(|p| match p {
+                            Ok(p) => {
+                                if let Some(extension) = p.path().extension() {
+                                    metadata::SUPPORTED_EXTENSIONS
+                                        .contains(&extension.to_string_lossy().as_ref())
+                                } else {
+                                    false
+                                }
+                            }
+                            Err(e) => {
                                 error!(
                                     "failed to list package for image {}, reason {:?}",
                                     image_name, e
                                 );
                                 false
-                            } else {
-                                true
                             }
                         })
                         .map(|p| p.unwrap())
@@ -554,46 +563,54 @@ impl Application {
 
                     for package in packages {
                         let path = package.path();
-                        let metadata = PackageMetadata::try_from_dir_entry(&package)
-                            .context("failed to parse package metadata")?;
-                        if verbose {
-                            let version = if let Some(release) = metadata.release() {
-                                format!("{}-{}", metadata.version(), release)
-                            } else {
-                                metadata.version().to_string()
-                            };
-                            let timestamp = metadata
-                                .created()
-                                .map(|c| {
-                                    system_time_to_date_time(c)
-                                        .to_rfc3339_opts(SecondsFormat::Secs, true)
-                                })
-                                .unwrap_or_default();
+                        match PackageMetadata::try_from_dir_entry(&package)
+                            .context("failed to parse package metadata")
+                        {
+                            Ok(metadata) => {
+                                if verbose {
+                                    let version = if let Some(release) = metadata.release() {
+                                        format!("{}-{}", metadata.version(), release)
+                                    } else {
+                                        metadata.version().to_string()
+                                    };
+                                    let timestamp = metadata
+                                        .created()
+                                        .map(|c| {
+                                            system_time_to_date_time(c)
+                                                .to_rfc3339_opts(SecondsFormat::Secs, true)
+                                        })
+                                        .unwrap_or_default();
 
-                            table.push(vec![
-                                "".cell(),
-                                metadata.name().cell().left().color(Color::BrightBlue),
-                                metadata.package_type().as_ref().cell(),
-                                metadata
-                                    .arch()
-                                    .as_ref()
-                                    .map(|arch| arch.as_ref())
-                                    .unwrap_or_default()
-                                    .cell()
-                                    .color(Color::White),
-                                version.cell().color(Color::BrightYellow),
-                                timestamp.cell().left().color(Color::White),
-                            ]);
-                        } else {
-                            table.push(vec![
-                                "".cell(),
-                                path.file_name()
-                                    .map(|s| s.to_string_lossy().to_string())
-                                    .unwrap_or_default()
-                                    .cell()
-                                    .left()
-                                    .color(Color::BrightBlue),
-                            ]);
+                                    table.push(vec![
+                                        "".cell(),
+                                        metadata.name().cell().left().color(Color::BrightBlue),
+                                        metadata.package_type().as_ref().cell(),
+                                        metadata
+                                            .arch()
+                                            .as_ref()
+                                            .map(|arch| arch.as_ref())
+                                            .unwrap_or_default()
+                                            .cell()
+                                            .color(Color::White),
+                                        version.cell().color(Color::BrightYellow),
+                                        timestamp.cell().left().color(Color::White),
+                                    ]);
+                                } else {
+                                    table.push(vec![
+                                        "".cell(),
+                                        path.file_name()
+                                            .map(|s| s.to_string_lossy().to_string())
+                                            .unwrap_or_default()
+                                            .cell()
+                                            .left()
+                                            .color(Color::BrightBlue),
+                                    ]);
+                                }
+                            }
+                            Err(e) if verbose => {
+                                warning!("listing package {} {:?}", path.display(), e)
+                            }
+                            _ => {}
                         }
                     }
                 }

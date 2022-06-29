@@ -8,14 +8,16 @@ use std::fs::{DirEntry, Metadata};
 use std::time::SystemTime;
 
 lazy_static! {
-    static ref DEB_RE: Regex = Regex::new(r"([\w.-]+?)-(\d+[.]\d+[.]\d+)[.]([\w_-]+)").unwrap();
-    static ref RPM_RE: Regex =
-        Regex::new(r"([\w_.-]+?)-(\d+[.]\d+[.]\d+)-(\d+)[.]([\w_-]+)").unwrap();
-    static ref PKG_RE: Regex =
-        Regex::new(r"([\w_.+@-]+?)-(\d+[.]\d+[.]\d+)-(\d+)-([\w_-]+)").unwrap();
+    static ref DEB_RE: Regex = Regex::new(r"([\w.+-]+?)-([\d.]+)-(\d+)[.]([\w_-]+)").unwrap();
+    static ref RPM_RE: Regex = Regex::new(r"([\w_.+-]+?)-([\d.]+)-(\d+)[.]([\w_-]+)").unwrap();
+    static ref PKG_RE: Regex = Regex::new(r"([\w_.+@-]+?)-([\d.]+)-(\d+)-([\w_-]+)").unwrap();
     static ref GZIP_RE: Regex = Regex::new(r"([\S]+?)-(\d+[.]\d+[.]\d+)").unwrap();
     static ref APK_RE: Regex = Regex::new(r"([\w_.+@-]+?)-(\d+[.]\d+[.]\d+)-r(\d+)").unwrap();
 }
+
+pub const SUPPORTED_EXTENSIONS: &[&str] = &[
+    "deb", "src.deb", "rpm", "src.rpm", "srpm", "pkg", "apk", "gzip", "tar.gz", "tgz",
+];
 
 #[cfg(unix)]
 fn size(md: &Metadata) -> u64 {
@@ -103,8 +105,8 @@ impl PackageMetadata {
                 .map(|captures| PackageMetadata {
                     name: captures[1].to_string(),
                     version: captures[2].to_string(),
-                    release: None,
-                    arch: BuildArch::try_from(&captures[3]).ok(),
+                    release: Some(captures[3].to_string()),
+                    arch: BuildArch::try_from(&captures[4]).ok(),
                     package_type,
                     created,
                     size,
@@ -169,13 +171,13 @@ mod tests {
 
     #[test]
     fn parses_deb() {
-        let path = "test-instantclient-19.10-basic-1.0.0.amd64";
+        let path = "test-instantclient-19.10-basic-1.0.0-1.amd64";
 
         assert_eq!(
             PackageMetadata {
                 name: "test-instantclient-19.10-basic".to_string(),
                 version: "1.0.0".to_string(),
-                release: None,
+                release: Some(1.to_string()),
                 arch: Some(BuildArch::x86_64),
                 package_type: BuildTarget::Deb,
                 created: None,

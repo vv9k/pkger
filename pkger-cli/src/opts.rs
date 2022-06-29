@@ -214,7 +214,7 @@ pub struct BuildOpts {
 
     #[clap(short, long)]
     /// Override output directory specified in the configuration
-    pub output_dir: Option<PathBuf>
+    pub output_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
