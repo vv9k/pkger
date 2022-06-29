@@ -220,14 +220,20 @@ mod test {
     use super::*;
     use std::env;
 
+    macro_rules! cleanup {
+        () => {
+            env::remove_var(HTTPS_PROXY_ENV);
+            env::remove_var(HTTP_PROXY_ENV);
+            env::remove_var(NO_PROXY_ENV);
+            env::remove_var(HTTPS_PROXY_ENV.to_ascii_uppercase());
+            env::remove_var(HTTP_PROXY_ENV.to_ascii_uppercase());
+            env::remove_var(NO_PROXY_ENV.to_ascii_uppercase());
+        };
+    }
+
     #[test]
     fn parses_proxy_from_env() {
-        env::remove_var(HTTPS_PROXY_ENV);
-        env::remove_var(HTTP_PROXY_ENV);
-        env::remove_var(NO_PROXY_ENV);
-        env::remove_var(HTTPS_PROXY_ENV.to_ascii_uppercase());
-        env::remove_var(HTTP_PROXY_ENV.to_ascii_uppercase());
-        env::remove_var(NO_PROXY_ENV.to_ascii_uppercase());
+        cleanup!();
         env::set_var(HTTPS_PROXY_ENV, "http://proxy.test.com:80");
         env::set_var(NO_PROXY_ENV, "10.0.0.0/8,.test.com");
 
@@ -277,16 +283,12 @@ mod test {
                 NoProxyOption::Domain("test.com".into()),
             ]
         );
+        cleanup!();
     }
 
     #[test]
     fn should_proxy() {
-        env::remove_var(HTTPS_PROXY_ENV);
-        env::remove_var(HTTP_PROXY_ENV);
-        env::remove_var(NO_PROXY_ENV);
-        env::remove_var(HTTPS_PROXY_ENV.to_ascii_uppercase());
-        env::remove_var(HTTP_PROXY_ENV.to_ascii_uppercase());
-        env::remove_var(NO_PROXY_ENV.to_ascii_uppercase());
+        cleanup!();
         env::set_var(
             HTTPS_PROXY_ENV.to_ascii_uppercase(),
             "http://proxy.test.com:80",
@@ -371,5 +373,6 @@ mod test {
             ShouldProxyResult::Http,
             config.should_proxy("http://some.more.other.com")
         );
+        cleanup!();
     }
 }
