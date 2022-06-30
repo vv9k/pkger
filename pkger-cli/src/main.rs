@@ -6,8 +6,8 @@ use std::process;
 use std::time::SystemTime;
 
 use app::Application;
-use config::Configuration;
 use opts::Opts;
+use pkger_core::config::Configuration;
 use pkger_core::log::{self, error};
 use pkger_core::{ErrContext, Error, Result};
 

@@ -7,6 +7,7 @@ extern crate lazy_static;
 pub mod archive;
 pub mod build;
 pub mod container;
+pub mod config;
 pub mod deb;
 pub mod gpg;
 pub mod image;
