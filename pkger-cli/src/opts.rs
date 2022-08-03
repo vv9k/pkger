@@ -8,7 +8,6 @@ pub const APP_NAME: &str = "pkger";
 #[clap(
     name = APP_NAME,
     version = "0.9.0-dev",
-    author = "Wojciech Kępka <wojciech@wkepka.dev>",
     about = "Creates RPM, DEB and other packages using Docker"
 )]
 pub struct Opts {
