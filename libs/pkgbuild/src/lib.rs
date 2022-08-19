@@ -1,9 +1,9 @@
 use pkgspec::SpecStruct;
+use pkgspec_core::{Error, Manifest, Result};
 use std::fs;
-use std::io;
 use std::path::Path;
 
-#[derive(Clone, Debug, Default, PartialEq, SpecStruct)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, SpecStruct)]
 pub struct PkgBuild {
     #[skip]
     /// Name of this packages or names if split packages
@@ -86,29 +86,27 @@ pub struct PkgBuild {
     check_func: Option<String>,
 }
 
-impl PkgBuild {
+impl Manifest for PkgBuild {
     /// Renders this PKGBUILD and saves it to the given path
-    pub fn save_to<P>(&self, path: P) -> io::Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        fs::write(path, self.render())
+    fn save_to(&self, path: impl AsRef<Path>) -> Result<()> {
+        fs::write(path, self.render()?).map_err(Error::from)
     }
 
     /// Renders this PKGBUILD
-    pub fn render(&self) -> String {
+    fn render(&self) -> Result<String> {
+        use std::fmt::Write;
         let mut pkg = String::new();
 
         macro_rules! push_field {
             ($field:ident) => {
-                pkg.push_str(&format!("{}={}\n", stringify!($field), &self.$field));
+                write!(pkg, "{}={}\n", stringify!($field), &self.$field)?;
             };
         }
 
         macro_rules! push_if_some {
             ($field:ident) => {
                 if let Some(value) = &self.$field {
-                    pkg.push_str(&format!("{}={}\n", stringify!($field), value));
+                    write!(pkg, "{}={}\n", stringify!($field), value)?;
                 }
             };
         }
@@ -121,14 +119,14 @@ impl PkgBuild {
                         .iter()
                         .map(|elem| format!("'{}'", elem))
                         .collect();
-                    pkg.push_str(&format!("{}=({})\n", stringify!($field), elems.join(" ")));
+                    write!(pkg, "{}=({})\n", stringify!($field), elems.join(" "))?;
                 }
             };
         }
 
         macro_rules! push_func {
             ($field:ident) => {
-                pkg.push_str(&format!("\n{}() {{\n{}\n}}\n", stringify!($field), $field));
+                write!(pkg, "\n{}() {{\n{}\n}}\n", stringify!($field), $field)?;
             };
         }
 
@@ -137,7 +135,7 @@ impl PkgBuild {
         push_field!(pkgrel);
         push_array!(arch);
         if let Some(value) = &self.pkgdesc {
-            pkg.push_str(&format!("pkgdesc='{}'\n", value));
+            writeln!(pkg, "pkgdesc='{}'", value)?;
         }
         push_if_some!(epoch);
         push_if_some!(url);
@@ -177,7 +175,7 @@ impl PkgBuild {
             push_func!(check);
         }
 
-        pkg
+        Ok(pkg)
     }
 }
 
@@ -280,6 +278,6 @@ check() {
 }
 "#;
 
-        assert_eq!(expect, got);
+        assert_eq!(expect, got.unwrap());
     }
 }

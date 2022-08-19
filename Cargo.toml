@@ -4,6 +4,7 @@ members = [
     "pkger-cli",
     "pkger-core",
     "libs/pkgspec",
+    "libs/pkgspec-core",
     "libs/rpmspec",
     "libs/debbuild",
     "libs/pkgbuild",

@@ -1,9 +1,9 @@
 use pkgspec::SpecStruct;
+use pkgspec_core::{Error, Manifest, Result};
 use std::fs;
-use std::io;
 use std::path::Path;
 
-#[derive(Clone, Debug, Default, PartialEq, SpecStruct)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, SpecStruct)]
 pub struct ApkBuild {
     #[skip]
     /// Name of this packages or names if split packages
@@ -54,25 +54,23 @@ pub struct ApkBuild {
     package_func: Option<String>,
 }
 
-impl ApkBuild {
+impl Manifest for ApkBuild {
     /// Renders this APKBUILD and saves it to the given path
-    pub fn save_to<P>(&self, path: P) -> io::Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        fs::write(path, self.render())
+    fn save_to(&self, path: impl AsRef<Path>) -> Result<()> {
+        fs::write(path, self.render()?).map_err(Error::from)
     }
 
     /// Renders this APKBUILD
-    pub fn render(&self) -> String {
+    fn render(&self) -> Result<String> {
+        use std::fmt::Write;
         let mut pkg = String::new();
 
         macro_rules! format_value {
             ($key:expr, $value:ident) => {
                 if $value.contains(|c: char| c.is_ascii_whitespace() || c == '$') {
-                    pkg.push_str(&format!("{}=\"{}\"\n", $key, &$value));
+                    write!(pkg, "{}=\"{}\"\n", $key, &$value)?;
                 } else {
-                    pkg.push_str(&format!("{}={}\n", $key, &$value));
+                    write!(pkg, "{}={}\n", $key, &$value)?;
                 }
             };
         }
@@ -95,18 +93,19 @@ impl ApkBuild {
         macro_rules! push_array {
             ($field:ident) => {
                 if !self.$field.is_empty() {
-                    pkg.push_str(&format!(
+                    write!(
+                        pkg,
                         "{}=\"{}\"\n",
                         stringify!($field),
                         self.$field.join(" ")
-                    ));
+                    )?;
                 }
             };
         }
 
         macro_rules! push_func {
             ($field:ident) => {
-                pkg.push_str(&format!("\n{}() {{\n{}\n}}\n", stringify!($field), $field));
+                write!(pkg, "\n{}() {{\n{}\n}}\n", stringify!($field), $field)?;
             };
         }
 
@@ -144,7 +143,7 @@ impl ApkBuild {
             push_func!(package);
         }
 
-        pkg
+        Ok(pkg)
     }
 }
 
@@ -187,6 +186,6 @@ check() {
 }
 "#;
 
-        assert_eq!(expect, got);
+        assert_eq!(expect, got.unwrap());
     }
 }

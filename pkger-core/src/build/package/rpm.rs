@@ -1,6 +1,6 @@
 use crate::build::container::Context;
 use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
-use crate::build::package::Package;
+use crate::build::package::{Manifest, Package};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
@@ -111,7 +111,8 @@ impl Package for Rpm {
                 &ctx.build.build_version,
                 logger,
             )
-            .render();
+            .render()
+            .context("rendering apkbuild failed")?;
 
         let spec_file = [&recipe.metadata.name, ".spec"].join("");
         debug!(logger => "{}", spec);

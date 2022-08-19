@@ -1,6 +1,6 @@
 use pkgspec::SpecStruct;
+use pkgspec_core::{Error, Manifest, Result};
 use std::fs;
-use std::io;
 use std::path::Path;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, SpecStruct)]
@@ -115,15 +115,12 @@ pub struct RpmSpec {
     auto_req_prov: Option<bool>,
 }
 
-impl RpmSpec {
-    pub fn save_to<P>(&self, path: P) -> io::Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        fs::write(path, self.render())
+impl Manifest for RpmSpec {
+    fn save_to(&self, path: impl AsRef<Path>) -> Result<()> {
+        fs::write(path, self.render()?).map_err(Error::from)
     }
 
-    pub fn render(&self) -> String {
+    fn render(&self) -> Result<String> {
         use std::fmt::Write;
         let summary = if let Some(summary) = &self.summary {
             summary.as_str()
@@ -205,7 +202,7 @@ impl RpmSpec {
             spec.push_str(enable);
             spec.push('\n');
         }
-        spec.push_str(&format!("\n%description\n{}\n\n", self.description));
+        write!(spec, "\n%description\n{}\n\n", self.description)?;
         if_some_script!("prep", prep_script);
         if_some_script!("build", build_script);
         if_some_script!("install", install_script);
@@ -231,7 +228,7 @@ impl RpmSpec {
             spec.push('\n');
         }
 
-        spec
+        Ok(spec)
     }
 }
 
@@ -427,7 +424,7 @@ true
 
 %changelog
 "#;
-        let got = spec.render();
+        let got = spec.render().unwrap();
         assert_eq!(expect_rendered, got);
     }
 }

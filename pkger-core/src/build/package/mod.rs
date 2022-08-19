@@ -4,6 +4,8 @@ use crate::log::BoxedCollector;
 use crate::recipe::BuildTarget;
 use crate::Result;
 
+use pkgspec_core::Manifest;
+
 pub mod apk;
 pub mod deb;
 pub mod gzip;

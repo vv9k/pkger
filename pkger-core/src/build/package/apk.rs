@@ -1,5 +1,5 @@
 use crate::build::container::Context;
-use crate::build::package::Package;
+use crate::build::package::{Manifest, Package};
 use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
@@ -78,7 +78,8 @@ impl Package for Apk {
                 &ctx.build.build_version,
                 logger,
             )
-            .render();
+            .render()
+            .context("rendering apkbuild failed")?;
         debug!(logger => "{}", apkbuild);
 
         ctx.container

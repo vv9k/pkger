@@ -1,9 +1,9 @@
 use pkgspec::SpecStruct;
+use pkgspec_core::{Error, Manifest, Result};
 use std::fs;
-use std::io;
 use std::path::Path;
 
-#[derive(Clone, Debug, Default, PartialEq, SpecStruct)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, SpecStruct)]
 pub struct BinaryDebControl {
     /// The name of the binary package.
     package: String,
@@ -52,15 +52,13 @@ pub struct BinaryDebControl {
     enchances: Vec<String>,
 }
 
-impl BinaryDebControl {
-    pub fn save_to<P>(&self, path: P) -> io::Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        fs::write(path, self.render())
+impl Manifest for BinaryDebControl {
+    fn save_to(&self, path: impl AsRef<Path>) -> Result<()> {
+        fs::write(path, self.render()?).map_err(Error::from)
     }
 
-    pub fn render(&self) -> String {
+    fn render(&self) -> Result<String> {
+        use std::fmt::Write;
         let revision = if let Some(revision) = &self.revision {
             revision
         } else {
@@ -89,7 +87,7 @@ Essential:      {}
         macro_rules! if_some_push {
             ($field:ident, $fmt:expr) => {
                 if let Some($field) = &self.$field {
-                    control.push_str(&format!($fmt, $field));
+                    write!(control, $fmt, $field)?;
                 }
             };
         }
@@ -106,7 +104,7 @@ Essential:      {}
                         }
                     }
 
-                    control.push_str(&format!($fmt, entries));
+                    write!(control, $fmt, entries)?;
                 }
             };
         }
@@ -131,7 +129,7 @@ Essential:      {}
         if_not_empty_entries!(enchances,   "Enchances:      {}\n");
         };
 
-        control
+        Ok(control)
     }
 }
 
@@ -208,10 +206,10 @@ Enchances:      rustc, cargo
             .add_enchances_entries(vec!["rustc", "cargo"])
             .add_provides_entries(vec!["debcontrol"])
             .build();
-        println!("{}", got.render());
+        println!("{}", got.render().unwrap());
 
         assert_eq!(expect, got);
-        assert_eq!(OUT, got.render());
+        assert_eq!(OUT, got.render().unwrap());
     }
 
     #[test]
@@ -229,6 +227,6 @@ Essential:      no
             .epoch("42")
             .build()
             .render();
-        assert_eq!(EXPECT, got);
+        assert_eq!(EXPECT, got.unwrap());
     }
 }

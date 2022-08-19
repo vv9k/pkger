@@ -9,3 +9,4 @@ license = "MIT"
 [dependencies]
 paste = "1"
 pkgspec = { path = "../pkgspec" }
+pkgspec-core = { path = "../pkgspec-core" }
