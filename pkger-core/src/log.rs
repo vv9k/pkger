@@ -275,62 +275,62 @@ impl<'l> OutputCollector for Logger<'l> {}
 macro_rules! write_out {
     (-> $dst:expr, $($arg:tt)*) =>
     {{
-         use crate::log::{Arguments};
+         use $crate::log::{Arguments};
          $dst.write_out(Arguments::new(format_args!($($arg)*)))
      }};
     (error -> $dst:expr, $($arg:tt)*) =>
     {{
-         use crate::log::{Arguments, Level};
+         use $crate::log::{Arguments, Level};
          $dst.write_out(Arguments::new(format_args!($($arg)*)).level(Level::Error))
      }};
     (info -> $dst:expr, $($arg:tt)*) =>
     {{
-         use crate::log::{Arguments, Level};
+         use $crate::log::{Arguments, Level};
          $dst.write_out(Arguments::new(format_args!($($arg)*)).level(Level::Info))
      }};
     (debug -> $dst:expr, $($arg:tt)*) =>
     {{
-         use crate::log::{Arguments, Level};
+         use $crate::log::{Arguments, Level};
          $dst.write_out(Arguments::new(format_args!($($arg)*)).level(Level::Debug))
      }};
     (warn -> $dst:expr, $($arg:tt)*) =>
     {{
-         use crate::log::{Arguments, Level};
+         use $crate::log::{Arguments, Level};
          $dst.write_out(Arguments::new(format_args!($($arg)*)).level(Level::Warn))
      }};
     (trace -> $dst:expr, $($arg:tt)*) =>
     {{
-         use crate::log::{Arguments, Level};
+         use $crate::log::{Arguments, Level};
          $dst.write_out(Arguments::new(format_args!($($arg)*)).level(Level::Trace))
      }};
     ($($arg:tt)*) =>
     {{
-         use crate::log::GLOBAL_OUTPUT_COLLECTOR;
+         use $crate::log::GLOBAL_OUTPUT_COLLECTOR;
          write_out!(-> GLOBAL_OUTPUT_COLLECTOR, $($arg)*)
      }};
     (error $($arg:tt)*) =>
     {{
-         use crate::log::GLOBAL_OUTPUT_COLLECTOR;
+         use $crate::log::GLOBAL_OUTPUT_COLLECTOR;
          write_out!(error -> GLOBAL_OUTPUT_COLLECTOR, $($arg)*)
      }};
     (info $($arg:tt)*) =>
     {{
-         use crate::log::GLOBAL_OUTPUT_COLLECTOR;
+         use $crate::log::GLOBAL_OUTPUT_COLLECTOR;
          write_out!(info -> GLOBAL_OUTPUT_COLLECTOR, $($arg)*)
      }};
     (debug $($arg:tt)*) =>
     {{
-         use crate::log::GLOBAL_OUTPUT_COLLECTOR;
+         use $crate::log::GLOBAL_OUTPUT_COLLECTOR;
          write_out!(debug -> GLOBAL_OUTPUT_COLLECTOR, $($arg)*)
      }};
     (warn $($arg:tt)*) =>
     {{
-         use crate::log::GLOBAL_OUTPUT_COLLECTOR;
+         use $crate::log::GLOBAL_OUTPUT_COLLECTOR;
          write_out!(warn -> GLOBAL_OUTPUT_COLLECTOR, $($arg)*)
      }};
     (trace $($arg:tt)*) =>
     {{
-         use crate::log::GLOBAL_OUTPUT_COLLECTOR;
+         use $crate::log::GLOBAL_OUTPUT_COLLECTOR;
          if let Ok(mut collector) = GLOBAL_OUTPUT_COLLECTOR.try_write() {
              write_out!(trace -> collector, $($arg)*)
          }
@@ -340,13 +340,13 @@ macro_rules! write_out {
 #[macro_export]
 macro_rules! error {
     ($dst:expr => $($arg:tt)*) => {{
-        use crate::log::write_out;
+        use $crate::log::write_out;
         if let Err(e) = write_out!(error -> $dst, $($arg)*) {
             eprintln!("logging failed - {}", e);
         }
     }};
     ($($arg:tt)*) => {{
-        use crate::log::{error, GLOBAL_OUTPUT_COLLECTOR};
+        use $crate::log::{error, GLOBAL_OUTPUT_COLLECTOR};
         if let Ok(mut collector) = GLOBAL_OUTPUT_COLLECTOR.try_write() {
             error!(collector => $($arg)*);
         }
@@ -355,13 +355,13 @@ macro_rules! error {
 #[macro_export]
 macro_rules! info {
     ($dst:expr => $($arg:tt)*) => {{
-        use crate::log::write_out;
+        use $crate::log::write_out;
         if let Err(e) = write_out!(info -> $dst, $($arg)*) {
             eprintln!("logging failed - {}", e);
         }
     }};
     ($($arg:tt)*) => {{
-        use crate::log::{info, GLOBAL_OUTPUT_COLLECTOR};
+        use $crate::log::{info, GLOBAL_OUTPUT_COLLECTOR};
         if let Ok(mut collector) = GLOBAL_OUTPUT_COLLECTOR.try_write() {
             info!(collector => $($arg)*);
         }
@@ -370,13 +370,13 @@ macro_rules! info {
 #[macro_export]
 macro_rules! debug {
     ($dst:expr => $($arg:tt)*) => {{
-        use crate::log::write_out;
+        use $crate::log::write_out;
         if let Err(e) = write_out!(debug -> $dst, $($arg)*) {
             eprintln!("logging failed - {}", e);
         }
     }};
     ($($arg:tt)*) => {{
-        use crate::log::{debug, GLOBAL_OUTPUT_COLLECTOR};
+        use $crate::log::{debug, GLOBAL_OUTPUT_COLLECTOR};
         if let Ok(mut collector) = GLOBAL_OUTPUT_COLLECTOR.try_write() {
             debug!(collector => $($arg)*);
         }
@@ -385,13 +385,13 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! warning {
     ($dst:expr => $($arg:tt)*) => {{
-        use crate::log::write_out;
+        use $crate::log::write_out;
         if let Err(e) = write_out!(warn -> $dst, $($arg)*) {
             eprintln!("logging failed - {}", e);
         }
     }};
     ($($arg:tt)*) => {{
-        use crate::log::{warning, GLOBAL_OUTPUT_COLLECTOR};
+        use $crate::log::{warning, GLOBAL_OUTPUT_COLLECTOR};
         if let Ok(mut collector) = GLOBAL_OUTPUT_COLLECTOR.try_write() {
             warning!(collector => $($arg)*);
         }
@@ -401,13 +401,13 @@ macro_rules! warning {
 #[macro_export]
 macro_rules! trace {
     ($dst:expr => $($arg:tt)*) => {{
-        use crate::log::write_out;
+        use $crate::log::write_out;
         if let Err(e) = write_out!(trace -> $dst, $($arg)*) {
             eprintln!("logging failed - {}", e);
         }
     }};
     ($($arg:tt)*) => {{
-        use crate::log::{trace, GLOBAL_OUTPUT_COLLECTOR};
+        use $crate::log::{trace, GLOBAL_OUTPUT_COLLECTOR};
         if let Ok(mut collector) = GLOBAL_OUTPUT_COLLECTOR.try_write() {
             trace!(collector => $($arg)*);
         }
