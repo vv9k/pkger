@@ -1,0 +1,9 @@
+[package]
+name = "pkgspec-core"
+version = "0.1.0"
+authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+thiserror = "1"
