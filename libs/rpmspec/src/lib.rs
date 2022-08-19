@@ -3,7 +3,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-#[derive(Clone, Debug, Default, PartialEq, SpecStruct)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, SpecStruct)]
 pub struct RpmSpec {
     /// The base name of the package, which should match the SPEC filename.
     name: String,
@@ -124,6 +124,7 @@ impl RpmSpec {
     }
 
     pub fn render(&self) -> String {
+        use std::fmt::Write;
         let summary = if let Some(summary) = &self.summary {
             summary.as_str()
         } else {
@@ -136,7 +137,7 @@ impl RpmSpec {
         macro_rules! if_some_push {
             ($field:ident, $fmt:expr) => {
                 if let Some($field) = &self.$field {
-                    spec.push_str(&format!($fmt, $field));
+                    let _ = write!(spec, $fmt, $field); // unused result
                 }
             };
         }
@@ -145,20 +146,20 @@ impl RpmSpec {
             ($field:ident, $fmt:expr) => {
                 if !self.$field.is_empty() {
                     for entry in self.$field.iter() {
-                        spec.push_str(&format!($fmt, entry));
+                        let _ = write!(spec, $fmt, entry); // unused result
                     }
                 }
             };
             (..i $field:ident, $fmt:expr) => {
                 if !self.$field.is_empty() {
                     for (i, entry) in self.$field.iter().enumerate() {
-                        spec.push_str(&format!($fmt, i, entry));
+                        let _ = write!(spec, $fmt, i, entry); // unused result
                     }
                 }
             };
             (file $field:ident, $name:expr) => {
                 if !self.$field.is_empty() {
-                    spec.push_str(&format!("\n%{}\n", $name));
+                    let _ = write!(spec, "\n%{}\n", $name); // unused result
                     for entry in &self.$field {
                         spec.push('"');
                         spec.push_str(entry.as_str());
@@ -170,7 +171,7 @@ impl RpmSpec {
 
         macro_rules! if_some_script {
             ($script:expr, $field:ident) => {
-                spec.push_str(&format!("%{}\n", $script));
+                let _ = write!(spec, "%{}\n", $script); // unused result
                 if let Some(script) = &self.$field {
                     spec.push_str(script);
                     spec.push_str("\n\n");
