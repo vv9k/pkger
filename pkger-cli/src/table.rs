@@ -2,7 +2,7 @@
 use colored::{Color, Colorize};
 
 pub mod style {
-    #[derive(Copy, Clone, Debug, Default, PartialEq)]
+    #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
     pub struct Style(u8);
 
     impl From<u8> for Style {
@@ -64,7 +64,7 @@ pub mod style {
 
 use style::Style;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Alignment {
     Left,
     Center,

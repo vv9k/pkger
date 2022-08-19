@@ -34,7 +34,7 @@ fn null() -> YamlValue {
     YamlValue::Null
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct Versions(Vec<String>);
 
 impl Versions {
@@ -173,7 +173,7 @@ pub struct PkgRep {
     pub optdepends: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PkgInfo {
     /// The name of the .install script to be included in the package
     pub install: Option<String>,
@@ -230,7 +230,7 @@ pub struct DebRep {
     pub postinst_script: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebInfo {
     pub priority: Option<String>,
     pub built_using: Option<String>,
@@ -311,7 +311,7 @@ impl TryFrom<RpmRep> for RpmInfo {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RpmInfo {
     pub obsoletes: Option<Dependencies>,
     pub vendor: Option<String>,
@@ -325,7 +325,7 @@ pub struct RpmInfo {
     pub config_noreplace: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Metadata {
     // General
     pub name: String,
@@ -462,7 +462,7 @@ pub struct ApkRep {
     pub private_key: Option<std::path::PathBuf>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApkInfo {
     pub install: Vec<String>,
     pub replaces: Option<Dependencies>,

@@ -70,7 +70,7 @@ impl TryFrom<&YamlValue> for Patch {
 
 type PatchesMap = HashMap<String, Vec<Patch>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Patches {
     inner: PatchesMap,
 }

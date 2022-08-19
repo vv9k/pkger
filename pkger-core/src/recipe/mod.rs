@@ -25,12 +25,13 @@ use rpmspec::RpmSpec;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Mapping;
 use std::convert::TryFrom;
+use std::fmt::Write;
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
 
 const DEFAULT_RECIPE_FILE: &str = "recipe.yml";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Recipe {
     pub metadata: Metadata,
     pub env: Env,
@@ -200,7 +201,7 @@ impl Recipe {
             .iter()
             .enumerate()
             .fold(String::new(), |mut s, (i, _)| {
-                s.push_str(&format!("tar xvf %{{SOURCE{}}} -C %{{buildroot}}\n", i));
+                let _ = writeln!(s, "tar xvf %{{SOURCE{}}} -C %{{buildroot}}", i);
                 s
             });
 
@@ -289,7 +290,7 @@ impl Recipe {
         _logger: &mut BoxedCollector,
     ) -> PkgBuild {
         let package_func = sources.iter().fold(String::new(), |mut s, src| {
-            s.push_str(&format!("    tar xvf {} -C $pkgdir\n", src));
+            let _ = writeln!(s, "    tar xvf {} -C $pkgdir", src);
             s
         });
 
@@ -336,7 +337,7 @@ impl Recipe {
             sources
                 .iter()
                 .fold("    mkdir -p $pkgdir\n".to_string(), |mut s, src| {
-                    s.push_str(&format!("    tar xvf {} -C $pkgdir\n", src));
+                    let _ = writeln!(s, "    tar xvf {} -C $pkgdir", src);
                     s
                 });
 
@@ -414,7 +415,7 @@ impl TryFrom<DirEntry> for RecipeRep {
 
 macro_rules! impl_step_rep {
     ($ty:ident, $ty_rep:ident) => {
-        #[derive(Clone, Debug, PartialEq)]
+        #[derive(Clone, Debug, PartialEq, Eq)]
         pub struct $ty {
             pub steps: Vec<Command>,
             pub working_dir: Option<PathBuf>,
@@ -444,7 +445,7 @@ macro_rules! impl_step_rep {
             }
         }
 
-        #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq)]
+        #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, Eq)]
         pub struct $ty_rep {
             pub steps: Vec<Command>,
             #[serde(skip_serializing_if = "Option::is_none")]

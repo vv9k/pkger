@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 mod lexer;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Variable<'text> {
     text: &'text str,
     name: &'text str,
@@ -26,7 +26,7 @@ impl<'text> Variable<'text> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token<'text> {
     Variable(Variable<'text>),
     Text(&'text str),

@@ -1,7 +1,7 @@
 use serde_yaml::Mapping;
 use std::collections::HashMap;
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Env(HashMap<String, String>);
 
 impl From<Option<Mapping>> for Env {

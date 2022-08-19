@@ -7,7 +7,7 @@ pub const HTTPS_PROXY_ENV: &str = "https_proxy";
 pub const HTTP_PROXY_ENV: &str = "http_proxy";
 pub const NO_PROXY_ENV: &str = "no_proxy";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NoProxyOption {
     IpAddr(IpAddr),
     Ipv4Net(Ipv4Net),
@@ -44,7 +44,7 @@ impl FromStr for NoProxyOption {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShouldProxyResult {
     Http,
     Https,

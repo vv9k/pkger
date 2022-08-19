@@ -725,7 +725,7 @@ impl Application {
 
             Ok(())
         } else {
-            return err!("images directory not defined in configuration");
+            err!("images directory not defined in configuration")
         }
     }
 

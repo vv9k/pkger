@@ -2,7 +2,7 @@ use crate::recipe::BuildTarget;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 /// Wrapper type for steps parsed from a recipe. Can be either a simple string or a map specifying
 /// other parameters.
 ///

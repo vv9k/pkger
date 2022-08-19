@@ -13,7 +13,7 @@ use std::collections::{HashMap, VecDeque};
 use std::convert::TryFrom;
 use tokio::task;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BuildTask {
     Simple {
         recipe: Recipe,

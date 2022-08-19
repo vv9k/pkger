@@ -2,6 +2,7 @@
 use colored::{Color, ColoredString, Colorize};
 use std::collections::VecDeque;
 use std::fmt;
+use std::fmt::Write as _;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -228,16 +229,17 @@ impl<'l> Writer for Logger<'l> {
         let mut s = format!("{}{: ^5}{}", *L_BRACE, level.colored_string(), *R_BRACE);
 
         if self.timestamp {
-            s.push_str(&format!(
+            let _ = write!(
+                s,
                 "{}{}{}",
                 *L_BRACE,
                 Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
                 *R_BRACE
-            ));
+            );
         }
 
         for scope in self.scopes.iter() {
-            s.push_str(&format!("{}{}{}", *L_BRACE, scope, *R_BRACE));
+            let _ = write!(s, "{}{}{}", *L_BRACE, scope, *R_BRACE);
         }
         s.push(' ');
         let args_str = format!("{}", args.args);

@@ -9,7 +9,7 @@ pub static COMMON_DEPS_KEY: &str = "all";
 
 type DepsMap = HashMap<String, HashSet<String>>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dependencies {
     inner: DepsMap,
 }

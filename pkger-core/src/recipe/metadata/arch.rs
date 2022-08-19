@@ -2,7 +2,7 @@ use std::fmt;
 use std::fmt::Formatter;
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BuildArch {
     All,
     x86_64,

@@ -31,7 +31,7 @@ fn size(md: &Metadata) -> u64 {
     md.file_size()
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct PackageMetadata {
     name: String,
     version: String,
