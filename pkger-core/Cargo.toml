@@ -1,6 +1,6 @@
 [package]
 name = "pkger-core"
-version = "0.9.0-dev"
+version = "0.9.0"
 edition = "2021"
 authors = ["Wojciech Kępka <wojciech@wkepka.dev>"]
 license = "MIT"
