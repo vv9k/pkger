@@ -13,6 +13,10 @@ on:
       - "CHANGELOG.md"
       - "LICENSE"
       - ".github"
+      - "pkger-cli"
+      - "pkger-core"
+      - "libs"
+      - "MakeFile"
     branches:
       - master
 
