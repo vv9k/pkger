@@ -20,7 +20,7 @@ jobs:
         with:
           components: rustfmt
       - uses: actions/checkout@v1
-      - run: cargo fmt --all -- --check
+      - run: make fmt_check
 
   lint:
     strategy:
@@ -35,7 +35,7 @@ jobs:
         with:
           components: clippy
       - uses: actions/checkout@v1
-      - run: cargo clippy --all-targets -- -D clippy::all
+      - run: make clippy
 
   compile:
     strategy:
@@ -48,7 +48,7 @@ jobs:
       - name: Set up Rust
         uses: hecrj/setup-rust-action@v1
       - uses: actions/checkout@master
-      - run: cargo check --all
+      - run: make check
 
   test:
     needs: [codestyle, lint, compile]
@@ -60,9 +60,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
       - name: Test
-        run: cargo test
-      - name: Build test package with custom images
-        run: cargo run -- -d -c example/conf.yml build test-suite test-package
+        run: make test
 
   build_and_upload_artifacts:
     name: Upload Artifacts

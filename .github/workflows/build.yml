@@ -31,7 +31,7 @@ jobs:
         with:
           components: rustfmt
       - uses: actions/checkout@v1
-      - run: cargo fmt --all -- --check
+      - run: make fmt_check
 
   lint:
     strategy:
@@ -46,7 +46,7 @@ jobs:
         with:
           components: clippy
       - uses: actions/checkout@v1
-      - run: cargo clippy --all-targets -- -D clippy::all
+      - run: make clippy
 
   compile:
     strategy:
@@ -59,7 +59,7 @@ jobs:
       - name: Set up Rust
         uses: hecrj/setup-rust-action@v1
       - uses: actions/checkout@master
-      - run: cargo check --all
+      - run: make check
 
   test:
     needs: [codestyle, lint, compile]
