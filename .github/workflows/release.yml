@@ -7,21 +7,6 @@ on:
     tags:
       - "**"
 jobs:
-  codestyle:
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Set up Rust
-        uses: hecrj/setup-rust-action@v1
-        with:
-          components: rustfmt
-      - uses: actions/checkout@v1
-      - run: make fmt_check
-
   lint:
     strategy:
       matrix:
@@ -33,27 +18,18 @@ jobs:
       - name: Set up Rust
         uses: hecrj/setup-rust-action@v1
         with:
-          components: clippy
+          components: clippy,rustfmt
       - uses: actions/checkout@v1
-      - run: make clippy
+      - run: make lint
 
-  compile:
+  test:
+    needs: [lint]
     strategy:
       matrix:
         os:
           - ubuntu-latest
           - macos-latest
     runs-on: ${{ matrix.os }}
-    steps:
-      - name: Set up Rust
-        uses: hecrj/setup-rust-action@v1
-      - uses: actions/checkout@master
-      - run: make check
-
-  test:
-    needs: [codestyle, lint, compile]
-    runs-on: ubuntu-latest
-
     steps:
       - name: Setup Rust
         uses: hecrj/setup-rust-action@v1
@@ -68,6 +44,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
         build: [linux, macos]
         include:
         - build: linux

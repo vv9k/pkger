@@ -28,7 +28,7 @@ build: ./target/release/$(PROJECT)
 
 
 .PHONY: lint
-lint: check fmt_check clippy
+lint: fmt_check clippy
 
 .PHONY: check
 check:
