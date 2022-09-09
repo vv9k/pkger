@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use futures::{StreamExt, TryStreamExt};
 use podman_api::{
     conn::TtyChunk,
-    models::ContainersPruneReport,
+    models::ContainersPruneReportLibpod,
     opts::{ContainerLogsOpts, ContainerPruneFilter, ContainerPruneOpts},
     Podman,
 };
@@ -244,7 +244,7 @@ pub async fn cleanup(
     docker: &'_ Podman,
     key: impl Into<String>,
     value: impl Into<String>,
-) -> Result<Vec<ContainersPruneReport>> {
+) -> Result<Vec<ContainersPruneReportLibpod>> {
     docker
         .containers()
         .prune(

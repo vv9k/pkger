@@ -4,7 +4,8 @@ use crate::log::{debug, info, trace, warning, BoxedCollector};
 use crate::recipe::RecipeTarget;
 use crate::runtime::RuntimeConnector;
 use crate::{err, Error, Result};
-use docker_api::api::{BuildOpts, ImageBuildChunk};
+use docker_api::models::ImageBuildChunk;
+use docker_api::opts::ImageBuildOpts;
 
 use async_rwlock::RwLock;
 use futures::StreamExt;
@@ -65,7 +66,7 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
     match &ctx.runtime {
         RuntimeConnector::Docker(docker) => {
             let images = docker.images();
-            let opts = BuildOpts::builder(&ctx.image.path)
+            let opts = ImageBuildOpts::builder(&ctx.image.path)
                 .tag(&format!("{}:{}", &ctx.target.image(), LATEST))
                 .build();
 
@@ -115,7 +116,7 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
 
             let images = podman.images();
 
-            let mut stream = images.build(&opts);
+            let mut stream = images.build(&opts)?;
 
             while let Some(chunk) = stream.next().await {
                 let chunk = chunk?;
@@ -181,7 +182,7 @@ RUN {} {} && \
     match &ctx.build.runtime {
         RuntimeConnector::Docker(docker) => {
             let images = docker.images();
-            let opts = BuildOpts::builder(&temp_path)
+            let opts = ImageBuildOpts::builder(&temp_path)
                 .tag(format!("{}:{}", state.image, CACHED))
                 .build();
 
@@ -227,7 +228,7 @@ RUN {} {} && \
 
             let images = podman.images();
 
-            let mut stream = images.build(&opts);
+            let mut stream = images.build(&opts)?;
 
             while let Some(chunk) = stream.next().await {
                 let chunk = chunk?;

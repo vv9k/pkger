@@ -355,7 +355,12 @@ impl Application {
 
     async fn get_num_cpus(&self) -> u64 {
         let res = match &self.runtime.connect() {
-            RuntimeConnector::Docker(docker) => docker.info().await.ok().map(|info| info.n_cpu),
+            RuntimeConnector::Docker(docker) => docker
+                .info()
+                .await
+                .ok()
+                .and_then(|info| info.ncpu)
+                .map(|cpu| cpu as u64),
             RuntimeConnector::Podman(podman) => podman
                 .info()
                 .await

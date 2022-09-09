@@ -5,10 +5,9 @@ use crate::{unix_timestamp, ErrContext, Result};
 
 use async_trait::async_trait;
 use docker_api::{
-    api::{
-        ContainerPruneFilter, ContainerPruneOpts, ContainersPruneInfo, LogsOpts, RmContainerOpts,
-    },
     conn::TtyChunk,
+    models::ContainerPrune200Response,
+    opts::{ContainerPruneFilter, ContainerPruneOpts, LogsOpts, RmContainerOpts},
     Docker, Exec,
 };
 use futures::{StreamExt, TryStreamExt};
@@ -47,7 +46,7 @@ impl DockerContainer {
 #[async_trait]
 impl Container for DockerContainer {
     fn id(&self) -> &str {
-        truncate(self.container.id())
+        truncate(self.container.id().as_ref())
     }
 
     async fn spawn(&mut self, opts: &CreateOpts, logger: &mut BoxedCollector) -> Result<()> {
@@ -120,7 +119,7 @@ impl Container for DockerContainer {
         container_output.exit_code = exec
             .inspect()
             .await
-            .map(|details| details.exit_code.unwrap_or_default())?;
+            .map(|details| details.exit_code.unwrap_or_default() as u64)?;
 
         Ok(container_output)
     }
@@ -232,7 +231,7 @@ pub async fn cleanup(
     docker: &'_ Docker,
     key: impl Into<String>,
     value: impl Into<String>,
-) -> Result<ContainersPruneInfo> {
+) -> Result<ContainerPrune200Response> {
     docker
         .containers()
         .prune(

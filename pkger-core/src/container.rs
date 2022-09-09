@@ -97,8 +97,8 @@ impl CreateOpts {
         self
     }
 
-    pub fn build_docker(self) -> docker_api::api::ContainerCreateOpts {
-        let mut builder = docker_api::api::ContainerCreateOpts::builder(self.image);
+    pub fn build_docker(self) -> docker_api::opts::ContainerCreateOpts {
+        let mut builder = docker_api::opts::ContainerCreateOpts::builder(self.image);
 
         if let Some(name) = self.name {
             builder = builder.name(name);
@@ -229,8 +229,8 @@ impl<'opts> ExecOpts<'opts> {
         self
     }
 
-    pub fn build_docker(self) -> docker_api::ExecContainerOpts {
-        let mut builder = docker_api::ExecContainerOpts::builder();
+    pub fn build_docker(self) -> docker_api::opts::ExecContainerOpts {
+        let mut builder = docker_api::opts::ExecContainerOpts::builder();
 
         trace!("{:?}", self);
 
