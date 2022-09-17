@@ -463,7 +463,6 @@ impl_step_rep!(ConfigureScript, ConfigureRep);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
 
     const TEST_SUITE_RECIPE: &[u8] =
         include_bytes!("../../../example/recipes/test-suite/recipe.yml");

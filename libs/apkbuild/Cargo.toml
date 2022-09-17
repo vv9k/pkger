@@ -10,6 +10,3 @@ license = "MIT"
 pkgspec = { path = "../pkgspec" }
 pkgspec-core = { path = "../pkgspec-core" }
 paste = "1"
-
-[dev-dependencies]
-pretty_assertions = "0.3"

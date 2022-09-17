@@ -162,7 +162,6 @@ impl Dependencies {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
 
     macro_rules! test_deps {
     (

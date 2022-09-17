@@ -27,12 +27,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ansi_term"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23ac7c30002a5accbf7e8987d0632fa6de155b7c3d39d0067317a391e00a2ef6"
-
-[[package]]
 name = "anyhow"
 version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -45,7 +39,6 @@ dependencies = [
  "paste",
  "pkgspec",
  "pkgspec-core",
- "pretty_assertions",
 ]
 
 [[package]]
@@ -313,12 +306,6 @@ dependencies = [
  "pkgspec",
  "pkgspec-core",
 ]
-
-[[package]]
-name = "difference"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 
 [[package]]
 name = "dirs"
@@ -1021,7 +1008,6 @@ dependencies = [
  "paste",
  "pkgspec",
  "pkgspec-core",
- "pretty_assertions",
 ]
 
 [[package]]
@@ -1070,7 +1056,6 @@ dependencies = [
  "pkgbuild",
  "pkgspec-core",
  "podman-api",
- "pretty_assertions",
  "rpmspec",
  "serde",
  "serde_cbor",
@@ -1131,16 +1116,6 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "pretty_assertions"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5dc44a7f8ba9e19aeb6f900eb518343170f2aae27d3c9c78e4d5c3db623638d"
-dependencies = [
- "ansi_term",
- "difference",
 ]
 
 [[package]]
