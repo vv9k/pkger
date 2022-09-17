@@ -147,6 +147,7 @@ impl CreateOpts {
         }
         if let Some(working_dir) = self.working_dir {
             builder = builder.work_dir(working_dir);
+            builder = builder.create_working_dir(true);
         }
 
         builder.build()

@@ -45,12 +45,8 @@ impl Container for PodmanContainer {
     }
 
     async fn spawn(&mut self, opts: &CreateOpts, logger: &mut BoxedCollector) -> Result<()> {
-        let container = self
-            .podman
-            .containers()
-            .create(&opts.clone().build_podman())
-            .await?
-            .id;
+        let opts = opts.clone().build_podman();
+        let container = self.podman.containers().create(&opts).await?.id;
 
         info!(logger => "spawning container {}", self.id());
         self.container = self.podman.containers().get(container);
