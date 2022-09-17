@@ -281,7 +281,7 @@ RUN {} {} && \
             let mut image_state = ctx.build.image_state.write().await;
             (*image_state).update(ctx.build.target.clone(), state.clone());
 
-            return Ok(state);
+            Ok(state)
         }
     }
 }
