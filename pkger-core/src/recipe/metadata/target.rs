@@ -1,7 +1,24 @@
+use crate::recipe::Os;
 use crate::{Error, Result};
 
 use serde::{Deserialize, Serialize};
 use std::convert::{AsRef, TryFrom};
+
+pub struct BuildTargetInfo {
+    pub image: &'static str,
+    pub name: &'static str,
+    pub os: Os,
+}
+
+impl From<(&'static str, &'static str, Os)> for BuildTargetInfo {
+    fn from(it: (&'static str, &'static str, Os)) -> Self {
+        Self {
+            image: it.0,
+            name: it.1,
+            os: it.2,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Deserialize, Serialize, Debug, Eq, PartialEq, Hash)]
 #[serde(rename_all = "lowercase")]

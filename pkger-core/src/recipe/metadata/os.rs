@@ -1,7 +1,5 @@
-use crate::{Error, Result};
-
 use serde::{Deserialize, Serialize};
-use std::convert::{AsRef, TryFrom};
+use std::convert::AsRef;
 
 //####################################################################################################
 
@@ -13,15 +11,15 @@ pub struct Os {
 
 impl Os {
     /// If a matching distribution is found returns an Os object, otherwise returns an error.
-    pub fn new<O, V>(os: O, version: Option<V>) -> Result<Self>
+    pub fn new<O, V>(os: O, version: Option<V>) -> Self
     where
         O: AsRef<str>,
         V: Into<String>,
     {
-        Ok(Self {
-            distribution: Distro::try_from(os.as_ref())?,
+        Self {
+            distribution: Distro::from(os.as_ref()),
             version: version.map(V::into),
-        })
+        }
     }
 
     pub fn version(&self) -> &str {
@@ -46,7 +44,12 @@ impl Os {
             Distro::Rocky => PackageManager::Dnf,
             Distro::RedHat | Distro::CentOS | Distro::Fedora => PackageManager::Yum,
             Distro::Alpine => PackageManager::Apk,
+            Distro::Unknown => PackageManager::Unknown,
         }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        matches!(self.distribution, Distro::Unknown)
     }
 }
 
@@ -63,6 +66,7 @@ pub enum Distro {
     Ubuntu,
     Rocky,
     Alpine,
+    Unknown,
 }
 
 impl AsRef<str> for Distro {
@@ -77,13 +81,13 @@ impl AsRef<str> for Distro {
             Ubuntu => "ubuntu",
             Rocky => "rocky",
             Alpine => "alpine",
+            Unknown => "unknown",
         }
     }
 }
 
-impl TryFrom<&str> for Distro {
-    type Error = Error;
-    fn try_from(s: &str) -> Result<Self> {
+impl From<&str> for Distro {
+    fn from(s: &str) -> Self {
         use Distro::*;
         const DISTROS: &[(&str, Distro)] = &[
             ("arch", Arch),
@@ -99,11 +103,10 @@ impl TryFrom<&str> for Distro {
         let out = s.to_lowercase();
         for (name, distro) in DISTROS.iter() {
             if out.contains(name) {
-                return Ok(*distro);
+                return *distro;
             }
         }
-
-        Err(anyhow!("unknown distribution `{}`", out))
+        Unknown
     }
 }
 
@@ -116,6 +119,7 @@ pub enum PackageManager {
     Pacman,
     Yum,
     Apk,
+    Unknown,
 }
 
 impl AsRef<str> for PackageManager {
@@ -126,6 +130,7 @@ impl AsRef<str> for PackageManager {
             Self::Pacman => "pacman",
             Self::Yum => "yum",
             Self::Apk => "apk",
+            Self::Unknown => "unkown",
         }
     }
 }
@@ -138,6 +143,7 @@ impl PackageManager {
             Self::Pacman => vec!["-S", "--noconfirm"],
             Self::Yum => vec!["install", "-y"],
             Self::Apk => vec!["add"],
+            Self::Unknown => vec![],
         }
     }
 
@@ -147,6 +153,7 @@ impl PackageManager {
             Self::Dnf | Self::Yum => vec!["clean", "metadata"],
             Self::Pacman => vec!["-Sy", "--noconfirm"],
             Self::Apk => vec!["update"],
+            Self::Unknown => vec![],
         }
     }
 
@@ -156,6 +163,7 @@ impl PackageManager {
             Self::Dnf | Self::Yum => vec!["update", "-y"],
             Self::Pacman => vec!["-Syu", "--noconfirm"],
             Self::Apk => vec!["upgrade"],
+            Self::Unknown => vec![],
         }
     }
 
@@ -165,6 +173,7 @@ impl PackageManager {
             Self::Dnf | Self::Yum => vec!["clean", "metadata"],
             Self::Pacman => vec!["-Sc"],
             Self::Apk => vec!["cache", "clean"],
+            Self::Unknown => vec![],
         }
     }
 

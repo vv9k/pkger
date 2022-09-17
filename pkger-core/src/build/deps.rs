@@ -7,7 +7,7 @@ use std::collections::HashSet;
 pub fn recipe<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
     if let Some(deps) = &ctx.build.recipe.metadata.build_depends {
         let mut _deps = deps.resolve_names(&state.image);
-        let simple = Image::simple(*ctx.build.target.build_target()).1;
+        let simple = Image::simple(*ctx.build.target.build_target()).image;
         if state.image != simple {
             _deps.extend(deps.resolve_names(simple));
         }

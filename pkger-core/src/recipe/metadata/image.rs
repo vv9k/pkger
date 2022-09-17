@@ -15,15 +15,14 @@ pub struct ImageTarget {
 }
 
 impl ImageTarget {
-    pub fn new<I, O>(image: I, build_target: BuildTarget, os: Option<O>) -> Self
+    pub fn new<I>(image: I, build_target: BuildTarget, os: Option<Os>) -> Self
     where
         I: Into<String>,
-        O: AsRef<str>,
     {
         Self {
             image: image.into(),
             build_target,
-            os: os.map(|os| Os::new(os, None::<&str>).unwrap()),
+            os,
         }
     }
 }
@@ -84,7 +83,7 @@ impl TryFrom<Mapping> for ImageTarget {
                         image
                     ));
                 } else {
-                    Some(Os::new(os.as_str().unwrap(), None::<&str>)?)
+                    Some(Os::new(os.as_str().unwrap(), None::<&str>))
                 }
             } else {
                 None

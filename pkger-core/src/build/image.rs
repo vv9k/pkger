@@ -118,12 +118,36 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
 
             let mut stream = images.build(&opts)?;
 
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk?;
+            let mut last = None;
 
-                info!(logger => "{}", chunk.stream);
+            while let Some(chunk) = stream.next().await {
+                last = Some(chunk?);
+
+                info!(logger => "{}", last.as_ref().unwrap().stream);
             }
-            todo!()
+
+            let id = if let Some(last) = last {
+                last.stream
+            } else {
+                return err!("expected stream response for image build");
+            };
+            let state = ImageState::new(
+                &id,
+                &ctx.target,
+                LATEST,
+                &SystemTime::now(),
+                &ctx.runtime,
+                &Default::default(),
+                ctx.simple,
+                logger,
+            )
+            .await?;
+
+            trace!(logger => "updating image state {}", state.id);
+            let mut image_state = ctx.image_state.write().await;
+            (*image_state).update(ctx.target.clone(), state.clone());
+
+            return Ok(state);
         }
     };
 

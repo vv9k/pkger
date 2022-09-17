@@ -5,7 +5,7 @@ use anyhow::Context;
 pub use os::find;
 pub use state::{ImageState, ImagesState};
 
-use crate::recipe::BuildTarget;
+use crate::recipe::{BuildTarget, BuildTargetInfo, Os};
 use crate::{err, Error, Result};
 
 use std::convert::AsRef;
@@ -24,14 +24,31 @@ impl Image {
         Self { name, path }
     }
 
-    pub fn simple(target: BuildTarget) -> (&'static str, &'static str) {
+    pub fn simple(target: BuildTarget) -> BuildTargetInfo {
         match target {
-            BuildTarget::Rpm => ("rockylinux/rockylinux:latest", "pkger-rpm"),
-            BuildTarget::Deb => ("debian:latest", "pkger-deb"),
-            BuildTarget::Pkg => ("archlinux", "pkger-pkg"),
-            BuildTarget::Gzip => ("debian:latest", "pkger-gzip"),
-            BuildTarget::Apk => ("alpine:latest", "pkger-apk"),
+            BuildTarget::Rpm => (
+                "rockylinux/rockylinux:latest",
+                "pkger-rpm",
+                Os::new("Rocky", None::<&str>),
+            ),
+            BuildTarget::Deb => (
+                "debian:latest",
+                "pkger-deb",
+                Os::new("Debian", None::<&str>),
+            ),
+            BuildTarget::Pkg => ("archlinux", "pkger-pkg", Os::new("Arch", None::<&str>)),
+            BuildTarget::Gzip => (
+                "debian:latest",
+                "pkger-gzip",
+                Os::new("Debian", None::<&str>),
+            ),
+            BuildTarget::Apk => (
+                "alpine:latest",
+                "pkger-apk",
+                Os::new("Alpine", None::<&str>),
+            ),
         }
+        .into()
     }
 
     pub fn create_simple(
@@ -39,7 +56,7 @@ impl Image {
         target: BuildTarget,
         custom_image: Option<&str>,
     ) -> Result<Image> {
-        let (image, name) = Self::simple(target);
+        let BuildTargetInfo { image, name, os: _ } = Self::simple(target);
         let image = custom_image.unwrap_or(image);
 
         let image_dir = images_dir.join(name);
@@ -55,15 +72,15 @@ impl Image {
         images_dir: &Path,
         target: BuildTarget,
         custom_image: Option<&str>,
-    ) -> Result<Image> {
-        let (_, name) = Self::simple(target);
+    ) -> Result<(Image, Os)> {
+        let BuildTargetInfo { image: _, name, os } = Self::simple(target);
 
         let image_dir = images_dir.join(name);
         if image_dir.exists() {
-            return Image::try_from_path(image_dir);
+            return Image::try_from_path(image_dir).map(|i| (i, os));
         }
 
-        Self::create_simple(images_dir, target, custom_image)
+        Self::create_simple(images_dir, target, custom_image).map(|i| (i, os))
     }
 
     /// Loads an `FsImage` from the given `path`

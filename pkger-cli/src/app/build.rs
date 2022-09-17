@@ -280,7 +280,7 @@ impl Application {
                     target,
                     version,
                 } => {
-                    let image = Image::try_get_or_new_simple(
+                    let (image, os) = Image::try_get_or_new_simple(
                         &self.app_dir.path().join("images"),
                         target,
                         self.config
@@ -292,7 +292,7 @@ impl Application {
                     (
                         recipe,
                         image,
-                        ImageTarget::new(name, target, None::<&str>),
+                        ImageTarget::new(name, target, Some(os)),
                         version,
                         true,
                     )

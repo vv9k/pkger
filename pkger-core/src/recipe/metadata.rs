@@ -12,7 +12,7 @@ pub use git::GitSource;
 pub use image::{deserialize_images, ImageTarget};
 pub use os::{Distro, Os, PackageManager};
 pub use patches::{Patch, Patches};
-pub use target::BuildTarget;
+pub use target::{BuildTarget, BuildTargetInfo};
 
 use crate::{Error, Result};
 

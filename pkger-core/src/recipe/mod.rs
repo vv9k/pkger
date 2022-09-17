@@ -8,9 +8,9 @@ pub use cmd::Command;
 pub use envs::Env;
 pub use loader::Loader;
 pub use metadata::{
-    deserialize_images, BuildArch, BuildTarget, DebInfo, DebRep, Dependencies, Distro, GitSource,
-    ImageTarget, Metadata, MetadataRep, Os, PackageManager, Patch, Patches, PkgInfo, PkgRep,
-    RpmInfo, RpmRep,
+    deserialize_images, BuildArch, BuildTarget, BuildTargetInfo, DebInfo, DebRep, Dependencies,
+    Distro, GitSource, ImageTarget, Metadata, MetadataRep, Os, PackageManager, Patch, Patches,
+    PkgInfo, PkgRep, RpmInfo, RpmRep,
 };
 pub use target::RecipeTarget;
 

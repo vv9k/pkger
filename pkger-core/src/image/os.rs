@@ -66,7 +66,11 @@ async fn from_osrelease(
 
     let os_name = extract_key(&out, "ID");
     let version = extract_key(&out, "VERSION_ID");
-    Os::new(os_name.context("os name is missing")?, version)
+    let os = Os::new(os_name.context("os name is missing")?, version);
+    if os.is_unknown() {
+        return err!("unknown os");
+    }
+    Ok(os)
 }
 
 fn extract_version(text: &str) -> Option<String> {
@@ -110,7 +114,11 @@ async fn os_from(
 
     let os_version = extract_version(&out);
 
-    Os::new(out, os_version)
+    let os = Os::new(out, os_version);
+    if os.is_unknown() {
+        return err!("unknown os");
+    }
+    Ok(os)
 }
 
 async fn from_rhrelease(
