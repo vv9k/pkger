@@ -17,13 +17,14 @@ pub async fn fetch_git_source(
 
     let tmp = tempdir::TempDir::new(&ctx.build.id)
         .context("failed to initialize temporary directory for git repo")?;
+    let url = template::render(repo.url(), ctx.vars.inner());
 
     tokio::task::block_in_place(|| {
         let mut repo_builder = git2::build::RepoBuilder::new();
 
         let mut proxy_opts = git2::ProxyOptions::new();
 
-        match ctx.build.proxy.should_proxy(repo.url()) {
+        match ctx.build.proxy.should_proxy(&url) {
             ShouldProxyResult::Http => {
                 if let Some(url) = ctx.build.proxy.http_proxy() {
                     proxy_opts.url(&url.to_string());
@@ -43,7 +44,7 @@ pub async fn fetch_git_source(
         repo_builder.branch(repo.branch());
         repo_builder.fetch_options(opts);
         repo_builder
-            .clone(repo.url(), tmp.path())
+            .clone(&url, tmp.path())
             .context("failed to clone git repository")
     })?;
 
