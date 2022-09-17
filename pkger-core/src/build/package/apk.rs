@@ -1,8 +1,8 @@
 use crate::build::container::Context;
 use crate::build::package::{Manifest, Package};
-use crate::container::ExecOpts;
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
+use crate::runtime::container::ExecOpts;
 use crate::{ErrContext, Result};
 
 use async_trait::async_trait;

@@ -1,6 +1,6 @@
 use crate::archive::{create_tarball, unpack_tarball};
-use crate::container::{truncate, Container, CreateOpts, ExecOpts, Output};
 use crate::log::{debug, error, info, trace, BoxedCollector};
+use crate::runtime::container::{truncate, Container, CreateOpts, ExecOpts, Output};
 use crate::{ErrContext, Result};
 
 use async_trait::async_trait;

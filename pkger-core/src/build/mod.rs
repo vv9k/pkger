@@ -7,12 +7,12 @@ pub mod patches;
 pub mod remote;
 pub mod scripts;
 
-use crate::container::ExecOpts;
 use crate::gpg::GpgKey;
 use crate::image::{Image, ImageState, ImagesState};
 use crate::log::{debug, info, trace, warning, write_out, BoxedCollector};
 use crate::proxy::ProxyConfig;
 use crate::recipe::{ImageTarget, Recipe, RecipeTarget};
+use crate::runtime::container::ExecOpts;
 use crate::runtime::RuntimeConnector;
 use crate::ssh::SshConfig;
 use crate::{ErrContext, Result};

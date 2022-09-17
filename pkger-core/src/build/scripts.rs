@@ -1,6 +1,6 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
 use crate::log::{debug, info, trace, BoxedCollector};
+use crate::runtime::container::ExecOpts;
 use crate::template;
 use crate::{Error, Result};
 

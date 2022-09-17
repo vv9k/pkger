@@ -1,7 +1,7 @@
 use crate::build::{container, remote};
-use crate::container::ExecOpts;
 use crate::log::{debug, info, trace, warning, BoxedCollector};
 use crate::recipe::{Patch, Patches};
+use crate::runtime::container::ExecOpts;
 use crate::Result;
 
 use std::path::PathBuf;

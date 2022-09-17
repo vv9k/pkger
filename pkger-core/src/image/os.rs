@@ -1,7 +1,7 @@
-use crate::container::CreateOpts;
 use crate::log::{info, trace, BoxedCollector};
 use crate::oneshot::{self, OneShotCtx};
 use crate::recipe::Os;
+use crate::runtime::container::CreateOpts;
 use crate::runtime::RuntimeConnector;
 use crate::{err, ErrContext, Error, Result};
 

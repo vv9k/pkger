@@ -1,6 +1,6 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
 use crate::log::{info, BoxedCollector};
+use crate::runtime::container::ExecOpts;
 use crate::{ErrContext, Result};
 
 use crate::gpg::GpgKey;

@@ -1,8 +1,8 @@
 use crate::build::container::Context;
-use crate::container::ExecOpts;
 use crate::log::{info, trace, BoxedCollector};
 use crate::proxy::ShouldProxyResult;
 use crate::recipe::GitSource;
+use crate::runtime::container::ExecOpts;
 use crate::template;
 use crate::{unix_timestamp, ErrContext, Result};
 
