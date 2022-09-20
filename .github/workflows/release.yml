@@ -19,7 +19,7 @@ jobs:
         uses: hecrj/setup-rust-action@v1
         with:
           components: clippy,rustfmt
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - run: make lint
 
   test:
@@ -34,7 +34,7 @@ jobs:
       - name: Setup Rust
         uses: hecrj/setup-rust-action@v1
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
       - name: Test
         run: make test
 
@@ -59,13 +59,11 @@ jobs:
     steps:
       - name: Set up Rust
         uses: hecrj/setup-rust-action@v1
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v3
       - name: Set version
-        id: set_version
-        run: echo ::set-output name=PKGER_VERSION::${GITHUB_REF/refs\/tags\//}
+        run: echo "PKGER_VERSION=GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
       - name: Set archive name
-        id: set_name
-        run: echo ::set-output name=PKGER_ARCHIVE::pkger-${{steps.set_version.outputs.PKGER_VERSION}}-${{ matrix.target}}
+        run: echo "PKGER_ARCHIVE=pkger-${{env.PKGER_VERSION}}-${{ matrix.target}}" >> $GITHUB_ENV
       - run: cargo build --release
         name: Release build
       - run: ./target/release/pkger -c example/conf.yml build -s rpm -s deb -- pkger-simple
@@ -91,25 +89,25 @@ jobs:
           mv LICENSE pkger/
       - name: Create archives
         run: |
-          tar -zcvf ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.gz pkger
-          tar -Jcvf ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.xz pkger
+          tar -zcvf ${{ env.PKGER_ARCHIVE }}.tar.gz pkger
+          tar -Jcvf ${{ env.PKGER_ARCHIVE }}.tar.xz pkger
       - name: Upload gz
         uses: svenstaro/upload-release-action@v2
         with:
           repo_name: wojciechkepka/pkger
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.gz
-          asset_name: ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.gz
-          tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
+          file: ${{ env.PKGER_ARCHIVE }}.tar.gz
+          asset_name: ${{ env.PKGER_ARCHIVE }}.tar.gz
+          tag: ${{ env.PKGER_VERSION }}
           overwrite: true
       - name: Upload xz
         uses: svenstaro/upload-release-action@v2
         with:
           repo_name: wojciechkepka/pkger
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.xz
-          asset_name: ${{ steps.set_name.outputs.PKGER_ARCHIVE }}.tar.xz
-          tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
+          file: ${{ env.PKGER_ARCHIVE }}.tar.xz
+          asset_name: ${{ env.PKGER_ARCHIVE }}.tar.xz
+          tag: ${{ env.PKGER_VERSION }}
           overwrite: true
       - name: Upload deb
         if: matrix.os == 'ubuntu-latest'
@@ -117,9 +115,9 @@ jobs:
         with:
           repo_name: wojciechkepka/pkger
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: example/output/pkger-deb/pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.amd64.deb
-          asset_name: pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.amd64.deb
-          tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
+          file: example/output/pkger-deb/pkger-${{env.PKGER_VERSION}}-0.amd64.deb
+          asset_name: pkger-${{env.PKGER_VERSION}}-0.amd64.deb
+          tag: ${{ env.PKGER_VERSION }}
           overwrite: true
       - name: Upload rpm
         if: matrix.os == 'ubuntu-latest'
@@ -127,7 +125,7 @@ jobs:
         with:
           repo_name: wojciechkepka/pkger
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: example/output/pkger-rpm/pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.x86_64.rpm
-          asset_name: pkger-${{steps.set_version.outputs.PKGER_VERSION}}-0.x86_64.rpm
-          tag: ${{ steps.set_version.outputs.PKGER_VERSION }}
+          file: example/output/pkger-rpm/pkger-${{env.PKGER_VERSION}}-0.x86_64.rpm
+          asset_name: pkger-${{env.PKGER_VERSION}}-0.x86_64.rpm
+          tag: ${{ env.PKGER_VERSION }}
           overwrite: true

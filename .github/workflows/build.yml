@@ -30,7 +30,7 @@ jobs:
         uses: hecrj/setup-rust-action@v1
         with:
           components: clippy,rustfmt
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - run: make lint
 
   test:
@@ -41,7 +41,7 @@ jobs:
       - name: Setup Rust
         uses: hecrj/setup-rust-action@v1
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
       - name: Test
         run: make test
       - name: Verify DEB package
