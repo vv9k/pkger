@@ -370,7 +370,7 @@ impl Application {
                 .map(|cpus| cpus as u64),
         };
 
-        res.unwrap_or(16)
+        res.unwrap_or(4)
     }
 
     async fn run_tasks(
