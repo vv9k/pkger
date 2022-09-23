@@ -6,7 +6,6 @@ extern crate lazy_static;
 
 pub mod archive;
 pub mod build;
-pub mod deb;
 pub mod gpg;
 pub mod image;
 #[macro_export]
