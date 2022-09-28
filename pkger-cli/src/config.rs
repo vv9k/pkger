@@ -14,9 +14,6 @@ pub struct Configuration {
     pub images_dir: Option<PathBuf>,
     pub log_dir: Option<PathBuf>,
     pub runtime_uri: Option<String>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "default")]
-    pub podman: bool,
     pub gpg_key: Option<PathBuf>,
     pub gpg_name: Option<String>,
     pub ssh: Option<SshConfig>,

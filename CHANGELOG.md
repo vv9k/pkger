@@ -1,6 +1,7 @@
 #
 - Add support for env variables in git source url
 - Fix builds using podman runtime
+- Remove `podman` configuration option and cli parameter. **pkger** will automatically determine wether the provided uri is a Podman or Docker daemon.
 
 # 0.9.0
 - Rename `--docker-uri` option to `--runtime-uri` and make it global (no longer part of build and init command)

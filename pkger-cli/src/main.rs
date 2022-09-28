@@ -72,7 +72,6 @@ async fn main() -> Result<()> {
             images_dir: Some(images_dir),
             log_dir: None,
             runtime_uri: opts.runtime_uri,
-            podman: opts.podman,
             gpg_key: init_opts.gpg_key,
             gpg_name: init_opts.gpg_name,
             ssh: None,
@@ -156,11 +155,13 @@ async fn main() -> Result<()> {
     trace!(logger => "{:#?}", opts);
     trace!(logger => "{:#?}", config);
 
-    let mut app =
-        match Application::new(config, &opts, &mut logger).context("failed to initialize pkger") {
-            Ok(app) => app,
-            Err(e) => exit!("execution failed, reason: {:?}", e),
-        };
+    let mut app = match Application::new(config, &opts, &mut logger)
+        .await
+        .context("failed to initialize pkger")
+    {
+        Ok(app) => app,
+        Err(e) => exit!("execution failed, reason: {:?}", e),
+    };
 
     if let Err(e) = app.process_opts(opts, &mut logger).await {
         exit!("execution failed, reason: {:?}", e);

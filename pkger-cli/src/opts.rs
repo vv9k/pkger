@@ -35,13 +35,9 @@ pub struct Opts {
     #[clap(short, long)]
     /// URL to container runtime daemon listening on a unix or tcp socket. An example could be
     /// `unix:///var/run/docker.sock` or a tcp uri `tcp://127.0.0.1:81`. By default, on a unix host
-    /// pkger will try to connect to a unix socket at locations like `/var/run/docker.sock` or
-    /// `/run/docker.sock`. On non-unix operating systems like windows a TCP connection to
-    /// `127.0.0.1:8080` is used.
+    /// pkger will try to connect to a unix socket at locations like
+    /// `/run/user/1000/podman/podman.sock` or `/run/docker.sock`.
     pub runtime_uri: Option<String>,
-    #[clap(short, long)]
-    /// If provided pkger will try to use podman instead of docker as a container runtime.
-    pub podman: bool,
 
     #[clap(long)]
     pub no_color: bool,

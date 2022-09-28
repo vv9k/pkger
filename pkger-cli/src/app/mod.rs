@@ -92,52 +92,44 @@ fn system_time_to_date_time(t: time::SystemTime) -> chrono::DateTime<Utc> {
     Utc.timestamp(sec, nsec)
 }
 
-fn init_runtime(
+async fn init_runtime(
     opts: &Opts,
     config: &Configuration,
     logger: &mut BoxedCollector,
 ) -> Result<ConnectionPool> {
-    // check if docker uri provided as cli arg
-    let res = match &opts.runtime_uri {
+    // check if runtime uri provided as cli arg
+    let uri = match &opts.runtime_uri {
         Some(uri) => {
             trace!(logger => "using runtime uri from opts, uri: {}", uri);
-            if opts.podman || config.podman {
-                trace!(logger => "using podman runtime");
-                ConnectionPool::podman(uri)
-            } else {
-                trace!(logger => "using docker runtime");
-                ConnectionPool::docker(uri)
-            }
+            uri.to_string()
         }
         None => {
             // otherwise check if available as config parameter
             if let Some(uri) = &config.runtime_uri {
-                trace!(logger => "using docker uri from config, uri {}", uri);
-                if opts.podman || config.podman {
-                    trace!(logger => "using podman runtime");
-                    ConnectionPool::podman(uri)
-                } else {
-                    trace!(logger => "using docker runtime");
-                    ConnectionPool::docker(uri)
-                }
+                trace!(logger => "using runtime uri from config, uri {}", uri);
+                uri.to_string()
             } else {
-                trace!(logger => "using default docker uri");
-                if opts.podman || config.podman {
-                    trace!(logger => "using podman runtime");
-                    ConnectionPool::podman(runtime::podman::PODMAN_SOCK)
+                use runtime::{
+                    docker::{DOCKER_SOCK, DOCKER_SOCK_SECONDARY},
+                    podman::PODMAN_SOCK,
+                };
+                trace!(logger => "checking default paths `{PODMAN_SOCK}`, `{DOCKER_SOCK}`, `{DOCKER_SOCK_SECONDARY}`");
+                let uri = if PathBuf::from(PODMAN_SOCK).exists() {
+                    PODMAN_SOCK
+                } else if PathBuf::from(DOCKER_SOCK).exists() {
+                    DOCKER_SOCK
                 } else {
-                    trace!(logger => "using docker runtime");
-                    if std::path::PathBuf::from(runtime::docker::DOCKER_SOCK).exists() {
-                        ConnectionPool::docker(runtime::docker::DOCKER_SOCK)
-                    } else {
-                        ConnectionPool::docker(runtime::docker::DOCKER_SOCK_SECONDARY)
-                    }
-                }
+                    DOCKER_SOCK_SECONDARY
+                };
+                trace!(logger => "using default runtime uri, uri: {uri}");
+                uri.to_string()
             }
         }
     };
 
-    res.context("Failed to initialize docker connection")
+    ConnectionPool::new_checked(uri)
+        .await
+        .context("Failed to initialize container runtime connection")
 }
 
 // ################################################################################
@@ -181,7 +173,11 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(config: Configuration, opts: &Opts, logger: &mut BoxedCollector) -> Result<Self> {
+    pub async fn new(
+        config: Configuration,
+        opts: &Opts,
+        logger: &mut BoxedCollector,
+    ) -> Result<Self> {
         let app_dir = create_app_dirs()?;
         let recipes = recipe::Loader::new(&config.recipes_dir)
             .context("failed to initialize recipe loader")?;
@@ -205,7 +201,7 @@ impl Application {
             },
         ));
 
-        let runtime = init_runtime(opts, &config, logger)?;
+        let runtime = init_runtime(opts, &config, logger).await?;
 
         let app = Application {
             config,

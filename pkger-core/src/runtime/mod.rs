@@ -7,7 +7,7 @@ pub use docker_api;
 pub use podman::PodmanContainer;
 pub use podman_api;
 
-use crate::Result;
+use crate::{ErrContext, Result};
 
 use docker_api::Docker;
 use podman_api::Podman;
@@ -23,26 +23,30 @@ pub struct ConnectionPool {
 }
 
 impl ConnectionPool {
-    pub fn docker<S>(uri: S) -> Result<Self>
-    where
-        S: Into<String>,
-    {
+    pub async fn new_checked(uri: impl Into<String>) -> Result<Self> {
         let uri = uri.into();
-
-        Ok(Self {
-            connector: RuntimeConnector::Docker(Docker::new(&uri)?),
-        })
+        let podman = Podman::new(&uri)?;
+        if podman.ping().await.is_ok() {
+            return Ok(Self::podman(podman));
+        }
+        let docker = Docker::new(&uri)?;
+        docker
+            .ping()
+            .await
+            .map(|_| Self::docker(docker))
+            .context(format!("failed to ping container runtime at `{uri}`"))
     }
 
-    pub fn podman<S>(uri: S) -> Result<Self>
-    where
-        S: Into<String>,
-    {
-        let uri = uri.into();
+    pub fn docker(docker: Docker) -> Self {
+        Self {
+            connector: RuntimeConnector::Docker(docker),
+        }
+    }
 
-        Ok(Self {
-            connector: RuntimeConnector::Podman(Podman::new(&uri)?),
-        })
+    pub fn podman(podman: Podman) -> Self {
+        Self {
+            connector: RuntimeConnector::Podman(podman),
+        }
     }
 
     pub fn connect(&self) -> RuntimeConnector {
