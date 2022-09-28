@@ -148,9 +148,6 @@ log_dir: &quot;&quot;
 images_dir: &quot;&quot;
 runtime_uri: &quot;unix:///var/run/docker.sock&quot;
 
-# Decides wether `runtime_uri` should be treated as Podman runtime. If false (default) Docker will be used
-podman: false
-
 # Disable colored output globally
 no_color: true
 
@@ -181,9 +178,7 @@ images:
 <p>The required fields when running a build are <code>recipes_dir</code> and <code>output_dir</code>. First tells <strong>pkger</strong> where to look for
 <a href="./recipes.html">recipes</a> to build, the second is the directory where the final packages will end up.</p>
 <p>When using <a href="./images.html">custom images</a> their location can be specified with <code>images_dir</code>.</p>
-<p>If Docker daemon that <strong>pkger</strong> should connect does not run on a default unix socket override the uri with <code>runtime_uri</code>
-parameter.</p>
-<p>To use Podman as the container runtime, set <code>podman: true</code>.</p>
+<p>If container runtime daemon that <strong>pkger</strong> should connect does not run on a default unix socket override the uri with <code>runtime_uri</code> parameter. <strong>pkger</strong> will automatically determine wether the provided runtime uri is a Podman or Docker daemon.</p>
 <p>If an option is available as both configuration parameter and cli argument <strong>pkger</strong> will favour the arguments passed
 during startup.</p>
 <h2 id="generate-configuration-file-and-directories"><a class="header" href="#generate-configuration-file-and-directories">Generate configuration file and directories</a></h2>
