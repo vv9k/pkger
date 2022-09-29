@@ -1,11 +1,11 @@
 use crate::opts::{CompletionsOpts, Opts, APP_NAME};
 use crate::Error;
 
-use clap::{IntoApp, Parser};
+use clap::{CommandFactory, Parser};
 use std::io;
 use std::str::FromStr;
 
-#[derive(Debug, Parser)]
+#[derive(Clone, Copy, Debug, Parser)]
 #[allow(clippy::enum_variant_names)]
 pub enum Shell {
     Bash,

@@ -14,8 +14,8 @@ edition = "2021"
 [dependencies]
 pkger-core = { path = "../pkger-core" }
 
-clap = { version = "3", features = ["derive"] }
-clap_complete = "3"
+clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 
 chrono = "0.4"
 colored = "2"
