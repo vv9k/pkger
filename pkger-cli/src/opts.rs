@@ -5,7 +5,7 @@ use std::path::PathBuf;
 pub const APP_NAME: &str = "pkger";
 
 #[derive(Debug, Parser)]
-#[clap(
+#[command(
     name = APP_NAME,
     version = "0.9.0",
     about = "Creates RPM, DEB and other packages using Docker"
@@ -28,7 +28,7 @@ pub struct Opts {
     /// Directory for log files. All output will be redirected to files in this directory.
     pub log_dir: Option<PathBuf>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     /// Subcommand to run
     pub command: Command,
 
@@ -51,13 +51,13 @@ impl Opts {
 
 #[derive(Debug, Parser)]
 pub enum Command {
-    #[clap(aliases = &["b", "bld"])]
+    #[command(aliases = &["b", "bld"])]
     /// Runs a build creating specified packages on target platforms.
     Build(BuildOpts),
-    #[clap(alias = "ls")]
+    #[command(alias = "ls")]
     /// Lists the specified objects like images.
     List {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         /// An object to list like `image`, `recipe` or `package`.
         object: ListObject,
         #[arg(short, long)]
@@ -67,34 +67,34 @@ pub enum Command {
         /// Should the output be more verbose and include fields like version, arch...
         verbose: bool,
     },
-    #[clap(alias = "cc")]
+    #[command(alias = "cc")]
     /// Deletes the cache files with image state.
     CleanCache,
-    #[clap(alias = "e")]
+    #[command(alias = "e")]
     /// Edit a recipe or an image.
     Edit {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         /// An object to edit like `image`, `recipe` or `config`.
         object: EditObject,
     },
-    #[clap(alias = "n")]
+    #[command(alias = "n")]
     /// Generate a new image or recipe.
     New {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         /// An object to create like `image` or `recipe`.
         object: NewObject,
     },
-    #[clap(alias = "cp")]
+    #[command(alias = "cp")]
     /// Copy an image or a recipe
     Copy {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         /// An object to copy like `image` or `recipe`.
         object: CopyObject,
     },
-    #[clap(alias = "rm")]
+    #[command(alias = "rm")]
     /// Remove images or recipes
     Remove {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         /// An object to remove like `image` or `recipe`.
         object: RemoveObject,
         #[arg(short, long)]
@@ -107,7 +107,7 @@ pub enum Command {
     PrintCompletions(CompletionsOpts),
     /// Run various checks to verify health of the setup
     Check {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         /// An object to check
         object: CheckObject,
     },
@@ -137,28 +137,28 @@ pub struct InitOpts {
 
 #[derive(Debug, Parser)]
 pub enum CheckObject {
-    #[clap(aliases = &["conn", "con"])]
+    #[command(aliases = &["conn", "con"])]
     /// Verify the connection to the container runtime daemon.
     Connection,
 }
 
 #[derive(Debug, Parser)]
 pub enum EditObject {
-    #[clap(alias = "rcp")]
+    #[command(alias = "rcp")]
     Recipe { name: String },
-    #[clap(alias = "img")]
+    #[command(alias = "img")]
     Image { name: String },
-    #[clap(alias = "cfg")]
+    #[command(alias = "cfg")]
     Config,
 }
 
 #[derive(Debug, Parser)]
 pub enum ListObject {
-    #[clap(aliases = &["image", "img"])]
+    #[command(aliases = &["image", "img"])]
     Images,
-    #[clap(aliases = &["recipe", "rcp"])]
+    #[command(aliases = &["recipe", "rcp"])]
     Recipes,
-    #[clap(aliases = &["package", "pkg"])]
+    #[command(aliases = &["package", "pkg"])]
     Packages {
         #[arg(short, long)]
         #[arg(short, long, action = clap::ArgAction::Append, num_args = 0..)]
@@ -168,7 +168,7 @@ pub enum ListObject {
 
 #[derive(Debug, Parser)]
 pub enum CopyObject {
-    #[clap(alias = "rcp")]
+    #[command(alias = "rcp")]
     /// Copy a recipe
     Recipe {
         /// Source recipe to copy
@@ -176,7 +176,7 @@ pub enum CopyObject {
         /// What to call the output recipe
         dest: String,
     },
-    #[clap(alias = "img")]
+    #[command(alias = "img")]
     /// Copy an image
     Image {
         /// Source image to copy
@@ -188,9 +188,9 @@ pub enum CopyObject {
 
 #[derive(Debug, Parser)]
 pub enum NewObject {
-    #[clap(alias = "rcp")]
+    #[command(alias = "rcp")]
     Recipe(Box<GenRecipeOpts>),
-    #[clap(alias = "img")]
+    #[command(alias = "img")]
     Image {
         /// The name of the image to create.
         name: String,
@@ -199,13 +199,13 @@ pub enum NewObject {
 
 #[derive(Debug, Parser)]
 pub enum RemoveObject {
-    #[clap(aliases = &["recipe", "rcp"])]
+    #[command(aliases = &["recipe", "rcp"])]
     /// Remove recipes
     Recipes {
         /// One or more recipes to delete.
         names: Vec<String>,
     },
-    #[clap(aliases = &["image", "img"])]
+    #[command(aliases = &["image", "img"])]
     /// Remove images
     Images {
         /// One or more images to delete.
