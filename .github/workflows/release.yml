@@ -90,6 +90,13 @@ jobs:
       - run: ./pkger/pkger -c example/conf.yml build -s rpm -s deb -- pkger-prebuilt
         if: matrix.os == 'ubuntu-latest'
         name: Build deb and rpm packages
+      - run: |
+          cd example/output/pkger-deb && \
+          mv pkger-prebuilt-${{env.PKGER_VERSION}}-0.amd64.deb pkger-${{env.PKGER_VERSION}}-0.amd64.deb
+          cd ../pkger-rpm && \
+          mv pkger-prebuilt-${{env.PKGER_VERSION}}-0.x86_64.rpm pkger-${{env.PKGER_VERSION}}-0.x86_64.rpm
+        if: matrix.os == 'ubuntu-latest'
+        name: Rename artifacts
       - name: Upload gz
         uses: svenstaro/upload-release-action@v2
         with:
