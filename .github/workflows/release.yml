@@ -62,9 +62,6 @@ jobs:
         run: echo "PKGER_ARCHIVE=pkger-${{env.PKGER_VERSION}}-${{ matrix.target}}" >> $GITHUB_ENV
       - run: cargo build --release
         name: Release build
-      - run: ./target/release/pkger -c example/conf.yml build -s rpm -s deb -- pkger-simple
-        if: matrix.os == 'ubuntu-latest'
-        name: Build deb and rpm packages
       - name: Install help2man mac
         if: matrix.os == 'macos-latest'
         run: brew install help2man
@@ -87,6 +84,12 @@ jobs:
         run: |
           tar -zcvf ${{ env.PKGER_ARCHIVE }}.tar.gz pkger
           tar -Jcvf ${{ env.PKGER_ARCHIVE }}.tar.xz pkger
+      - run: cp ${{ env.PKGER_ARCHIVE }}.tar.gz example/recipes/pkger-prebuilt/
+        if: matrix.os == 'ubuntu-latest'
+        name: Copy archive
+      - run: ./target/release/pkger -c example/conf.yml build -s rpm -s deb -- pkger-prebuilt
+        if: matrix.os == 'ubuntu-latest'
+        name: Build deb and rpm packages
       - name: Upload gz
         uses: svenstaro/upload-release-action@v2
         with:
