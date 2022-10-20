@@ -28,7 +28,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Setup Rust
