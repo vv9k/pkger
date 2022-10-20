@@ -38,11 +38,11 @@ build:
   steps:
     - cmd: cargo build --color=never
       pkg: true
-    - cmd: $HOME/.cargo/bin/cargo build --color=never
+    - cmd: $HOME/.cargo/bin/cargo build --color=never --release
       deb: true
       rpm: true
 install:
   steps:
     - cmd: mkdir -p usr/bin
-    - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
+    - cmd: install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/
 

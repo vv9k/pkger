@@ -3,7 +3,7 @@ metadata:
   description: pkger
   arch: x86_64
   license: MIT
-  version: 0.1.0
+  version: 0.10.0
   url: "https://github.com/vv9k/pkger"
   git: "https://github.com/vv9k/pkger.git"
   maintainer: "vv9k"
@@ -32,10 +32,10 @@ build:
   steps:
     - cmd: cargo build --color=never
       images: ["rocky", "arch"]
-    - cmd: $HOME/.cargo/bin/cargo build --color=never
+    - cmd: $HOME/.cargo/bin/cargo build --color=never --release
       images: ["debian"]
 install:
   steps:
     - cmd: mkdir -p usr/bin
-    - cmd: install -m755 $PKGER_BLD_DIR/target/debug/pkger usr/bin/
+    - cmd: install -m755 $PKGER_BLD_DIR/target/release/pkger usr/bin/
 
