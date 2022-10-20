@@ -138,7 +138,7 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
                 fetch_fs_source(
                     ctx,
                     &[source.as_path()],
-                    &ctx.build.container_bld_dir,
+                    &ctx.build.container_tmp_dir,
                     logger,
                 )
                 .await?;
