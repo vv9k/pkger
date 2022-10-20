@@ -12,8 +12,10 @@ pkgbuild = { path = "../libs/pkgbuild" }
 apkbuild = { path = "../libs/apkbuild" }
 pkgspec-core = { path = "../libs/pkgspec-core" }
 
-docker-api = { git = "https://github.com/vv9k/docker-api-rs" }
-podman-api = { git = "https://github.com/vv9k/podman-api-rs" }
+#docker-api = { git = "https://github.com/vv9k/docker-api-rs" }
+#podman-api = { git = "https://github.com/vv9k/podman-api-rs" }
+docker-api = "0.12"
+podman-api = "0.7"
 
 anyhow = "1"
 

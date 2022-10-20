@@ -98,13 +98,13 @@ impl CreateOpts {
     }
 
     pub fn build_docker(self) -> docker_api::opts::ContainerCreateOpts {
-        let mut builder = docker_api::opts::ContainerCreateOpts::builder(self.image);
+        let mut builder = docker_api::opts::ContainerCreateOpts::builder().image(self.image);
 
         if let Some(name) = self.name {
             builder = builder.name(name);
         }
         if let Some(cmd) = self.cmd {
-            builder = builder.cmd(cmd);
+            builder = builder.command(cmd);
         }
         if let Some(entrypoint) = self.entrypoint {
             builder = builder.entrypoint(entrypoint);
@@ -230,13 +230,13 @@ impl<'opts> ExecOpts<'opts> {
         self
     }
 
-    pub fn build_docker(self) -> docker_api::opts::ExecContainerOpts {
-        let mut builder = docker_api::opts::ExecContainerOpts::builder();
+    pub fn build_docker(self) -> docker_api::opts::ExecCreateOpts {
+        let mut builder = docker_api::opts::ExecCreateOpts::builder();
 
         trace!("{:?}", self);
 
         builder = builder
-            .cmd(vec![self.shell, "-c", self.cmd])
+            .command(vec![self.shell, "-c", self.cmd])
             .tty(self.allocate_tty)
             .attach_stdout(self.attach_stdout)
             .attach_stderr(self.attach_stderr)

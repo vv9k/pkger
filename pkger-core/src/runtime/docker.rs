@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use docker_api::{
     conn::TtyChunk,
     models::ContainerPrune200Response,
-    opts::{ContainerPruneFilter, ContainerPruneOpts, LogsOpts, RmContainerOpts},
+    opts::{ContainerPruneFilter, ContainerPruneOpts, ContainerRemoveOpts, LogsOpts},
     Docker, Exec,
 };
 use futures::{StreamExt, TryStreamExt};
@@ -77,7 +77,7 @@ impl Container for DockerContainer {
 
         info!(logger => "deleting container {}", self.id());
         self.container
-            .remove(&RmContainerOpts::builder().force(true).build())
+            .remove(&ContainerRemoveOpts::builder().force(true).build())
             .await
             .context("failed to delete container")?;
 

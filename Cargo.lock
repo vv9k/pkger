@@ -72,6 +72,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "asynchronous-codec"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0de5164e5edbf51c45fb8c2d9664ae1c095cce1b265ecf7569093c0d66ef690"
+dependencies = [
+ "bytes 1.2.1",
+ "futures-sink",
+ "futures-util",
+ "memchr",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -214,13 +227,38 @@ dependencies = [
 
 [[package]]
 name = "containers-api"
-version = "0.4.1"
-source = "git+https://github.com/vv9k/containers-api#e582a019099426d4112e1ea6e0fe07de34d46549"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f27d5f3aeaa134ce3074008ed3a8fbc2e7a427bbdb7cfd4c3da9416be912c540"
 dependencies = [
  "chrono",
  "flate2",
  "futures-util",
  "futures_codec",
+ "http",
+ "hyper",
+ "hyperlocal",
+ "log",
+ "mime",
+ "paste",
+ "pin-project 1.0.12",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "containers-api"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4990f8a6e629e059202ce15c4f6e5157979516cdc57bc321f62122d8d2b452cf"
+dependencies = [
+ "chrono",
+ "flate2",
+ "futures-util",
  "http",
  "hyper",
  "hyperlocal",
@@ -327,38 +365,34 @@ dependencies = [
 
 [[package]]
 name = "docker-api"
-version = "0.10.1"
-source = "git+https://github.com/vv9k/docker-api-rs#0e6150e94b79de52d73eed01effb25e5aec9b942"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d86bb8c9dcb7c3e1e1ee48b78a20d3ca4cd926858d88d93bfdc4b3e95d889818"
 dependencies = [
+ "asynchronous-codec",
  "base64",
  "byteorder",
  "bytes 1.2.1",
  "chrono",
- "containers-api",
+ "containers-api 0.6.0",
  "docker-api-stubs",
- "flate2",
  "futures-util",
- "futures_codec",
  "http",
  "hyper",
- "hyperlocal",
  "log",
- "mime",
  "paste",
- "pin-project 1.0.12",
  "serde",
  "serde_json",
  "tar",
  "thiserror",
- "tokio",
  "url",
 ]
 
 [[package]]
 name = "docker-api-stubs"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "733cb176deec8914bf3ca1c3ee9256fdd227f9c7060cd34b9a958277413ff4fa"
+checksum = "5872f5e057625a972acce1a51b461284eab32b7e594e18f8fc2f63724075da47"
 dependencies = [
  "chrono",
  "serde",
@@ -1083,14 +1117,15 @@ dependencies = [
 
 [[package]]
 name = "podman-api"
-version = "0.6.0"
-source = "git+https://github.com/vv9k/podman-api-rs#c59b5e0da4112b9923476d45378873163281e5e3"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b2eafe3f550dd312bdfefe7786ee8ddf445d51a44e8caaf84ec57c3e785eade"
 dependencies = [
  "base64",
  "byteorder",
  "bytes 1.2.1",
  "chrono",
- "containers-api",
+ "containers-api 0.5.0",
  "flate2",
  "futures-util",
  "futures_codec",
