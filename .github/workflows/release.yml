@@ -57,7 +57,7 @@ jobs:
         uses: hecrj/setup-rust-action@v1
       - uses: actions/checkout@v3
       - name: Set version
-        run: echo "PKGER_VERSION=GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+        run: echo "PKGER_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       - name: Set archive name
         run: echo "PKGER_ARCHIVE=pkger-${{env.PKGER_VERSION}}-${{ matrix.target}}" >> $GITHUB_ENV
       - run: cargo build --release
