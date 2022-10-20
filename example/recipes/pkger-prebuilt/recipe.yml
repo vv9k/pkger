@@ -14,6 +14,8 @@ metadata:
       - libssl-dev
     pkger-rpm:
       - openssl-devel
+build:
+  steps: []
 install:
   steps:
     - cmd: |
@@ -23,5 +25,5 @@ install:
           usr/share/doc/pkger
     - cmd: install -m755 $PKGER_BLD_DIR/pkger/pkger usr/bin/
     - cmd: install -m644 $PKGER_BLD_DIR/pkger/README.md usr/share/doc/pkger/
-    - cmd: install -m644 $PKGER_BLD_DIR/pkger/LICENSE usr/share/doc/licenses/pkger/
+    - cmd: install -m644 $PKGER_BLD_DIR/pkger/LICENSE usr/share/licenses/pkger/
 
