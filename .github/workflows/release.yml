@@ -87,7 +87,7 @@ jobs:
       - run: cp ${{ env.PKGER_ARCHIVE }}.tar.gz example/recipes/pkger-prebuilt/
         if: matrix.os == 'ubuntu-latest'
         name: Copy archive
-      - run: ./target/release/pkger -c example/conf.yml build -s rpm -s deb -- pkger-prebuilt
+      - run: ./pkger/pkger -c example/conf.yml build -s rpm -s deb -- pkger-prebuilt
         if: matrix.os == 'ubuntu-latest'
         name: Build deb and rpm packages
       - name: Upload gz
