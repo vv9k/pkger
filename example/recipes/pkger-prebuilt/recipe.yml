@@ -1,0 +1,27 @@
+metadata:
+  name: pkger-prebuilt
+  description: pkger
+  arch: x86_64
+  license: MIT
+  version: 0.10.0
+  maintainer: "vv9k"
+  url: "https://github.com/vv9k/pkger"
+  source: pkger-0.10.0-x86_64-unknown-linux.tar.gz
+  provides:
+    - pkger
+  depends:
+    pkger-deb:
+      - libssl-dev
+    pkger-rpm:
+      - openssl-devel
+install:
+  steps:
+    - cmd: |
+        mkdir -p \
+          usr/bin \
+          usr/share/licenses/pkger \
+          usr/share/doc/pkger
+    - cmd: install -m755 $PKGER_BLD_DIR/pkger/pkger usr/bin/
+    - cmd: install -m644 $PKGER_BLD_DIR/pkger/README.md usr/share/doc/pkger/
+    - cmd: install -m644 $PKGER_BLD_DIR/pkger/LICENSE usr/share/doc/licenses/pkger/
+
