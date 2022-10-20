@@ -150,7 +150,6 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
                     r#"
                         for file in *;
                         do
-                            [ -f "$file" ] || continue
                             if [[ $file =~ (.*[.]tar.*|.*[.](tgz|tbz|txz|tlz|tsz|taz|tz)) ]]
                             then
                                 tar xvf $file -C {0}
@@ -158,7 +157,7 @@ pub async fn fetch_source(ctx: &Context<'_>, logger: &mut BoxedCollector) -> Res
                             then
                                 unzip $file -d {0}
                             else
-                                cp -v $file {0}
+                                cp -rv $file {0}
                             fi
                         done"#,
                     ctx.build.container_bld_dir.display(),
