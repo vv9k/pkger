@@ -1,5 +1,6 @@
 # 0.11.0
 - Change how patch failures are handled. Previously patch failures were ignored and could be easily overlooked, now a failure in applying/reading a patch results in termination of a job
+- Fix checks for default runtime socket
 
 # 0.10.0
 - Add support for env variables in git source url

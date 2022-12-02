@@ -114,13 +114,20 @@ async fn init_runtime(
                     podman::PODMAN_SOCK,
                 };
                 trace!(logger => "checking default paths `{PODMAN_SOCK}`, `{DOCKER_SOCK}`, `{DOCKER_SOCK_SECONDARY}`");
-                let uri = if PathBuf::from(PODMAN_SOCK).exists() {
+
+                #[cfg(unix)]
+                let uri = if PathBuf::from(PODMAN_SOCK.trim_start_matches("unix://")).exists() {
                     PODMAN_SOCK
-                } else if PathBuf::from(DOCKER_SOCK).exists() {
+                } else if PathBuf::from(DOCKER_SOCK.trim_start_matches("unix://")).exists() {
                     DOCKER_SOCK
                 } else {
                     DOCKER_SOCK_SECONDARY
                 };
+
+                #[cfg(not(unix))]
+                // TODO: handle a case for the default socket on non unix platforms
+                let uri = DOCKER_SOCK;
+
                 trace!(logger => "using default runtime uri, uri: {uri}");
                 uri.to_string()
             }
