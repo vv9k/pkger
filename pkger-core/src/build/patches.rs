@@ -1,5 +1,5 @@
 use crate::build::{container, remote};
-use crate::log::{debug, info, trace, warning, BoxedCollector};
+use crate::log::{debug, info, trace, BoxedCollector};
 use crate::recipe::{Patch, Patches};
 use crate::runtime::container::ExecOpts;
 use crate::Result;
@@ -21,21 +21,17 @@ pub async fn apply(
             }
         }
         debug!(logger => "applying patch: {:?}", patch);
-        if let Err(e) = ctx
-            .checked_exec(
-                &ExecOpts::default()
-                    .cmd(&format!(
-                        "patch -p{} < {}",
-                        patch.strip_level(),
-                        location.display()
-                    ))
-                    .working_dir(&ctx.build.container_bld_dir),
-                logger,
-            )
-            .await
-        {
-            warning!(logger => "applying patch {:?} failed, reason = {:?}", patch, e);
-        }
+        ctx.checked_exec(
+            &ExecOpts::default()
+                .cmd(&format!(
+                    "patch -p{} < {}",
+                    patch.strip_level(),
+                    location.display()
+                ))
+                .working_dir(&ctx.build.container_bld_dir),
+            logger,
+        )
+        .await?;
     }
 
     Ok(())
@@ -84,8 +80,7 @@ pub async fn collect(
 
     let to_copy = to_copy.iter().map(PathBuf::as_path).collect::<Vec<_>>();
 
-    let patches_archive = ctx.build.container_tmp_dir.join("patches.tar");
-    remote::fetch_fs_source(ctx, &to_copy, &patches_archive, logger).await?;
+    remote::fetch_fs_source(ctx, &to_copy, &patch_dir, logger).await?;
 
     Ok(out)
 }

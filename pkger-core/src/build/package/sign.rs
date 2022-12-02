@@ -18,7 +18,7 @@ pub(crate) async fn upload_gpg_key(
     logger: &mut BoxedCollector,
 ) -> Result<PathBuf> {
     info!(logger => "uploading GPG key to '{}'", destination.display());
-    let key = fs::read(&gpg_key.path()).context("failed reading the gpg key")?;
+    let key = fs::read(gpg_key.path()).context("failed reading the gpg key")?;
 
     ctx.container
         .upload_files(

@@ -231,8 +231,9 @@ impl Container for PodmanContainer {
             logger,
         )
         .await
+        .context("failed to extract archive with files to container")?
+        .as_result()
         .map(|_| ())
-        .context("failed to extract archive with files to container")
     }
 }
 

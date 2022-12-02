@@ -213,7 +213,10 @@ impl Container for DockerContainer {
         let tar_path = self
             .upload_archive(tarball, destination, archive_name, logger)
             .await?;
-        trace!("extract archive with files");
+        trace!(
+            "extract archive '{archive_name} with files to {}",
+            destination.display()
+        );
 
         self.exec(
             &ExecOpts::default()
@@ -222,8 +225,9 @@ impl Container for DockerContainer {
             logger,
         )
         .await
+        .context("failed to extract archive with files to container")?
+        .as_result()
         .map(|_| ())
-        .context("failed to extract archive with files to container")
     }
 }
 

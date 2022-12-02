@@ -93,6 +93,9 @@ pub async fn fetch_fs_source(
     let mut tar = tar::Builder::new(tar_file);
 
     for path in files {
+        if !path.exists() {
+            return Err(anyhow!("source path '{}' doesn't exist", path.display()));
+        }
         if path.is_dir() {
             trace!(logger => "adding entry {} to archive", path.display());
             let dir_name = path.file_name().unwrap_or_default();

@@ -1,0 +1,5 @@
+--- testrootfile	2022-12-02 11:07:20.563951424 +0100
++++ testrootfile1	2022-12-02 11:11:45.062500002 +0100
+@@ -1 +1 @@
+-root-file-pre-patch
++root-file-patched

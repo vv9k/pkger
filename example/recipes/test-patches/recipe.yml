@@ -1,0 +1,22 @@
+---
+metadata:
+  name: test-patches
+  version: 0.1.0
+  description: pkger test package
+  arch: x86_64
+  license: MIT
+  source:
+    - src
+    - testrootfile
+  patches:
+    - patch: src.patch
+      strip: 1
+    - root.patch
+build:
+  steps:
+    - cmd: >-
+        if [[ $(cat src/testfile) =~ "exxample-patch321-patched" ]]; then exit 0; else
+        echo "Test file src/testfile has invalid content"; exit 1; fi
+    - cmd: >-
+        if [[ $(cat testrootfile) =~ "root-file-patched" ]]; then exit 0; else
+        echo "Test file testrootfile has invalid content"; exit 1; fi
