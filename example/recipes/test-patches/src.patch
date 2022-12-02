@@ -1,0 +1,7 @@
+diff --git a/src/testfile b/src/testfile
+index f5a1474..f15fd5e 100644
+--- a/src/testfile
++++ b/src/testfile
+@@ -1 +1 @@
+-example-patch123
++exxample-patch321-patched

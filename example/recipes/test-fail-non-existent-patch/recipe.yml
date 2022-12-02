@@ -1,0 +1,11 @@
+---
+metadata:
+  name: test-fail-non-existent-patch
+  version: 0.1.0
+  description: This recipe should fail as it specifies a patch that doesn't exist
+  arch: x86_64
+  license: MIT
+  patches:
+    - dummy.patch
+build:
+  steps: []
