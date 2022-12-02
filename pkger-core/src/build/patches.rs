@@ -80,8 +80,7 @@ pub async fn collect(
 
     let to_copy = to_copy.iter().map(PathBuf::as_path).collect::<Vec<_>>();
 
-    let patches_archive = ctx.build.container_tmp_dir.join("patches.tar");
-    remote::fetch_fs_source(ctx, &to_copy, &patches_archive, logger).await?;
+    remote::fetch_fs_source(ctx, &to_copy, &patch_dir, logger).await?;
 
     Ok(out)
 }
