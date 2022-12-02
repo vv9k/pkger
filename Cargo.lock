@@ -227,34 +227,9 @@ dependencies = [
 
 [[package]]
 name = "containers-api"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f27d5f3aeaa134ce3074008ed3a8fbc2e7a427bbdb7cfd4c3da9416be912c540"
-dependencies = [
- "chrono",
- "flate2",
- "futures-util",
- "futures_codec",
- "http",
- "hyper",
- "hyperlocal",
- "log",
- "mime",
- "paste",
- "pin-project 1.0.12",
- "serde",
- "serde_json",
- "tar",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "containers-api"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4990f8a6e629e059202ce15c4f6e5157979516cdc57bc321f62122d8d2b452cf"
+checksum = "56082e32f18a6d60f06c736b49e234deffb93b13cb87091a39e0dec053d03819"
 dependencies = [
  "chrono",
  "flate2",
@@ -365,16 +340,16 @@ dependencies = [
 
 [[package]]
 name = "docker-api"
-version = "0.12.1"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d86bb8c9dcb7c3e1e1ee48b78a20d3ca4cd926858d88d93bfdc4b3e95d889818"
+checksum = "522a3ae33cf4fc165de192eb9c563b755bc43cda9bd6f442b2d511b84514b917"
 dependencies = [
  "asynchronous-codec",
  "base64",
  "byteorder",
  "bytes 1.2.1",
  "chrono",
- "containers-api 0.6.0",
+ "containers-api",
  "docker-api-stubs",
  "futures-util",
  "http",
@@ -1117,15 +1092,15 @@ dependencies = [
 
 [[package]]
 name = "podman-api"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b2eafe3f550dd312bdfefe7786ee8ddf445d51a44e8caaf84ec57c3e785eade"
+checksum = "64b8a428a3381f5e1fcfa1fb94092017f193c75f2d7959bc799ee82dadf0f72d"
 dependencies = [
  "base64",
  "byteorder",
  "bytes 1.2.1",
  "chrono",
- "containers-api 0.5.0",
+ "containers-api",
  "flate2",
  "futures-util",
  "futures_codec",
@@ -1142,9 +1117,9 @@ dependencies = [
 
 [[package]]
 name = "podman-api-stubs"
-version = "0.6.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8de51a830dd76ebf77112a42b0e838e897b8ceb466994448ae7340b9fcd9ab2"
+checksum = "cd9a63943c0c6e69efcd252ad61f4914270b7e3fec170e6a04ffdb2fc8dcd6a9"
 dependencies = [
  "chrono",
  "serde",
