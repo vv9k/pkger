@@ -125,7 +125,7 @@ impl Package for Apk {
             .as_ref()
             .and_then(|apk| apk.private_key.as_deref())
         {
-            if let Ok(key) = std::fs::read(&key_location) {
+            if let Ok(key) = std::fs::read(key_location) {
                 info!("uploading signing key");
                 trace!(logger => "key location: {}", key_location.display());
                 ctx.container

@@ -358,7 +358,7 @@ impl Application {
     fn copy(&self, object: CopyObject) -> Result<()> {
         fn copy_dir(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
             let dst = dst.as_ref();
-            fs::create_dir_all(&dst).context("creating destination directory failed")?;
+            fs::create_dir_all(dst).context("creating destination directory failed")?;
             for entry in fs::read_dir(src).context("reading source directory failed")? {
                 match entry {
                     Ok(entry) => {
@@ -672,7 +672,7 @@ impl Application {
         let mut images = vec![];
 
         if let Some(dir) = &self.config.images_dir {
-            let mut entries: Vec<_> = fs::read_dir(&dir)
+            let mut entries: Vec<_> = fs::read_dir(dir)
                 .context("failed to read images directory")?
                 .filter(|e| match e {
                     Ok(e) => {

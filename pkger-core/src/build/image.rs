@@ -205,7 +205,7 @@ RUN {} {} && \
     match &ctx.build.runtime {
         RuntimeConnector::Docker(docker) => {
             let images = docker.images();
-            let opts = ImageBuildOpts::builder(&temp_path)
+            let opts = ImageBuildOpts::builder(temp_path)
                 .tag(format!("{}:{}", state.image, CACHED))
                 .build();
 
@@ -301,7 +301,7 @@ pub async fn find_cached_state(
 
     trace!("checking if image should be rebuilt");
     let states = state.read().await;
-    if let Some(state) = (*states).images.get(target) {
+    if let Some(state) = states.images.get(target) {
         if simple {
             return Some(state.to_owned());
         }

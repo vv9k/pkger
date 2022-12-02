@@ -43,9 +43,9 @@ impl Package for Rpm {
         let specs = base_path.join("SPECS");
         let sources = base_path.join("SOURCES");
         let rpms = base_path.join("RPMS");
-        let rpms_arch = rpms.join(&arch);
+        let rpms_arch = rpms.join(arch);
         let srpms = base_path.join("SRPMS");
-        let arch_dir = rpms.join(&arch);
+        let arch_dir = rpms.join(arch);
         let rpm_name = format!("{}.rpm", package_name);
         let tmp_buildroot = PathBuf::from(["/tmp/", &package_name].join(""));
         let source_tar_path = sources.join(&source_tar);
