@@ -1,6 +1,6 @@
 use crate::log::{trace, BoxedCollector};
 use crate::recipe::Env;
-use crate::Result;
+use anyhow::{anyhow, Result};
 
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
@@ -32,6 +32,16 @@ pub struct Output<T> {
     pub stdout: Vec<T>,
     pub stderr: Vec<T>,
     pub exit_code: u64,
+}
+
+impl Output<String> {
+    pub fn as_result(self) -> Result<Vec<String>> {
+        if self.exit_code != 0 {
+            Err(anyhow!(self.stderr.join("\n")))
+        } else {
+            Ok(self.stdout)
+        }
+    }
 }
 
 #[derive(Clone, Default, Debug)]
