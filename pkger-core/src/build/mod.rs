@@ -190,6 +190,8 @@ pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathB
     if let Some(patches) = &ctx.recipe.metadata.patches {
         let patches = patches::collect(&container_ctx, patches, logger).await?;
         patches::apply(&container_ctx, patches, logger).await?;
+    } else {
+        debug!(logger => "no patches to apply");
     }
 
     scripts::run(&container_ctx, logger).await?;
