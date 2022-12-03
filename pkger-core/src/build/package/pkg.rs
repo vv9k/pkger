@@ -92,6 +92,7 @@ impl Package for Pkg {
                 &sources,
                 &checksums,
                 &ctx.build.build_version,
+                *ctx.build.target.build_target(),
                 logger,
             )
             .render()

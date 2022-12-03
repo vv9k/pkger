@@ -109,6 +109,7 @@ impl Package for Rpm {
                 &files[..],
                 &image_state.image,
                 &ctx.build.build_version,
+                *ctx.build.target.build_target(),
                 logger,
             )
             .render()

@@ -76,6 +76,7 @@ impl Package for Apk {
                 &sources,
                 &bld_dir,
                 &ctx.build.build_version,
+                *ctx.build.target.build_target(),
                 logger,
             )
             .render()

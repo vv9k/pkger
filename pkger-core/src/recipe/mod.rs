@@ -14,6 +14,7 @@ pub use metadata::{
 };
 pub use target::RecipeTarget;
 
+use crate::build::deps;
 use crate::log::{warning, BoxedCollector};
 use crate::{err, ErrContext, Error, Result};
 
@@ -116,6 +117,7 @@ impl Recipe {
         image: &str,
         installed_size: Option<&str>,
         version: &str,
+        build_target: BuildTarget,
         logger: &mut BoxedCollector,
     ) -> BinaryDebControl {
         let name = if self.metadata.name.contains('_') {
@@ -138,13 +140,16 @@ impl Recipe {
             builder = builder.section(group);
         }
         if let Some(depends) = &self.metadata.depends {
-            builder = builder.add_depends_entries(depends.resolve_names(image));
+            let depends = deps::recipe(Some(depends), build_target, image);
+            builder = builder.add_depends_entries(depends);
         }
         if let Some(conflicts) = &self.metadata.conflicts {
-            builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
+            let conflicts = deps::recipe(Some(conflicts), build_target, image);
+            builder = builder.add_conflicts_entries(conflicts);
         }
         if let Some(provides) = &self.metadata.provides {
-            builder = builder.add_provides_entries(provides.resolve_names(image));
+            let provides = deps::recipe(Some(provides), build_target, image);
+            builder = builder.add_provides_entries(provides);
         }
         if let Some(maintainer) = &self.metadata.maintainer {
             builder = builder.maintainer(maintainer);
@@ -167,22 +172,28 @@ impl Recipe {
             }
 
             if let Some(pre_depends) = &deb.pre_depends {
-                builder = builder.add_pre_depends_entries(pre_depends.resolve_names(image));
+                let pre_depends = deps::recipe(Some(pre_depends), build_target, image);
+                builder = builder.add_pre_depends_entries(pre_depends);
             }
             if let Some(recommends) = &deb.recommends {
-                builder = builder.add_recommends_entries(recommends.resolve_names(image));
+                let recommends = deps::recipe(Some(recommends), build_target, image);
+                builder = builder.add_recommends_entries(recommends);
             }
             if let Some(suggests) = &deb.suggests {
-                builder = builder.add_suggests_entries(suggests.resolve_names(image));
+                let suggests = deps::recipe(Some(suggests), build_target, image);
+                builder = builder.add_suggests_entries(suggests);
             }
             if let Some(breaks) = &deb.breaks {
-                builder = builder.add_breaks_entries(breaks.resolve_names(image));
+                let breaks = deps::recipe(Some(breaks), build_target, image);
+                builder = builder.add_breaks_entries(breaks);
             }
             if let Some(replaces) = &deb.replaces {
-                builder = builder.add_replaces_entries(replaces.resolve_names(image));
+                let replaces = deps::recipe(Some(replaces), build_target, image);
+                builder = builder.add_replaces_entries(replaces);
             }
             if let Some(enchances) = &deb.enhances {
-                builder = builder.add_enchances_entries(enchances.resolve_names(image));
+                let enchances = deps::recipe(Some(enchances), build_target, image);
+                builder = builder.add_enchances_entries(enchances);
             }
         }
 
@@ -195,6 +206,7 @@ impl Recipe {
         files: &[String],
         image: &str,
         version: &str,
+        build_target: BuildTarget,
         _logger: &mut BoxedCollector,
     ) -> RpmSpec {
         let install_script = sources
@@ -220,7 +232,8 @@ impl Recipe {
 
         if let Some(rpm) = &self.metadata.rpm {
             if let Some(obsoletes) = &rpm.obsoletes {
-                builder = builder.add_obsoletes_entries(obsoletes.resolve_names(image));
+                let obsoletes = deps::recipe(Some(obsoletes), build_target, image);
+                builder = builder.add_obsoletes_entries(obsoletes);
             }
             if let Some(vendor) = &rpm.vendor {
                 builder = builder.vendor(vendor);
@@ -268,14 +281,17 @@ impl Recipe {
         if let Some(epoch) = &self.metadata.epoch {
             builder = builder.epoch(epoch);
         }
+        if let Some(depends) = &self.metadata.depends {
+            let depends = deps::recipe(Some(depends), build_target, image);
+            builder = builder.add_requires_entries(depends);
+        }
         if let Some(conflicts) = &self.metadata.conflicts {
-            builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
+            let conflicts = deps::recipe(Some(conflicts), build_target, image);
+            builder = builder.add_conflicts_entries(conflicts);
         }
         if let Some(provides) = &self.metadata.provides {
-            builder = builder.add_provides_entries(provides.resolve_names(image));
-        }
-        if let Some(requires) = &self.metadata.depends {
-            builder = builder.add_requires_entries(requires.resolve_names(image));
+            let provides = deps::recipe(Some(provides), build_target, image);
+            builder = builder.add_provides_entries(provides);
         }
 
         builder.build()
@@ -287,6 +303,7 @@ impl Recipe {
         sources: &[String],
         checksums: &[String],
         version: &str,
+        build_target: BuildTarget,
         _logger: &mut BoxedCollector,
     ) -> PkgBuild {
         let package_func = sources.iter().fold(String::new(), |mut s, src| {
@@ -311,13 +328,16 @@ impl Recipe {
             builder = builder.add_groups_entries(vec![group]);
         }
         if let Some(depends) = &self.metadata.depends {
-            builder = builder.add_depends_entries(depends.resolve_names(image));
+            let depends = deps::recipe(Some(depends), build_target, image);
+            builder = builder.add_depends_entries(depends);
         }
         if let Some(conflicts) = &self.metadata.conflicts {
-            builder = builder.add_conflicts_entries(conflicts.resolve_names(image));
+            let conflicts = deps::recipe(Some(conflicts), build_target, image);
+            builder = builder.add_conflicts_entries(conflicts);
         }
         if let Some(provides) = &self.metadata.provides {
-            builder = builder.add_provides_entries(provides.resolve_names(image));
+            let provides = deps::recipe(Some(provides), build_target, image);
+            builder = builder.add_provides_entries(provides);
         }
 
         builder = builder.pkgrel(self.metadata.release());
@@ -331,6 +351,7 @@ impl Recipe {
         sources: &[String],
         builddir: &Path,
         version: &str,
+        build_target: BuildTarget,
         _logger: &mut BoxedCollector,
     ) -> ApkBuild {
         let package_func =
@@ -352,11 +373,14 @@ impl Recipe {
             .builddir(builddir.to_string_lossy());
 
         builder = builder.url(self.metadata.url.as_deref().unwrap_or(" "));
+
         if let Some(depends) = &self.metadata.depends {
-            builder = builder.add_depends_entries(depends.resolve_names(image));
+            let depends = deps::recipe(Some(depends), build_target, image);
+            builder = builder.add_depends_entries(depends);
         }
         if let Some(provides) = &self.metadata.provides {
-            builder = builder.add_provides_entries(provides.resolve_names(image));
+            let provides = deps::recipe(Some(provides), build_target, image);
+            builder = builder.add_provides_entries(provides);
         }
 
         builder = builder.pkgrel(self.metadata.release());

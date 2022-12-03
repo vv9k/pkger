@@ -61,7 +61,13 @@ impl Package for Deb {
         let control = ctx
             .build
             .recipe
-            .as_deb_control(&image_state.image, size, &ctx.build.build_version, logger)
+            .as_deb_control(
+                &image_state.image,
+                size,
+                &ctx.build.build_version,
+                *ctx.build.target.build_target(),
+                logger,
+            )
             .render()
             .context("rendering apkbuild failed")?;
         debug!(logger => "{}", control);
