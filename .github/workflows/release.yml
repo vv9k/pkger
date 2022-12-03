@@ -34,6 +34,11 @@ jobs:
         uses: hecrj/setup-rust-action@v1
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Install rpm
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt -y update
+          sudo apt -y install rpm
       - name: Test
         run: make test
 
