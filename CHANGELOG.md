@@ -1,6 +1,7 @@
 # 0.11.0
 - Change how patch failures are handled. Previously patch failures were ignored and could be easily overlooked, now a failure in applying/reading a patch results in termination of a job
 - Fix checks for default runtime socket
+- Fix dependencies resolution for custom images. As stated in the documentation, when there are dependencies specified for a simple image like `pkger-rpm` they should be shared with custom RPM based distros. Previously this was not the case.
 
 # 0.10.0
 - Add support for env variables in git source url
