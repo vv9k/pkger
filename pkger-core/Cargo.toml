@@ -14,8 +14,9 @@ pkgspec-core = { path = "../libs/pkgspec-core" }
 
 #docker-api = { git = "https://github.com/vv9k/docker-api-rs" }
 docker-api = "0.12"
+podman-api = { git = "https://github.com/vv9k/podman-api-rs" }
 #podman-api = { path = "../../podman-api-rs" }
-podman-api = "0.8"
+#podman-api = "0.8"
 
 anyhow = "1"
 

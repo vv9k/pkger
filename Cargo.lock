@@ -250,6 +250,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "containers-api"
+version = "0.7.0"
+source = "git+https://github.com/vv9k/containers-api#def35c7c95b8a79766bea96d7afe3e8c97792c2d"
+dependencies = [
+ "chrono",
+ "flate2",
+ "futures-util",
+ "http",
+ "hyper",
+ "hyperlocal",
+ "log",
+ "mime",
+ "paste",
+ "pin-project 1.0.12",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -349,7 +372,7 @@ dependencies = [
  "byteorder",
  "bytes 1.2.1",
  "chrono",
- "containers-api",
+ "containers-api 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "docker-api-stubs",
  "futures-util",
  "http",
@@ -1093,14 +1116,13 @@ dependencies = [
 [[package]]
 name = "podman-api"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64b8a428a3381f5e1fcfa1fb94092017f193c75f2d7959bc799ee82dadf0f72d"
+source = "git+https://github.com/vv9k/podman-api-rs#808f0ac6255729cfb917168ef7c5a2d2dbbb245d"
 dependencies = [
  "base64",
  "byteorder",
  "bytes 1.2.1",
  "chrono",
- "containers-api",
+ "containers-api 0.7.0 (git+https://github.com/vv9k/containers-api)",
  "flate2",
  "futures-util",
  "futures_codec",
