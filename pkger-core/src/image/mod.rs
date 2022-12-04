@@ -27,7 +27,7 @@ impl Image {
     pub fn simple(target: BuildTarget) -> BuildTargetInfo {
         match target {
             BuildTarget::Rpm => (
-                "rockylinux/rockylinux:latest",
+                "docker.io/rockylinux/rockylinux:latest",
                 "pkger-rpm",
                 Os::new("Rocky", None::<&str>),
             ),

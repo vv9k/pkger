@@ -1,1 +1,1 @@
-FROM rockylinux/rockylinux:latest
+FROM docker.io/rockylinux/rockylinux:latest
