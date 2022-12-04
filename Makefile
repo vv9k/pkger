@@ -39,10 +39,10 @@ test:
 	cargo t --all-targets --all-features -- --test-threads=1
 	cargo r -- -c example/conf.yml build test-package test-suite child-package1 child-package2
 	cargo r -- -c example/conf.yml build -s apk -s pkg -- test-package
-	cargo r -- -c example/conf.yml build -s rpm -- test-patches
 	# below should fail
 	-cargo r -- -c example/conf.yml build -s rpm -- test-fail-non-existent-patch
 	test $? 1
+	cargo r -- -c example/conf.yml build -s rpm -- test-patches
 
 
 .PHONY: fmt_check
