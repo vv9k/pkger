@@ -42,6 +42,12 @@ test:
 	# below should fail
 	-cargo r -- -c example/conf.yml build -s rpm -- test-fail-non-existent-patch
 	test $? 1
+	cargo r -- -c example/conf.yml build -i rocky debian -- test-common-dependencies
+	@rpm -qp --requires example/output/rocky/test-common-dependencies-0.1.0-0.x86_64.rpm | grep openssl-devel
+	@rpm -qp --conflicts example/output/rocky/test-common-dependencies-0.1.0-0.x86_64.rpm | grep httpd
+	@rpm -qp --obsoletes example/output/rocky/test-common-dependencies-0.1.0-0.x86_64.rpm | grep bison1
+	@dpkg-deb -I example/output/debian/test-common-dependencies-0.1.0-0.amd64.deb | grep Depends | grep libssl-dev
+	@dpkg-deb -I example/output/debian/test-common-dependencies-0.1.0-0.amd64.deb | grep Conflicts | grep apache2
 	cargo r -- -c example/conf.yml build -s rpm -- test-patches
 
 

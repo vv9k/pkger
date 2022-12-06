@@ -1,23 +1,36 @@
-use crate::build::container::Context;
-use crate::image::{Image, ImageState};
-use crate::recipe::{BuildTarget, Recipe};
+use crate::image::Image;
+use crate::recipe::{BuildTarget, Dependencies, Recipe};
 
 use std::collections::HashSet;
 
-pub fn recipe<'ctx>(ctx: &Context<'ctx>, state: &ImageState) -> HashSet<&'ctx str> {
-    if let Some(deps) = &ctx.build.recipe.metadata.build_depends {
-        let mut _deps = deps.resolve_names(&state.image);
-        let simple = Image::simple(*ctx.build.target.build_target()).image;
-        if state.image != simple {
-            _deps.extend(deps.resolve_names(simple));
-        }
-
-        return _deps;
-    }
-    HashSet::new()
+pub fn recipe_and_default<'ctx>(
+    deps: Option<&'ctx Dependencies>,
+    recipe_: &Recipe,
+    build_target: BuildTarget,
+    state_image: &str,
+    enable_gpg: bool,
+) -> HashSet<&'ctx str> {
+    let mut deps_out = default(&build_target, recipe_, enable_gpg);
+    let recipe = recipe(deps, build_target, state_image);
+    deps_out.extend(recipe);
+    deps_out
 }
 
-pub fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashSet<&'static str> {
+pub fn recipe<'ctx>(
+    deps: Option<&'ctx Dependencies>,
+    build_target: BuildTarget,
+    state_image: &str,
+) -> HashSet<&'ctx str> {
+    let mut deps_out = HashSet::new();
+    if let Some(deps) = &deps {
+        deps_out.extend(deps.resolve_names(state_image));
+        let simple = Image::simple(build_target).name;
+        deps_out.extend(deps.resolve_names(simple));
+    }
+    deps_out
+}
+
+fn default(target: &BuildTarget, recipe: &Recipe, enable_gpg: bool) -> HashSet<&'static str> {
     let mut deps = HashSet::new();
     deps.insert("tar");
     match target {

@@ -1,0 +1,32 @@
+metadata:
+  name: test-common-dependencies
+  description: Test that dependencies for common images like `pkger-rpm` get shared to other RPM based distros
+  arch: x86_64
+  license: MIT
+  version: 0.1.0
+  all_images: true
+  build_depends:
+    pkger-rpm: [ bison ]
+    pkger-deb: [ bison ]
+  depends:
+    pkger-rpm: [ openssl-devel ]
+    pkger-deb: [ libssl-dev ]
+  conflicts:
+    pkger-rpm: [ httpd ]
+    pkger-deb: [ apache2 ]
+  rpm:
+    obsoletes:
+      pkger-rpm: [ bison1 ]
+build:
+  shell: /bin/bash
+  steps:
+    - cmd: |
+        bison --version
+        if [ $? -eq 0 ]; then exit 0; else echo \
+        'bison is not installed but should be part of the build_depends list'; exit 1; fi
+      images: [ rocky ]
+    - cmd: |
+        bison --version
+        if [ $? -eq 0 ]; then exit 0; else echo \
+        'bison is not installed but should be part of the build_depends list'; exit 1; fi
+      images: [ debian ]

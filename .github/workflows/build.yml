@@ -49,7 +49,7 @@ jobs:
           sudo dpkg -i example/output/debian/test-package-0.1.0-0.amd64.deb
           cat /test/deb/test_file
       - name: Install alien
-        run: sudo apt install alien
+        run: sudo apt install -y alien rpm
       - name: Verify RPM package
         run: |
           sudo alien -i example/output/rocky/test-package-0.1.0-0.x86_64.rpm

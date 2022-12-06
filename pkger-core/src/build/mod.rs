@@ -18,6 +18,7 @@ use crate::ssh::SshConfig;
 use crate::{ErrContext, Result};
 
 use async_rwlock::RwLock;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -117,6 +118,26 @@ impl Context {
         self.id.as_str()
     }
 
+    pub fn build_depends(&self) -> HashSet<&str> {
+        deps::recipe_and_default(
+            self.recipe.metadata.build_depends.as_ref(),
+            &self.recipe,
+            *self.target.build_target(),
+            self.target.image(),
+            self.gpg_key.is_some(),
+        )
+    }
+
+    pub fn depends(&self) -> HashSet<&str> {
+        deps::recipe_and_default(
+            self.recipe.metadata.depends.as_ref(),
+            &self.recipe,
+            *self.target.build_target(),
+            self.target.image(),
+            self.gpg_key.is_some(),
+        )
+    }
+
     async fn create_out_dir(
         &mut self,
         logger: &mut BoxedCollector,
@@ -152,15 +173,10 @@ pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathB
 
     let image_state = if image_state.tag != image::CACHED {
         trace!(logger => "image tag is not {}, caching", image::CACHED);
-        let mut deps = deps::default(
-            ctx.target.build_target(),
-            &ctx.recipe,
-            ctx.gpg_key.is_some(),
-        );
-        trace!(logger => "default deps: {:?}", deps);
-        let recipe_deps = deps::recipe(&container_ctx, &image_state);
-        trace!(logger => "recipe deps: {:?}", recipe_deps);
-        deps.extend(recipe_deps);
+
+        let deps = ctx.build_depends();
+        trace!(logger => "dependencies: {:?}", deps);
+
         let new_state = image::create_cache(&container_ctx, &image_state, &deps, logger).await?;
 
         info!(logger => "successfully cached image, id = {}, image = {}", &new_state.id, &new_state.image);

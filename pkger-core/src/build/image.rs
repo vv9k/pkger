@@ -1,4 +1,4 @@
-use crate::build::{container, deps, Context};
+use crate::build::{container, Context};
 use crate::image::{ImageState, ImagesState};
 use crate::log::{debug, info, trace, warning, BoxedCollector};
 use crate::recipe::RecipeTarget;
@@ -20,16 +20,8 @@ pub static LATEST: &str = "latest";
 
 pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<ImageState> {
     info!(logger => "building image '{}'", ctx.target.image());
-    let mut deps = if let Some(deps) = &ctx.recipe.metadata.build_depends {
-        deps.resolve_names(ctx.target.image())
-    } else {
-        Default::default()
-    };
-    deps.extend(deps::default(
-        ctx.target.build_target(),
-        &ctx.recipe,
-        ctx.gpg_key.is_some(),
-    ));
+
+    let deps = ctx.build_depends();
     trace!(logger => "resolved dependencies: {:?}", deps);
 
     let state = find_cached_state(
