@@ -39,7 +39,6 @@ test:
 	cargo t --all-targets --all-features -- --test-threads=1
 	cargo r -- -c example/conf.yml build test-package test-suite child-package1 child-package2
 	cargo r -- -c example/conf.yml build -s apk -s pkg -- test-package
-	cargo r -- -c example/conf.yml build -s rpm -- test-patches
 	# below should fail
 	-cargo r -- -c example/conf.yml build -s rpm -- test-fail-non-existent-patch
 	test $? 1
@@ -49,6 +48,7 @@ test:
 	@rpm -qp --obsoletes example/output/rocky/test-common-dependencies-0.1.0-0.x86_64.rpm | grep bison1
 	@dpkg-deb -I example/output/debian/test-common-dependencies-0.1.0-0.amd64.deb | grep Depends | grep libssl-dev
 	@dpkg-deb -I example/output/debian/test-common-dependencies-0.1.0-0.amd64.deb | grep Conflicts | grep apache2
+	cargo r -- -c example/conf.yml build -s rpm -- test-patches
 
 
 .PHONY: fmt_check
