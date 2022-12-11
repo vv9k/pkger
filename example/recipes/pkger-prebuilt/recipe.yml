@@ -3,10 +3,10 @@ metadata:
   description: pkger
   arch: x86_64
   license: MIT
-  version: 0.10.0
+  version: 0.11.0
   maintainer: "vv9k"
   url: "https://github.com/vv9k/pkger"
-  source: pkger-0.10.0-x86_64-unknown-linux.tar.gz
+  source: pkger-0.11.0-x86_64-unknown-linux.tar.gz
   provides:
     - pkger
   depends:
