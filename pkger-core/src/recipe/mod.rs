@@ -127,7 +127,7 @@ impl Recipe {
             self.metadata.name.to_owned()
         };
 
-        let mut builder = DebControlBuilder::binary_package_builder(&name)
+        let mut builder = DebControlBuilder::binary_package_builder(name)
             .version(version)
             .revision(self.metadata.release())
             .description(&self.metadata.description)
@@ -227,7 +227,7 @@ impl Recipe {
             .add_files_entries(files)
             .add_sources_entries(sources)
             .add_macro("__os_install_post", None::<&str>, "%{nil}") // disable binary stripping
-            .install_script(&install_script)
+            .install_script(install_script)
             .description(&self.metadata.description);
 
         if let Some(rpm) = &self.metadata.rpm {

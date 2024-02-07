@@ -46,7 +46,7 @@ impl Configuration {
     pub fn save(&self) -> Result<()> {
         fs::write(
             &self.path,
-            &serde_yaml::to_string(&self).context("failed to serialize configuration file")?,
+            serde_yaml::to_string(&self).context("failed to serialize configuration file")?,
         )
         .context("failed to save configuration file")
         .map(|_| ())

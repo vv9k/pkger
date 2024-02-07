@@ -193,7 +193,7 @@ pub async fn run(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<PathB
         image_state
     };
 
-    let dirs = vec![
+    let dirs = [
         &ctx.container_out_dir,
         &ctx.container_bld_dir,
         &ctx.container_tmp_dir,

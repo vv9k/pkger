@@ -59,7 +59,7 @@ pub async fn build(ctx: &mut Context, logger: &mut BoxedCollector) -> Result<Ima
         RuntimeConnector::Docker(docker) => {
             let images = docker.images();
             let opts = ImageBuildOpts::builder(&ctx.image.path)
-                .tag(&format!("{}:{}", &ctx.target.image(), LATEST))
+                .tag(format!("{}:{}", &ctx.target.image(), LATEST))
                 .build();
 
             let mut stream = images.build(&opts);

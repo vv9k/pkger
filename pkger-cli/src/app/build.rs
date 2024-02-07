@@ -328,8 +328,8 @@ impl Application {
 
         let mut total = 0;
         let mut taskmap: Vec<_> = taskmap
-            .into_iter()
-            .map(|(_, v)| {
+            .into_values()
+            .map(|v| {
                 total += v.len();
                 v
             })
