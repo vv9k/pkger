@@ -3,7 +3,7 @@ use crate::build::package::sign::{import_gpg_key, upload_gpg_key};
 use crate::build::package::{Manifest, Package};
 use crate::image::ImageState;
 use crate::log::{debug, info, trace, BoxedCollector};
-use crate::recipe::BuildArch;
+use crate::recipe::{BuildArch, Distro};
 use crate::runtime::container::ExecOpts;
 use crate::{ErrContext, Result};
 
@@ -39,7 +39,11 @@ impl Package for Rpm {
 
         info!(logger => "building RPM package {}", package_name);
 
-        let base_path = PathBuf::from("/root/rpmbuild");
+        let base_path = match image_state.os.distribution() {
+            Distro::OpenSuse => "/usr/src/packages",
+            _ => "/root/rpmbuild",
+        };
+        let base_path = PathBuf::from(base_path);
         let specs = base_path.join("SPECS");
         let sources = base_path.join("SOURCES");
         let rpms = base_path.join("RPMS");
