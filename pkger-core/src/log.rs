@@ -87,10 +87,11 @@ pub enum OutputLocation {
     Stdout,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Level {
     Error,
     Warn,
+    #[default]
     Info,
     Debug,
     Trace,
@@ -105,12 +106,6 @@ impl Level {
             Level::Warn => &WARN,
             Level::Trace => &TRACE,
         }
-    }
-}
-
-impl Default for Level {
-    fn default() -> Self {
-        Level::Info
     }
 }
 

@@ -311,7 +311,7 @@ impl Application {
                 println!("saving recipe ~> `{}`", path.display());
                 fs::write(
                     path,
-                    &serde_yaml::to_string(&recipe).context("failed to serialize recipe")?,
+                    serde_yaml::to_string(&recipe).context("failed to serialize recipe")?,
                 )
                 .context("failed to save recipe file")
             }

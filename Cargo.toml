@@ -10,3 +10,4 @@ members = [
     "libs/pkgbuild",
     "libs/apkbuild"
 ]
+resolver = "2"

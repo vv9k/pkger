@@ -185,7 +185,7 @@ impl Rules {
     }
 }
 
-#[derive(PartialEq, Debug, Copy, Clone, Eq, Hash)]
+#[derive(PartialEq, Debug, Copy, Clone, Eq, Hash, Default)]
 pub enum RulesTarget {
     Clean,
     Binary,
@@ -195,6 +195,7 @@ pub enum RulesTarget {
     BuildArch,
     BuildIndep,
     Patch,
+    #[default]
     None,
 }
 
@@ -212,12 +213,6 @@ impl RulesTarget {
             Patch => "patch",
             None => "",
         }
-    }
-}
-
-impl Default for RulesTarget {
-    fn default() -> Self {
-        RulesTarget::None
     }
 }
 

@@ -55,7 +55,7 @@ pub async fn spawn<'ctx>(
     let session_label = ctx.session_id.to_string();
 
     let opts = CreateOpts::new(&image_state.id)
-        .name(&fix_name(&ctx.id))
+        .name(fix_name(&ctx.id))
         .cmd(["sleep infinity"])
         .entrypoint(["/bin/sh", "-c"])
         .labels([(SESSION_LABEL_KEY, session_label.as_str())])
