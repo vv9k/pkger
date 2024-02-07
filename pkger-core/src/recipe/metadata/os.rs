@@ -34,6 +34,10 @@ impl Os {
         self.distribution.as_ref()
     }
 
+    pub fn distribution(&self) -> Distro {
+        self.distribution
+    }
+
     pub fn package_manager(&self) -> PackageManager {
         let version: u8 = self.version().parse().unwrap_or_default();
         match self.distribution {
@@ -41,6 +45,7 @@ impl Os {
             Distro::Debian | Distro::Ubuntu => PackageManager::Apt,
             Distro::Rocky | Distro::RedHat | Distro::CentOS if version >= 8 => PackageManager::Dnf,
             Distro::Fedora if version >= 22 => PackageManager::Dnf,
+            Distro::OpenSuse => PackageManager::Zypper,
             Distro::Rocky => PackageManager::Dnf,
             Distro::RedHat | Distro::CentOS | Distro::Fedora => PackageManager::Yum,
             Distro::Alpine => PackageManager::Apk,
@@ -63,6 +68,7 @@ pub enum Distro {
     Debian,
     Fedora,
     RedHat,
+    OpenSuse,
     Ubuntu,
     Rocky,
     Alpine,
@@ -78,6 +84,7 @@ impl AsRef<str> for Distro {
             Debian => "debian",
             Fedora => "fedora",
             RedHat => "redhat",
+            OpenSuse => "opensuse",
             Ubuntu => "ubuntu",
             Rocky => "rocky",
             Alpine => "alpine",
@@ -95,6 +102,7 @@ impl From<&str> for Distro {
             ("debian", Debian),
             ("fedora", Fedora),
             ("redhat", RedHat),
+            ("opensuse", OpenSuse),
             ("red hat", RedHat),
             ("ubuntu", Ubuntu),
             ("rocky", Rocky),
@@ -118,6 +126,7 @@ pub enum PackageManager {
     Dnf,
     Pacman,
     Yum,
+    Zypper,
     Apk,
     Unknown,
 }
@@ -129,6 +138,7 @@ impl AsRef<str> for PackageManager {
             Self::Dnf => "dnf",
             Self::Pacman => "pacman",
             Self::Yum => "yum",
+            Self::Zypper => "zypper",
             Self::Apk => "apk",
             Self::Unknown => "unkown",
         }
@@ -142,6 +152,7 @@ impl PackageManager {
             Self::Dnf => vec!["install", "-y"],
             Self::Pacman => vec!["-S", "--noconfirm"],
             Self::Yum => vec!["install", "-y"],
+            Self::Zypper => vec!["install", "-y"],
             Self::Apk => vec!["add"],
             Self::Unknown => vec![],
         }
@@ -151,6 +162,7 @@ impl PackageManager {
         match self {
             Self::Apt => vec!["update", "-y"],
             Self::Dnf | Self::Yum => vec!["clean", "metadata"],
+            Self::Zypper => vec!["clean"],
             Self::Pacman => vec!["-Sy", "--noconfirm"],
             Self::Apk => vec!["update"],
             Self::Unknown => vec![],
@@ -160,7 +172,7 @@ impl PackageManager {
     pub fn upgrade_packages_args(&self) -> Vec<&'static str> {
         match self {
             Self::Apt => vec!["dist-upgrade", "-y"],
-            Self::Dnf | Self::Yum => vec!["update", "-y"],
+            Self::Dnf | Self::Yum | Self::Zypper => vec!["update", "-y"],
             Self::Pacman => vec!["-Syu", "--noconfirm"],
             Self::Apk => vec!["upgrade"],
             Self::Unknown => vec![],
@@ -171,6 +183,7 @@ impl PackageManager {
         match self {
             Self::Apt => vec!["clean"],
             Self::Dnf | Self::Yum => vec!["clean", "metadata"],
+            Self::Zypper => vec!["clean"],
             Self::Pacman => vec!["-Sc"],
             Self::Apk => vec!["cache", "clean"],
             Self::Unknown => vec![],
